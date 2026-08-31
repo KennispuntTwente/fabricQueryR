@@ -220,6 +220,25 @@ class FabricApi:
             "GET", f"/workspaces/{workspace_id}/lakehouses/{lakehouse_id}"
         ).json()
 
+    def get_environment(
+        self, workspace_id: str, environment_id: str
+    ) -> dict[str, Any]:
+        return self.request(
+            "GET", f"/workspaces/{workspace_id}/environments/{environment_id}"
+        ).json()
+
+    def get_published_environment_spark_compute(
+        self, workspace_id: str, environment_id: str
+    ) -> dict[str, Any]:
+        return self.request(
+            "GET",
+            (
+                f"/workspaces/{workspace_id}/environments/{environment_id}"
+                "/sparkcompute"
+            ),
+            params={"beta": "false"},
+        ).json()
+
     def get_warehouse(self, workspace_id: str, warehouse_id: str) -> dict[str, Any]:
         return self.request(
             "GET", f"/workspaces/{workspace_id}/warehouses/{warehouse_id}"

@@ -55,3 +55,10 @@ find_replace:
     item_type: "SparkJobDefinition"
     item_name: "TestSparkJob"
     file_path: "**/SparkJobDefinitionV1.json"
+  - find_value: '(?m)^runtime_version:\s*(1\.3|2\.0)\s*$'
+    replace_value:
+      _ALL_: "$ENV:FABRIC_SPARK_RUNTIME_VERSION"
+    is_regex: "true"
+    item_type: "Environment"
+    item_name: "TestEnvironment"
+    file_path: "**/Sparkcompute.yml"

@@ -49,6 +49,7 @@ def test_paths_are_derived_from_repository_root(tmp_path):
         "DataPipeline",
         "SparkJobDefinition",
         "SemanticModel",
+        "Environment",
     ]
     assert settings.spark_runtime_lane == "core"
     assert settings.spark_runtime_version == "1.3"

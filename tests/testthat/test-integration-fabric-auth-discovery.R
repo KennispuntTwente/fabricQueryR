@@ -106,6 +106,7 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     "JobFixtures",
     "TestPipeline",
     "TestSparkJob",
+    "TestEnvironment",
     "TestWarehouse",
     "TestWarehouseSnapshot",
     "TestSQLDatabase",
@@ -207,9 +208,24 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
   expect_identical(spark_job$type, "SparkJobDefinition")
 
   environments <- fabric_environments(workspace, token = token)
-  expect_true(all(
-    purrr::map_chr(environments, "type") == "Environment"
-  ))
+  environment <- find_item(
+    environments,
+    manifest$items$TestEnvironment$id
+  )
+  expect_s3_class(environment, "FabricItem")
+  expect_identical(environment$type, "Environment")
+  expect_identical(
+    environment$properties$publishDetails$state,
+    manifest$items$TestEnvironment$publish_state
+  )
+  expect_identical(
+    environment$properties$publishDetails$componentPublishInfo$sparkSettings$state,
+    manifest$items$TestEnvironment$spark_settings_state
+  )
+  expect_identical(
+    manifest$items$TestEnvironment$runtime_version,
+    manifest$runtime$fabric_runtime
+  )
 
   # The UDF Get endpoint is delegated-only, so the typed helper stays lightweight.
   functions <- fabric_user_data_functions(workspace, token = token)

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Environment",
+    "displayName": "TestEnvironment",
+    "description": "Publishes the selected Spark runtime for fabricQueryR integration tests"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "221bb394-d804-4867-a414-adc24496632f"
+  }
+}

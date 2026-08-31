@@ -5,6 +5,7 @@
 test_that("fabric_livy_query executes Spark and returns its output", {
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse
+  environment <- fabric_test_manifest_item(manifest, "TestEnvironment")
   table_name <- fabric_test_spark_table(manifest, lakehouse)
   auth <- fabric_test_azure_auth_config()
 
@@ -23,6 +24,7 @@ test_that("fabric_livy_query executes Spark and returns its output", {
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
     auth_args = auth$auth_args,
+    environment_id = environment$id,
     conf = list("spark.sql.shuffle.partitions" = "2"),
     verbose = FALSE
   ))

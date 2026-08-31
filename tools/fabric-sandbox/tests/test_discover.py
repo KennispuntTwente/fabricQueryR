@@ -1,8 +1,11 @@
+import pytest
+
 from fabricqueryr_sandbox.discover import (
     NON_SCHEMA_LAKEHOUSE_TABLES,
     ONELAKE_LAKEHOUSE_TABLES,
     _wait_for_kql_properties,
     _wait_for_lakehouse_sql_endpoint,
+    _wait_for_environment_publish,
     _wait_for_sql_properties,
     discover,
     discover_onelake,
@@ -41,6 +44,29 @@ class FakeFabricApi:
                     "provisioningStatus": "Success",
                 },
             },
+        }
+
+    def get_environment(self, workspace_id, environment_id):
+        return {
+            "id": environment_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "publishDetails": {
+                    "state": "Success",
+                    "componentPublishInfo": {
+                        "sparkSettings": {"state": "Success"},
+                    },
+                },
+            },
+        }
+
+    def get_published_environment_spark_compute(
+        self, workspace_id, environment_id
+    ):
+        return {
+            "workspaceId": workspace_id,
+            "environmentId": environment_id,
+            "runtimeVersion": "1.3",
         }
 
     def get_warehouse(self, workspace_id, warehouse_id):
@@ -266,6 +292,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "JobFixtures",
         "TestPipeline",
         "TestSparkJob",
+        "TestEnvironment",
         "TestWarehouse",
         "TestMirroredDatabase",
         "TestWarehouseSnapshot",
@@ -295,6 +322,14 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "id": "TestSparkJob-id",
         "type": "SparkJobDefinition",
         "display_name": "TestSparkJob",
+    }
+    assert manifest.items["TestEnvironment"] == {
+        "id": "TestEnvironment-id",
+        "type": "Environment",
+        "display_name": "TestEnvironment",
+        "publish_state": "Success",
+        "spark_settings_state": "Success",
+        "runtime_version": "1.3",
     }
     assert manifest.items["TestArrowSemanticModel"] == {
         "id": "semantic-model-id",
@@ -625,5 +660,123 @@ def test_kql_property_readiness_retries_until_query_uri_exists():
     assert result["properties"]["queryServiceUri"] == (
         "https://eventhouse.kusto.test"
     )
+    assert calls == 2
+    assert api.sleeps == [10]
+
+
+def test_environment_readiness_requires_published_spark_settings():
+    api = FakeFabricApi()
+    calls = 0
+
+    def get_environment(workspace_id, environment_id):
+        nonlocal calls
+        calls += 1
+        state = "Running" if calls == 1 else "Success"
+        return {
+            "id": environment_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "publishDetails": {
+                    "state": state,
+                    "componentPublishInfo": {
+                        "sparkSettings": {"state": state},
+                    },
+                },
+            },
+        }
+
+    api.get_environment = get_environment
+
+    result, runtime_version = _wait_for_environment_publish(
+        api,
+        "workspace-id",
+        "environment-id",
+        "1.3",
+    )
+
+    assert result["properties"]["publishDetails"]["state"] == "Success"
+    assert runtime_version == "1.3"
+    assert calls == 2
+    assert api.sleeps == [10]
+
+
+def test_environment_readiness_rejects_publish_failures():
+    api = FakeFabricApi()
+
+    def get_environment(workspace_id, environment_id):
+        return {
+            "id": environment_id,
+            "workspaceId": workspace_id,
+            "properties": {
+                "publishDetails": {
+                    "state": "Failed",
+                    "componentPublishInfo": {
+                        "sparkSettings": {"state": "Failed"},
+                    },
+                },
+            },
+        }
+
+    api.get_environment = get_environment
+
+    with pytest.raises(RuntimeError, match="publish failed"):
+        _wait_for_environment_publish(
+            api,
+            "workspace-id",
+            "environment-id",
+            "1.3",
+        )
+
+    assert api.sleeps == []
+
+
+def test_environment_readiness_caps_polling_at_the_deadline(monkeypatch):
+    api = FakeFabricApi()
+    moments = iter([0.0, 0.0, 0.75, 1.0])
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.time.monotonic",
+        lambda: next(moments),
+    )
+    api.get_environment = lambda _workspace_id, _environment_id: {
+        "properties": {"publishDetails": {"state": "Waiting"}}
+    }
+
+    with pytest.raises(TimeoutError, match="expected runtime.*in time"):
+        _wait_for_environment_publish(
+            api,
+            "workspace-id",
+            "environment-id",
+            "1.3",
+            timeout=1,
+        )
+
+    assert api.sleeps == [0.25]
+
+
+def test_environment_readiness_polls_past_a_stale_published_runtime():
+    api = FakeFabricApi()
+    calls = 0
+
+    def get_published_environment_spark_compute(workspace_id, environment_id):
+        nonlocal calls
+        calls += 1
+        return {
+            "workspaceId": workspace_id,
+            "environmentId": environment_id,
+            "runtimeVersion": "1.3" if calls == 1 else "2.0",
+        }
+
+    api.get_published_environment_spark_compute = (
+        get_published_environment_spark_compute
+    )
+
+    _environment, runtime_version = _wait_for_environment_publish(
+        api,
+        "workspace-id",
+        "environment-id",
+        "2.0",
+    )
+
+    assert runtime_version == "2.0"
     assert calls == 2
     assert api.sleeps == [10]

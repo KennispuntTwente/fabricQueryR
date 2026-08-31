@@ -292,6 +292,7 @@ def test_get_workload_items_uses_typed_routes():
         return httpx.Response(200, json={"id": request.url.path.rsplit("/", 1)[-1]})
 
     with FabricApi(StaticCredential(), transport=httpx.MockTransport(handler)) as api:
+        environment = api.get_environment("workspace-id", "environment-id")
         warehouse = api.get_warehouse("workspace-id", "warehouse-id")
         warehouse_snapshot = api.get_warehouse_snapshot(
             "workspace-id", "snapshot-id"
@@ -304,6 +305,7 @@ def test_get_workload_items_uses_typed_routes():
         kql_database = api.get_kql_database("workspace-id", "kql-database-id")
         graphql_api = api.get_graphql_api("workspace-id", "graphql-api-id")
 
+    assert environment["id"] == "environment-id"
     assert warehouse["id"] == "warehouse-id"
     assert warehouse_snapshot["id"] == "snapshot-id"
     assert sql_database["id"] == "database-id"
@@ -312,6 +314,7 @@ def test_get_workload_items_uses_typed_routes():
     assert kql_database["id"] == "kql-database-id"
     assert graphql_api["id"] == "graphql-api-id"
     assert paths == [
+        "/v1/workspaces/workspace-id/environments/environment-id",
         "/v1/workspaces/workspace-id/warehouses/warehouse-id",
         "/v1/workspaces/workspace-id/warehouseSnapshots/snapshot-id",
         "/v1/workspaces/workspace-id/sqlDatabases/database-id",
@@ -323,6 +326,28 @@ def test_get_workload_items_uses_typed_routes():
         "/v1/workspaces/workspace-id/kqlDatabases/kql-database-id",
         "/v1/workspaces/workspace-id/graphQLApis/graphql-api-id",
     ]
+
+
+def test_get_published_environment_spark_compute_uses_stable_contract():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={"runtimeVersion": "2.0"})
+
+    with FabricApi(
+        StaticCredential(), transport=httpx.MockTransport(handler)
+    ) as api:
+        result = api.get_published_environment_spark_compute(
+            "workspace-id",
+            "environment-id",
+        )
+
+    assert result["runtimeVersion"] == "2.0"
+    assert requests[0].url.path == (
+        "/v1/workspaces/workspace-id/environments/environment-id/sparkcompute"
+    )
+    assert requests[0].url.params["beta"] == "false"
 
 
 def test_wait_for_mirroring_running_starts_and_polls_until_ready():

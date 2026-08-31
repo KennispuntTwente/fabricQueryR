@@ -4,7 +4,9 @@ import json
 import re
 
 from azure.core.credentials import AccessToken
-from fabric_cicd import FabricWorkspace
+import fabric_cicd.constants as fabric_cicd_constants
+from fabric_cicd import FabricWorkspace, append_feature_flag
+from fabric_cicd._items._environment import _process_environment_file
 
 from fabricqueryr_sandbox.deploy import deploy
 from fabricqueryr_sandbox.settings import SandboxSettings
@@ -190,6 +192,22 @@ def test_pipeline_and_spark_job_fixtures_are_deployable():
     assert '"defaultLakehouseArtifactId"' in parameters
 
 
+def test_environment_fixture_tracks_the_selected_runtime():
+    repository_root = Path(__file__).parents[3]
+    workspace = repository_root / "infra/fabric/workspace"
+    spark_compute = (
+        workspace / "TestEnvironment.Environment/Setting/Sparkcompute.yml"
+    ).read_text()
+    parameters = (workspace / "parameter.yml").read_text()
+
+    assert "instance_pool_id: null" in spark_compute
+    assert "runtime_version: 1.3" in spark_compute
+    assert "enable_native_execution_engine: false" in spark_compute
+    assert 'item_type: "Environment"' in parameters
+    assert 'item_name: "TestEnvironment"' in parameters
+    assert '"$ENV:FABRIC_SPARK_RUNTIME_VERSION"' in parameters
+
+
 def test_workspace_repository_is_discoverable_by_fabric_cicd(monkeypatch):
     repository_root = Path(__file__).parents[3]
     workspace_directory = repository_root / "infra/fabric/workspace"
@@ -201,6 +219,9 @@ def test_workspace_repository_is_discoverable_by_fabric_cicd(monkeypatch):
         "$ENV:FABRIC_NON_SCHEMA_LAKEHOUSE_ID",
         "00000000-0000-0000-0000-000000000003",
     )
+    monkeypatch.setenv("$ENV:FABRIC_SPARK_RUNTIME_VERSION", "2.0")
+    monkeypatch.setattr(fabric_cicd_constants, "FEATURE_FLAG", set())
+    append_feature_flag("enable_environment_variable_replacement")
 
     workspace = FabricWorkspace(
         workspace_id="00000000-0000-0000-0000-000000000002",
@@ -210,6 +231,7 @@ def test_workspace_repository_is_discoverable_by_fabric_cicd(monkeypatch):
             "Notebook",
             "DataPipeline",
             "SparkJobDefinition",
+            "Environment",
         ],
         token_credential=StaticCredential(),
     )
@@ -225,6 +247,27 @@ def test_workspace_repository_is_discoverable_by_fabric_cicd(monkeypatch):
     assert set(workspace.repository_items["SparkJobDefinition"]) == {
         "TestSparkJob",
     }
+    assert set(workspace.repository_items["Environment"]) == {
+        "TestEnvironment",
+    }
+    environment = workspace.repository_items["Environment"]["TestEnvironment"]
+    spark_compute = next(
+        file
+        for file in environment.item_files
+        if file.relative_path == "Setting/Sparkcompute.yml"
+    )
+    original_contents = spark_compute.contents
+    try:
+        spark_compute.contents = _process_environment_file(
+            workspace,
+            environment,
+            spark_compute,
+        )
+        rendered = workspace._replace_parameters(spark_compute, environment)
+    finally:
+        spark_compute.contents = original_contents
+    assert "runtime_version: 2.0" in rendered
+    assert "runtime_version: 1.3" not in rendered
 
 
 def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
@@ -273,6 +316,7 @@ def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
         "DataPipeline",
         "SparkJobDefinition",
         "SemanticModel",
+        "Environment",
     ]
     assert workspaces[0]["workspace_id"] == "workspace-id"
     assert published == [workspaces[0]]

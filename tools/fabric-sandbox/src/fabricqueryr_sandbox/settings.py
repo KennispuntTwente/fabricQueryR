@@ -83,6 +83,7 @@ class SandboxSettings:
             "DataPipeline",
             "SparkJobDefinition",
             "SemanticModel",
+            "Environment",
         ]
 
     def require_workspace(self) -> str:

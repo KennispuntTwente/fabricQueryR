@@ -310,7 +310,8 @@ installation is operating-system specific.
 The sandbox deploys `TestLakehouse`, `TestWarehouse`, `TestWarehouseSnapshot`,
 `TestSQLDatabase`, `TestMirroredDatabase`,
 `TestEventhouse`, `TestKQLDatabase`, `TestGraphQL`, `SeedFixtures`,
-`JobFixtures`, `TestPipeline`, and `TestSparkJob`, then creates a small
+`JobFixtures`, `TestPipeline`, `TestSparkJob`, and a published
+`TestEnvironment`, then creates a small
 ephemeral Power BI semantic model through the supported push-dataset API. Its
 Delta matrix includes basic, empty, partitioned, typed/null-partition,
 schema-evolved, name- and ID-column-mapped, deletion-vector stress,
@@ -339,7 +340,10 @@ with a clean table rebuild. It then waits briefly for the schema to become
 executable. The generated manifest exposes OneLake, all three SQL surfaces,
 Livy session and batch
 coordinates, DAX, Eventhouse, KQL, GraphQL, pipeline, notebook, and Spark job
-coordinates. The job fixtures exercise all three job routes supported by the
+coordinates, plus the published Environment ID, publish state, and observed
+Spark runtime. The Environment tracks the selected runtime lane and is used by
+a live Livy query.
+The job fixtures exercise all three job routes supported by the
 package; the notebook and uploaded `livy_batch.py` additionally expose
 deterministic success, failure, timeout, and cancellation modes. Required
 fixtures are not capability-gated: provisioning, discovery, seeding, or

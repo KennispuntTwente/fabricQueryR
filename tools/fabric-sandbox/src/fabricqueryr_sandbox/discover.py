@@ -269,6 +269,61 @@ def _wait_for_kql_properties(
     raise TimeoutError(f"{item_type} Kusto query service URI was not ready in time")
 
 
+def _wait_for_environment_publish(
+    api: FabricApi,
+    workspace_id: str,
+    environment_id: str,
+    expected_runtime_version: str,
+    *,
+    timeout: int = 900,
+) -> tuple[dict[str, Any], str]:
+    deadline = time.monotonic() + timeout
+    last_publish_details: dict[str, Any] = {}
+    last_runtime_version: Any = None
+    failure_states = {"failed", "cancelled"}
+    while time.monotonic() < deadline:
+        environment = api.get_environment(workspace_id, environment_id)
+        publish_details = environment.get("properties", {}).get(
+            "publishDetails", {}
+        )
+        if not isinstance(publish_details, dict):
+            publish_details = {}
+        component_info = publish_details.get("componentPublishInfo", {})
+        if not isinstance(component_info, dict):
+            component_info = {}
+        spark_settings = component_info.get("sparkSettings", {})
+        if not isinstance(spark_settings, dict):
+            spark_settings = {}
+        publish_state = str(publish_details.get("state", "")).casefold()
+        spark_settings_state = str(spark_settings.get("state", "")).casefold()
+        if (
+            publish_state in failure_states
+            or spark_settings_state in failure_states
+        ):
+            raise RuntimeError(
+                "TestEnvironment publish failed: "
+                f"{publish_details!r}"
+            )
+        if publish_state == "success" and spark_settings_state == "success":
+            spark_compute = api.get_published_environment_spark_compute(
+                workspace_id,
+                environment_id,
+            )
+            last_runtime_version = spark_compute.get("runtimeVersion")
+            if last_runtime_version == expected_runtime_version:
+                return environment, last_runtime_version
+        last_publish_details = publish_details
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            api.sleep(min(10, remaining))
+    raise TimeoutError(
+        "TestEnvironment Spark settings were not published with the expected "
+        f"runtime {expected_runtime_version!r} in time; last published runtime: "
+        f"{last_runtime_version!r}; last publish details: "
+        f"{last_publish_details!r}"
+    )
+
+
 def discover(settings: SandboxSettings) -> SandboxManifest:
     workspace_id = settings.require_workspace()
     with FabricApi(get_credential()) as api:
@@ -285,6 +340,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
         )
         spark_job_item = api.find_item(
             workspace_id, "TestSparkJob", "SparkJobDefinition"
+        )
+        environment_item = api.find_item(
+            workspace_id, "TestEnvironment", "Environment"
         )
         warehouse_item = api.find_item(
             workspace_id, "TestWarehouse", "Warehouse"
@@ -350,6 +408,14 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             kql_database_item["id"],
             item_type="KQLDatabase",
         )
+        environment, environment_runtime_version = (
+            _wait_for_environment_publish(
+                api,
+                workspace_id,
+                environment_item["id"],
+                settings.spark_runtime_version,
+            )
+        )
         sql_endpoint_id = lakehouse["properties"]["sqlEndpointProperties"]["id"]
         api.refresh_sql_endpoint_metadata(workspace_id, sql_endpoint_id)
 
@@ -361,6 +427,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
     mirrored_database_properties = mirrored_database["properties"]
     eventhouse_properties = eventhouse["properties"]
     kql_database_properties = kql_database["properties"]
+    environment_publish_details = environment["properties"]["publishDetails"]
     with PowerBiApi(get_credential()) as power_bi:
         semantic_model = power_bi.find_dataset(
             workspace_id,
@@ -550,6 +617,16 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                 "id": spark_job_item["id"],
                 "type": "SparkJobDefinition",
                 "display_name": spark_job_item["displayName"],
+            },
+            "TestEnvironment": {
+                "id": environment_item["id"],
+                "type": "Environment",
+                "display_name": environment_item["displayName"],
+                "publish_state": environment_publish_details["state"],
+                "spark_settings_state": environment_publish_details[
+                    "componentPublishInfo"
+                ]["sparkSettings"]["state"],
+                "runtime_version": environment_runtime_version,
             },
             "TestWarehouse": {
                 "id": warehouse_item["id"],
