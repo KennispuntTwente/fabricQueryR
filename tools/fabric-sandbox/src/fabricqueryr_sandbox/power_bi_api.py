@@ -246,27 +246,61 @@ class PowerBiApi:
                 "Power BI refresh trigger returned unexpected HTTP "
                 f"{response.status_code}"
             )
-        location = response.headers.get("Location")
-        if not location:
-            raise RuntimeError(
-                "Power BI refresh response did not include a Location header"
-            )
-        location_url = self._same_origin_url(location)
         expected_prefix = self.client.build_request(
             "GET",
             f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes/",
         ).url.path
-        refresh_id = location_url.path.removeprefix(expected_prefix)
-        if (
-            not location_url.path.startswith(expected_prefix)
-            or not refresh_id
-            or "/" in refresh_id
-            or location_url.query
-            or location_url.fragment
+        location_id: str | None = None
+        location = response.headers.get("Location")
+        if location:
+            location_url = self._same_origin_url(location)
+            location_id = location_url.path.removeprefix(expected_prefix)
+            if (
+                not location_url.path.startswith(expected_prefix)
+                or not location_id
+                or "/" in location_id
+                or location_url.query
+                or location_url.fragment
+            ):
+                raise RuntimeError(
+                    "Power BI refresh Location did not match the expected "
+                    "dataset refresh route"
+                )
+
+        header_ids = [
+            value
+            for value in (
+                response.headers.get("x-ms-request-id"),
+                response.headers.get("RequestId"),
+            )
+            if value
+        ]
+        if len({value.casefold() for value in header_ids}) > 1:
+            raise RuntimeError(
+                "Power BI returned conflicting refresh IDs in response headers"
+            )
+        header_id = header_ids[0] if header_ids else None
+        if header_id and not all(
+            character.isascii()
+            and (character.isalnum() or character in "-_")
+            for character in header_id
         ):
             raise RuntimeError(
-                "Power BI refresh Location did not match the expected "
-                "dataset refresh route"
+                "Power BI refresh response did not include a valid "
+                "refresh request ID"
+            )
+        if (
+            header_id
+            and location_id
+            and header_id.casefold() != location_id.casefold()
+        ):
+            raise RuntimeError(
+                "Power BI returned conflicting refresh IDs in response headers"
+            )
+        refresh_id = header_id or location_id
+        if not refresh_id:
+            raise RuntimeError(
+                "Power BI refresh response did not include a refresh request ID"
             )
         refresh_url = (
             f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes/"

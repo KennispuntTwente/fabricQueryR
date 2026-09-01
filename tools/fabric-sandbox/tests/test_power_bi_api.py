@@ -311,7 +311,8 @@ def test_arrow_fixture_fails_before_querying_stale_rows(monkeypatch):
 @pytest.mark.parametrize(
     ("headers", "message"),
     [
-        ({}, "Location header"),
+        ({}, "refresh request ID"),
+        ({"RequestId": "../refresh-id"}, "valid refresh request ID"),
         (
             {"Location": "https://attacker.example/refreshes/refresh-id"},
             "configured HTTPS origin",
@@ -342,6 +343,63 @@ def test_import_refresh_rejects_an_unsafe_status_location(headers, message):
             api.refresh_import_model("workspace-id", "dataset-id")
 
     assert len(requests) == 1
+
+
+@pytest.mark.parametrize("header", ["RequestId", "x-ms-request-id"])
+def test_import_refresh_accepts_a_request_id_without_a_location(header):
+    requests = []
+
+    def handler(request):
+        requests.append((request.method, request.url.path))
+        if request.method == "POST":
+            return httpx.Response(202, headers={header: "refresh-id"})
+        return httpx.Response(
+            200,
+            json={
+                "status": "Completed",
+                "extendedStatus": "Completed",
+            },
+        )
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+    ) as api:
+        refresh = api.refresh_import_model("workspace-id", "dataset-id")
+
+    assert refresh["status"] == "Completed"
+    assert requests == [
+        (
+            "POST",
+            "/v1.0/myorg/groups/workspace-id/datasets/"
+            "dataset-id/refreshes",
+        ),
+        (
+            "GET",
+            "/v1.0/myorg/groups/workspace-id/datasets/"
+            "dataset-id/refreshes/refresh-id",
+        ),
+    ]
+
+
+def test_import_refresh_rejects_conflicting_response_ids():
+    location = (
+        "https://api.powerbi.com/v1.0/myorg/groups/workspace-id/"
+        "datasets/dataset-id/refreshes/location-id"
+    )
+
+    def handler(_request):
+        return httpx.Response(
+            202,
+            headers={"RequestId": "header-id", "Location": location},
+        )
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+    ) as api:
+        with pytest.raises(RuntimeError, match="conflicting refresh IDs"):
+            api.refresh_import_model("workspace-id", "dataset-id")
 
 
 def test_import_refresh_requires_an_accepted_trigger_response():
