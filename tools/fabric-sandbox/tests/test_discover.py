@@ -227,6 +227,19 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
     assert manifest.items["TestLakehouse"]["tables"]["basic"] == (
         "fabricqueryr_basic"
     )
+    assert (
+        manifest.items["TestLakehouse"]["sql_endpoint"]
+        == "lakehouse.sql.test"
+    )
+    assert manifest.items["TestLakehouse"]["sql_endpoint_id"] == "endpoint-id"
+    assert manifest.items["TestLakehouse"]["livy_url"] == (
+        "https://api.fabric.microsoft.com/v1/workspaces/workspace-id/"
+        "lakehouses/TestLakehouse-id/livyapi/versions/2023-12-01/sessions"
+    )
+    assert manifest.items["TestLakehouse"]["livy_batch_file"] == (
+        "abfss://workspace-id@onelake.dfs.fabric.microsoft.com/"
+        "TestLakehouse-id/Files/fixtures/livy_batch.py"
+    )
     assert manifest.items["TestWarehouse"]["tables"] == {
         "types": "fabricqueryr_sql_types",
         "mutations": "fabricqueryr_sql_mutations",

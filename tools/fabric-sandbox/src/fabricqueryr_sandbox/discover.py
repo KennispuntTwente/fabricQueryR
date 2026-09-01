@@ -186,7 +186,9 @@ def discover_onelake(settings: SandboxSettings) -> SandboxManifest:
             "TestMirroredDatabase",
             "MirroredDatabase",
         )
-        lakehouse = api.get_lakehouse(workspace_id, lakehouse_item["id"])
+        lakehouse = _wait_for_lakehouse_sql_endpoint(
+            api, workspace_id, lakehouse_item["id"]
+        )
 
     revision = verify_fixture_revision(
         settings,
@@ -213,6 +215,21 @@ def discover_onelake(settings: SandboxSettings) -> SandboxManifest:
                 "schema": "dbo",
                 "one_lake_files_path": properties.get("oneLakeFilesPath"),
                 "one_lake_tables_path": properties.get("oneLakeTablesPath"),
+                "sql_endpoint": properties.get(
+                    "sqlEndpointProperties", {}
+                ).get("connectionString"),
+                "sql_endpoint_id": properties.get(
+                    "sqlEndpointProperties", {}
+                ).get("id"),
+                "livy_url": (
+                    f"https://api.fabric.microsoft.com/v1/workspaces/{workspace_id}"
+                    f"/lakehouses/{lakehouse_item['id']}"
+                    "/livyapi/versions/2023-12-01/sessions"
+                ),
+                "livy_batch_file": (
+                    f"abfss://{workspace_id}@onelake.dfs.fabric.microsoft.com/"
+                    f"{lakehouse_item['id']}/Files/fixtures/livy_batch.py"
+                ),
                 "tables": dict(ONELAKE_LAKEHOUSE_TABLES),
             },
             "TestWarehouse": {
