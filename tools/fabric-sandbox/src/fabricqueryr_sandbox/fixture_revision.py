@@ -23,6 +23,21 @@ JOBS_FIXTURE_REVISION_PATH = (
 )
 INCOMPLETE_FIXTURE_REVISION = "incomplete"
 FIXTURE_SCOPES = ("all", "onelake", "jobs")
+TEXT_FIXTURE_INPUT_NAMES = frozenset({".platform"})
+TEXT_FIXTURE_INPUT_SUFFIXES = frozenset(
+    {
+        ".bim",
+        ".csv",
+        ".json",
+        ".pbism",
+        ".py",
+        ".tf",
+        ".tftpl",
+        ".txt",
+        ".yml",
+        ".yaml",
+    }
+)
 
 
 def _validate_scope(scope: str) -> None:
@@ -31,6 +46,16 @@ def _validate_scope(scope: str) -> None:
             f"Unknown fixture scope {scope!r}; expected one of "
             + ", ".join(FIXTURE_SCOPES)
         )
+
+
+def _fixture_input_bytes(path: Path) -> bytes:
+    content = path.read_bytes()
+    if (
+        path.name in TEXT_FIXTURE_INPUT_NAMES
+        or path.suffix.lower() in TEXT_FIXTURE_INPUT_SUFFIXES
+    ):
+        return content.replace(b"\r\n", b"\n")
+    return content
 
 
 def _fixture_inputs(
@@ -170,7 +195,7 @@ def fixture_revision(
         relative = path.relative_to(settings.repository_root).as_posix()
         digest.update(relative.encode("utf-8"))
         digest.update(b"\0")
-        digest.update(path.read_bytes())
+        digest.update(_fixture_input_bytes(path))
         digest.update(b"\0")
     return digest.hexdigest()
 

@@ -134,6 +134,28 @@ def test_fixture_revision_changes_with_seed_inputs(tmp_path):
     assert first != second
 
 
+def test_fixture_revision_normalizes_text_line_endings(tmp_path):
+    settings = make_settings(tmp_path)
+    fixture = settings.fixture_dir / "basic.csv"
+
+    fixture.write_bytes(b"id,name\r\n1,alpha\r\n")
+    windows_revision = fixture_revision(settings)
+    fixture.write_bytes(b"id,name\n1,alpha\n")
+
+    assert fixture_revision(settings) == windows_revision
+
+
+def test_fixture_revision_preserves_binary_line_endings(tmp_path):
+    settings = make_settings(tmp_path)
+    fixture = settings.fixture_dir / "opaque.bin"
+
+    fixture.write_bytes(b"\x00fixture\r\n")
+    windows_revision = fixture_revision(settings)
+    fixture.write_bytes(b"\x00fixture\n")
+
+    assert fixture_revision(settings) != windows_revision
+
+
 def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):
     settings = make_settings(tmp_path)
     first = fixture_revision(settings, RUNTIME_CONTRACT)
