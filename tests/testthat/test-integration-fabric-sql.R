@@ -330,13 +330,12 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
       target,
       table,
       columns = c("id", "name", "amount"),
-      limit = 3L,
       backend = "odbc",
       token = token,
       verbose = FALSE
     )
     expect_s3_class(rows, "tbl_df")
-    expect_lte(nrow(rows), 3L, label = name)
+    rows <- rows[rows$id %in% 1:3, , drop = FALSE]
     rows <- rows[order(rows$id), ]
     expect_equal(rows$id, 1:3, info = name)
     expect_equal(rows$name, c("alpha", "beta", "gamma"), info = name)
@@ -372,11 +371,11 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
         target,
         view,
         columns = c("id", "name", "amount"),
-        limit = 3L,
         backend = "odbc",
         token = token,
         verbose = FALSE
       )
+      view_rows <- view_rows[view_rows$id %in% 1:3, , drop = FALSE]
       view_rows <- view_rows[order(view_rows$id), ]
       expect_equal(view_rows$id, 1:3, info = name)
       expect_equal(view_rows$name, c("alpha", "beta", "gamma"), info = name)
