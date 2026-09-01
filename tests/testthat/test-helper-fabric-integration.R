@@ -202,6 +202,30 @@ test_that("local AzureAuth context enables the acquisition integration test", {
   expect_identical(fabric_test_azure_auth_config(), expected)
 })
 
+test_that("delegated auth detection excludes application credentials", {
+  configs <- list(
+    delegated = list(auth_args = list(use_cache = TRUE)),
+    client_secret = list(
+      auth_args = list(
+        auth_type = "client_credentials",
+        password = "secret"
+      )
+    ),
+    certificate = list(auth_args = list(certificate = "certificate.pem")),
+    missing = NULL
+  )
+
+  expect_identical(
+    vapply(configs, fabric_test_is_delegated_auth, logical(1)),
+    c(
+      delegated = TRUE,
+      client_secret = FALSE,
+      certificate = FALSE,
+      missing = FALSE
+    )
+  )
+})
+
 test_that("required delegated coverage rejects application authentication", {
   withr::local_envvar(FABRIC_DELEGATED_INTEGRATION_REQUIRED = "true")
   withr::local_options(

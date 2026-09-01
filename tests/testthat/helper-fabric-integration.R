@@ -275,14 +275,17 @@ fabric_test_azure_auth_config <- function() {
   )
 }
 
-fabric_test_delegated_auth_config <- function() {
-  config <- getOption("fabricQueryR.integration_auth_config")
-  delegated <- is.list(config) &&
+fabric_test_is_delegated_auth <- function(config) {
+  is.list(config) &&
     is.list(config$auth_args) &&
     !identical(config$auth_args$auth_type, "client_credentials") &&
     is.null(config$auth_args$password) &&
     is.null(config$auth_args$certificate)
-  if (!delegated) {
+}
+
+fabric_test_delegated_auth_config <- function() {
+  config <- getOption("fabricQueryR.integration_auth_config")
+  if (!fabric_test_is_delegated_auth(config)) {
     if (
       tolower(Sys.getenv("FABRIC_DELEGATED_INTEGRATION_REQUIRED")) %in%
         c("1", "true", "yes")
