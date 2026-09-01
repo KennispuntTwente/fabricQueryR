@@ -60,6 +60,12 @@ def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
     assert "fabric-terraform-state-${{ matrix.lane }}" in workflow
     assert "runtime: \"1.3\"" in workflow
     assert "runtime: \"2.0\"" in workflow
+    assert "fixture_scope: all" in workflow
+    assert "fixture_scope: onelake" in workflow
+    assert 'deploy_args: "--item SeedFixtures.Notebook"' in workflow
+    assert "recreate_snapshot: true" in workflow
+    assert "recreate_snapshot: false" in workflow
+    assert "--scope ${{ matrix.fixture_scope }}" in workflow
     assert "label: Delta on core runtime" in workflow
     assert "label: Livy on preview runtime" in workflow
     onelake = workflow.index("filter: integration-fabric-onelake")
@@ -223,6 +229,8 @@ def test_warehouse_snapshot_is_recreated_after_seeded_objects():
         assert seed < snapshot < discover
         assert "-replace=fabric_warehouse_snapshot.test" in snapshot_step
         assert "FABRIC_WAREHOUSE_SNAPSHOT_ID=" in snapshot_step
+        if path.name == "integration-fabric.yaml":
+            assert "if: matrix.recreate_snapshot" in snapshot_step
 
 
 def test_auth_lane_acquires_an_optional_least_privilege_identity():

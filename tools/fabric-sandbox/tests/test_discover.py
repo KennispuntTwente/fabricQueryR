@@ -189,21 +189,28 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
         "fabricqueryr_sandbox.discover.get_credential",
         lambda: "credential",
     )
+    revision_calls = []
     monkeypatch.setattr(
         "fabricqueryr_sandbox.discover.verify_fixture_revision",
-        lambda settings, workspace_id, lakehouse_id: "fixture-revision",
+        lambda settings, workspace_id, lakehouse_id, **kwargs: (
+            revision_calls.append(("verify", kwargs))
+            or "fixture-revision"
+        ),
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.discover.read_fixture_contract",
-        lambda workspace_id, lakehouse_id: {
-            "revision": "fixture-revision",
-            "runtime": {
-                "lane": "core",
-                "fabric_runtime": "1.3",
-                "spark_version": "3.5.5.5",
-                "delta_version": "3.2.1",
-            },
-        },
+        lambda workspace_id, lakehouse_id, **kwargs: (
+            revision_calls.append(("read", kwargs))
+            or {
+                "revision": "fixture-revision",
+                "runtime": {
+                    "lane": "core",
+                    "fabric_runtime": "1.3",
+                    "spark_version": "3.5.5.5",
+                    "delta_version": "3.2.1",
+                },
+            }
+        ),
     )
 
     manifest = discover_onelake(settings)
@@ -240,6 +247,10 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
         == NON_SCHEMA_LAKEHOUSE_TABLES
     )
     assert fabric_api.refreshed == []
+    assert revision_calls == [
+        ("verify", {"scope": "onelake"}),
+        ("read", {"scope": "onelake"}),
+    ]
 
 
 def test_jobs_discovery_uses_only_job_items_and_scoped_revision(

@@ -941,8 +941,8 @@ run_fabric_integration_tests <- function(
         "run",
         "fabric-sandbox",
         "seed",
-        if (identical(test_scope, "jobs")) {
-          c("--scope", "jobs")
+        if (!identical(test_scope, "all")) {
+          c("--scope", test_scope)
         } else {
           character()
         }

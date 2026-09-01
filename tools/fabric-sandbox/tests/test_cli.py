@@ -190,7 +190,7 @@ def test_doctor_reports_configuration_state(
     assert capsys.readouterr().out == expected_output
 
 
-@pytest.mark.parametrize("scope", ["all", "jobs"])
+@pytest.mark.parametrize("scope", ["all", "onelake", "jobs"])
 def test_seed_dispatches_only_the_requested_scope(monkeypatch, scope):
     settings = object()
     calls = []
@@ -209,8 +209,7 @@ def test_seed_dispatches_only_the_requested_scope(monkeypatch, scope):
 
     argv = ["seed"] if scope == "all" else ["seed", "--scope", scope]
     assert main(argv) == 0
-    expected_kwargs = {} if scope == "all" else {"scope": scope}
-    assert calls == [(settings, expected_kwargs)]
+    assert calls == [(settings, {"scope": scope})]
 
 
 def test_deploy_forwards_selected_items(monkeypatch):

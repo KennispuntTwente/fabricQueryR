@@ -592,9 +592,19 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.seed.fixture_revision",
-        lambda settings, runtime_contract: (
-            calls.append(("fixture_hash_runtime", runtime_contract))
-            or "fixture-revision"
+        lambda settings, runtime_contract, **kwargs: (
+            calls.append(
+                (
+                    "fixture_hash_runtime",
+                    runtime_contract,
+                    kwargs.get("scope"),
+                )
+            )
+            or (
+                "onelake-revision"
+                if kwargs.get("scope") == "onelake"
+                else "fixture-revision"
+            )
         ),
     )
     monkeypatch.setattr(
@@ -604,7 +614,8 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         revision,
         *,
         runtime_contract=None,
-        credential: calls.append(
+        credential,
+        scope="all": calls.append(
             (
                 "fixture_revision",
                 workspace_id,
@@ -612,6 +623,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
                 revision,
                 runtime_contract,
                 credential,
+                scope,
             )
         ),
     )
@@ -679,7 +691,12 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     seed(settings)
 
     assert ("spark_runtime", "workspace-id", "1.3") in calls
-    assert ("fixture_hash_runtime", RUNTIME_CONTRACT) in calls
+    assert (
+        "fixture_hash_runtime",
+        RUNTIME_CONTRACT,
+        "onelake",
+    ) in calls
+    assert ("fixture_hash_runtime", RUNTIME_CONTRACT, "all") in calls
     cached_credential = next(
         call[1] for call in calls if call[0] == "fabric_client"
     )
@@ -724,6 +741,25 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             "incomplete",
             None,
             cached_credential,
+            "all",
+        ),
+        (
+            "fixture_revision",
+            "workspace-id",
+            "TestLakehouse-id",
+            "incomplete",
+            None,
+            cached_credential,
+            "onelake",
+        ),
+        (
+            "fixture_revision",
+            "workspace-id",
+            "TestLakehouse-id",
+            "onelake-revision",
+            RUNTIME_CONTRACT,
+            cached_credential,
+            "onelake",
         ),
         (
             "fixture_revision",
@@ -732,6 +768,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
             "fixture-revision",
             RUNTIME_CONTRACT,
             cached_credential,
+            "all",
         ),
     ]
     assert (
@@ -933,3 +970,184 @@ def test_jobs_seed_skips_unrelated_service_fixtures(monkeypatch, tmp_path):
         ("jobs-revision", "jobs"),
     ]
     assert ("hash", RUNTIME_CONTRACT, "jobs") in calls
+
+
+def test_onelake_seed_skips_unrelated_service_fixtures(
+    monkeypatch, tmp_path
+):
+    settings = SandboxSettings(
+        workspace_id="workspace-id",
+        lakehouse_id="lakehouse-id",
+        workspace_name="fabricqueryr-test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+    )
+    calls = []
+
+    class Credential:
+        def get_token(self, audience):
+            calls.append(("token", audience))
+            return AccessToken(f"token-for-{audience}", 4102444800)
+
+    class FakeFabricApi:
+        def __init__(self, credential):
+            calls.append(("fabric_client", credential))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def configure_workspace_spark_runtime(
+            self, workspace_id, runtime_version
+        ):
+            calls.append(("spark_runtime", workspace_id, runtime_version))
+            return {"environment": {"runtimeVersion": runtime_version}}
+
+        def find_item(self, workspace_id, display_name, item_type):
+            calls.append(("find_item", display_name, item_type))
+            return {
+                "id": f"{display_name}-id",
+                "displayName": display_name,
+                "type": item_type,
+            }
+
+        def wait_for_mirroring_running(self, workspace_id, database_id):
+            calls.append(("wait_for_mirroring", database_id))
+            return {"status": "Running"}
+
+        def run_notebook(
+            self, workspace_id, notebook_id, *, lakehouse_id
+        ):
+            calls.append(("run_notebook", notebook_id, lakehouse_id))
+            return {
+                "id": "seed-job",
+                "exitValue": (
+                    "fabricqueryr-seed-success:"
+                    '{"delta_version":"3.2.1",'
+                    '"fabric_runtime":"1.3","lane":"core",'
+                    '"spark_version":"3.5.5.5"}'
+                ),
+            }
+
+    def sql_properties(_api, _workspace_id, item_id, *, item_type):
+        if item_type == "Warehouse":
+            return {"properties": {"connectionString": "warehouse.test"}}
+        assert item_type == "MirroredDatabase"
+        return {
+            "properties": {
+                "sqlEndpointProperties": {
+                    "connectionString": "mirrored.test"
+                }
+            }
+        }
+
+    def unrelated(*_args, **_kwargs):
+        raise AssertionError("OneLake seed used an unrelated service")
+
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.get_credential", Credential
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.FabricApi", FakeFabricApi
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed._wait_for_sql_properties",
+        sql_properties,
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.upload_fixtures",
+        lambda settings, workspace_id, lakehouse_id, *, credential: (
+            calls.append(("upload", workspace_id, lakehouse_id, credential))
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.upload_open_mirroring_fixture",
+        lambda workspace_id, database_id, *, credential: (
+            calls.append(("upload_mirror", database_id)) or "remote.parquet"
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.seed_sql_fixture",
+        lambda connection, database, token, *, mutate: calls.append(
+            ("seed_sql", connection, database, token, mutate)
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.wait_for_delta_log_publication",
+        lambda workspace_id,
+        item_id,
+        table,
+        **kwargs: calls.append(("wait_for_delta_log", item_id, table))
+        or "delta.json",
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.wait_for_sql_fixture",
+        lambda connection, database, token, table: calls.append(
+            ("wait_for_sql", connection, database, table)
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.write_fixture_revision",
+        lambda workspace_id,
+        lakehouse_id,
+        revision,
+        **kwargs: calls.append(
+            ("write_revision", revision, kwargs.get("scope"))
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.fixture_revision",
+        lambda settings, runtime, **kwargs: (
+            calls.append(("hash", runtime, kwargs.get("scope")))
+            or "onelake-revision"
+        ),
+    )
+    for name in (
+        "_wait_for_kql_properties",
+        "seed_test_semantic_model",
+        "prepare_arrow_test_semantic_model",
+    ):
+        monkeypatch.setattr(f"fabricqueryr_sandbox.seed.{name}", unrelated)
+
+    seed(settings, scope="onelake")
+
+    assert [call[1] for call in calls if call[0] == "token"] == [
+        "https://api.fabric.microsoft.com/.default",
+        "https://storage.azure.com/.default",
+        "https://database.windows.net//.default",
+    ]
+    assert [call[1:] for call in calls if call[0] == "find_item"] == [
+        ("TestLakehouse", "Lakehouse"),
+        ("SeedFixtures", "Notebook"),
+        ("TestWarehouse", "Warehouse"),
+        ("TestMirroredDatabase", "MirroredDatabase"),
+    ]
+    assert [call[1:] for call in calls if call[0] == "write_revision"] == [
+        ("incomplete", "onelake"),
+        ("onelake-revision", "onelake"),
+    ]
+    assert ("hash", RUNTIME_CONTRACT, "onelake") in calls
+    assert [call[1:] for call in calls if call[0] == "seed_sql"] == [
+        (
+            "warehouse.test",
+            "TestWarehouse",
+            "token-for-https://database.windows.net//.default",
+            True,
+        )
+    ]
+    assert [call[2] for call in calls if call[0] == "wait_for_delta_log"] == [
+        "fabricqueryr_sql_types",
+        "fabricqueryr_sql_mutations",
+        "fabricqueryr_mirror_types",
+    ]
+    assert (
+        "wait_for_sql",
+        "mirrored.test",
+        "TestMirroredDatabase",
+        "fabricqueryr_mirror_types",
+    ) in calls

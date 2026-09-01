@@ -192,10 +192,12 @@ def discover_onelake(settings: SandboxSettings) -> SandboxManifest:
         settings,
         workspace_id,
         lakehouse_item["id"],
+        scope="onelake",
     )
     fixture_contract = read_fixture_contract(
         workspace_id,
         lakehouse_item["id"],
+        scope="onelake",
     )
     properties = lakehouse.get("properties", {})
     manifest = SandboxManifest(

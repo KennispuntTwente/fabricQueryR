@@ -153,9 +153,11 @@ sandbox provisioning.
 The workflow provisions and seeds two isolated workspaces: a Runtime 1.3 `core`
 workspace for authentication/discovery, KQL/GraphQL, SQL, Livy, item jobs, and
 Power BI, plus a Runtime 2.0 GA workspace for OneLake/Delta compatibility and
-Livy coverage. Existing workflow artifacts retain the legacy `preview` lane
-identifier. Each feature job downloads its lane's generated manifest, acquires
-its own short-lived tokens, and uses independent R sessions. Terraform state is
+Livy coverage. The Runtime 2.0 lane deploys only the seed notebook, uses the
+focused OneLake seed contract, and skips the unused Warehouse snapshot rebuild.
+Existing workflow artifacts retain the legacy `preview` lane identifier. Each
+feature job downloads its lane's generated manifest, acquires its own
+short-lived tokens, and uses independent R sessions. Terraform state is
 retained as a one-day workflow artifact and
 consumed by a final teardown job after every matrix leg succeeds, fails, or is
 skipped.
@@ -246,6 +248,11 @@ run_fabric_integration_tests(
 )
 ```
 
+For `integration-fabric-onelake`, the fixture refresh seeds only the Lakehouse,
+Warehouse, and open mirrored database surfaces used by that manifest. It does
+not wait for SQL Database, KQL, GraphQL, or Power BI fixtures, and it publishes
+an independent OneLake revision marker.
+
 When the target is `integration-fabric-jobs`, the same `seed_fixtures = TRUE`
 flag uses the focused jobs fixture contract. It uploads the shared fixture
 inputs, runs the Spark seed notebook, and then stops; it does not wait for SQL,
@@ -277,6 +284,9 @@ uv --directory tools/fabric-sandbox run fabric-sandbox deploy \
 
 uv --directory tools/fabric-sandbox run fabric-sandbox seed --scope jobs
 uv --directory tools/fabric-sandbox run fabric-sandbox discover --scope jobs
+
+uv --directory tools/fabric-sandbox run fabric-sandbox seed --scope onelake
+uv --directory tools/fabric-sandbox run fabric-sandbox discover --scope onelake
 ```
 
 Omit `--item` only when a full source-controlled item deployment is intended.

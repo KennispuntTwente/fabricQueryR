@@ -15,11 +15,14 @@ from .settings import SandboxSettings
 
 
 FIXTURE_REVISION_PATH = "Files/fixtures/fabricqueryr-seed-revision.txt"
+ONELAKE_FIXTURE_REVISION_PATH = (
+    "Files/fixtures/fabricqueryr-onelake-seed-revision.txt"
+)
 JOBS_FIXTURE_REVISION_PATH = (
     "Files/fixtures/fabricqueryr-jobs-seed-revision.txt"
 )
 INCOMPLETE_FIXTURE_REVISION = "incomplete"
-FIXTURE_SCOPES = ("all", "jobs")
+FIXTURE_SCOPES = ("all", "onelake", "jobs")
 
 
 def _validate_scope(scope: str) -> None:
@@ -84,13 +87,37 @@ def _fixture_inputs(
         )
         terraform_files = []
     else:
-        workspace_files = sorted(
-            path
-            for path in settings.workspace_definition_dir.rglob("*")
-            if path.is_file()
-            and "__pycache__" not in path.parts
-            and path.suffix != ".pyc"
-        )
+        if scope == "onelake":
+            fixed = [
+                package_dir / "deploy.py",
+                package_dir / "discover.py",
+                package_dir / "fixture_revision.py",
+                package_dir / "open_mirroring.py",
+                package_dir / "seed.py",
+                package_dir / "sql_api.py",
+            ]
+            workspace_inputs = [
+                settings.workspace_definition_dir / "parameter.yml",
+                settings.workspace_definition_dir / "SeedFixtures.Notebook",
+            ]
+            workspace_files = sorted(
+                path
+                for source in workspace_inputs
+                for path in (
+                    source.rglob("*") if source.is_dir() else (source,)
+                )
+                if path.is_file()
+                and "__pycache__" not in path.parts
+                and path.suffix != ".pyc"
+            )
+        else:
+            workspace_files = sorted(
+                path
+                for path in settings.workspace_definition_dir.rglob("*")
+                if path.is_file()
+                and "__pycache__" not in path.parts
+                and path.suffix != ".pyc"
+            )
         terraform_files = sorted(
             path
             for path in (
@@ -162,11 +189,11 @@ def _revision_file(
         credential=credential or get_credential(),
     )
     filesystem = service.get_file_system_client(workspace_id)
-    marker_path = (
-        JOBS_FIXTURE_REVISION_PATH
-        if scope == "jobs"
-        else FIXTURE_REVISION_PATH
-    )
+    marker_path = {
+        "all": FIXTURE_REVISION_PATH,
+        "onelake": ONELAKE_FIXTURE_REVISION_PATH,
+        "jobs": JOBS_FIXTURE_REVISION_PATH,
+    }[scope]
     return filesystem.get_file_client(f"{lakehouse_id}/{marker_path}")
 
 

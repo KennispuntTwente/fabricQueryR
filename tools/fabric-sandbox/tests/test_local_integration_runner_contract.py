@@ -29,7 +29,7 @@ def test_local_runner_targets_the_marked_persistent_workspace():
     assert 'return(all[c("Fabric", "OneLake")])' in runner
     assert "fabric_local_test_scope" in runner
     assert 'c("--scope", test_scope)' in runner
-    assert 'c("--scope", "jobs")' in runner
+    assert runner.count('c("--scope", test_scope)') >= 2
     assert 'require_sql = identical(test_scope, "all")' in runner
     assert 'require_odbc = !identical(test_scope, "jobs")' in runner
     assert "if (!isTRUE(require_odbc))" in runner

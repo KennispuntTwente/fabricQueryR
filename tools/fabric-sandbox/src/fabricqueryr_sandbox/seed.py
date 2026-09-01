@@ -254,7 +254,7 @@ def upload_fixtures(
 
 
 def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
-    """Seed all fixtures, or only the Spark fixtures needed by job tests."""
+    """Seed all fixtures or the fixtures needed by one test scope."""
     if scope not in FIXTURE_SCOPES:
         raise ValueError(
             f"Unknown fixture scope {scope!r}; expected one of "
@@ -263,8 +263,10 @@ def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
     workspace_id = settings.require_workspace()
     credential = CachedTokenCredential(get_credential())
     token_scopes = (FABRIC_SCOPE, STORAGE_SCOPE)
+    if scope != "jobs":
+        token_scopes += (SQL_AUDIENCE,)
     if scope == "all":
-        token_scopes += (SQL_AUDIENCE, KUSTO_SCOPE, POWER_BI_SCOPE)
+        token_scopes += (KUSTO_SCOPE, POWER_BI_SCOPE)
     for token_scope in token_scopes:
         credential.get_token(token_scope)
 
@@ -283,49 +285,33 @@ def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
             )
         lakehouse = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
         notebook = api.find_item(workspace_id, "SeedFixtures", "Notebook")
-        if scope == "all":
-            graphql_api = api.find_item(
+        incomplete_scopes = (
+            ("all", "onelake") if scope == "all" else (scope,)
+        )
+        for marker_scope in incomplete_scopes:
+            write_fixture_revision(
                 workspace_id,
-                GRAPHQL_API_NAME,
-                "GraphQLApi",
+                lakehouse["id"],
+                INCOMPLETE_FIXTURE_REVISION,
+                credential=credential,
+                scope=marker_scope,
             )
-            kql_database_item = api.find_item(
-                workspace_id,
-                "TestKQLDatabase",
-                "KQLDatabase",
-            )
+        if scope != "jobs":
             warehouse_item = api.find_item(
                 workspace_id,
                 "TestWarehouse",
                 "Warehouse",
-            )
-            sql_database_item = api.find_item(
-                workspace_id,
-                "TestSQLDatabase",
-                "SQLDatabase",
             )
             mirrored_database_item = api.find_item(
                 workspace_id,
                 "TestMirroredDatabase",
                 "MirroredDatabase",
             )
-            kql_database = _wait_for_kql_properties(
-                api,
-                workspace_id,
-                kql_database_item["id"],
-                item_type="KQLDatabase",
-            )
             warehouse = _wait_for_sql_properties(
                 api,
                 workspace_id,
                 warehouse_item["id"],
                 item_type="Warehouse",
-            )
-            sql_database = _wait_for_sql_properties(
-                api,
-                workspace_id,
-                sql_database_item["id"],
-                item_type="SQLDatabase",
             )
             mirrored_database = _wait_for_sql_properties(
                 api,
@@ -344,27 +330,40 @@ def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
                 credential=credential,
             )
             print(f"Open mirroring fixture uploaded: {mirrored_remote_path}")
+        if scope == "all":
+            graphql_api = api.find_item(
+                workspace_id,
+                GRAPHQL_API_NAME,
+                "GraphQLApi",
+            )
+            kql_database_item = api.find_item(
+                workspace_id,
+                "TestKQLDatabase",
+                "KQLDatabase",
+            )
+            sql_database_item = api.find_item(
+                workspace_id,
+                "TestSQLDatabase",
+                "SQLDatabase",
+            )
+            kql_database = _wait_for_kql_properties(
+                api,
+                workspace_id,
+                kql_database_item["id"],
+                item_type="KQLDatabase",
+            )
+            sql_database = _wait_for_sql_properties(
+                api,
+                workspace_id,
+                sql_database_item["id"],
+                item_type="SQLDatabase",
+            )
         upload_fixtures(
             settings,
             workspace_id,
             lakehouse["id"],
             credential=credential,
         )
-        if scope == "jobs":
-            write_fixture_revision(
-                workspace_id,
-                lakehouse["id"],
-                INCOMPLETE_FIXTURE_REVISION,
-                credential=credential,
-                scope=scope,
-            )
-        else:
-            write_fixture_revision(
-                workspace_id,
-                lakehouse["id"],
-                INCOMPLETE_FIXTURE_REVISION,
-                credential=credential,
-            )
         job = _run_seed_notebook(
             api,
             workspace_id,
@@ -392,18 +391,21 @@ def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
         )
         print(f"Fabric jobs fixture revision published: {revision}")
         return
-    sql_targets = (
+    sql_targets = [
         (
             warehouse_item["displayName"],
             warehouse["properties"]["connectionString"],
             warehouse_item["displayName"],
         ),
-        (
-            sql_database_item["displayName"],
-            sql_database["properties"]["connectionString"],
-            sql_database["properties"]["databaseName"],
-        ),
-    )
+    ]
+    if scope == "all":
+        sql_targets.append(
+            (
+                sql_database_item["displayName"],
+                sql_database["properties"]["connectionString"],
+                sql_database["properties"]["databaseName"],
+            )
+        )
     for display_name, connection_string, database_name in sql_targets:
         sql_token = credential.get_token(SQL_AUDIENCE).token
         publication_start = datetime.now(timezone.utc)
@@ -449,6 +451,23 @@ def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
         sql_token,
         MIRRORED_FIXTURE_TABLE,
     )
+
+    onelake_revision = fixture_revision(
+        settings,
+        runtime_contract,
+        scope="onelake",
+    )
+    write_fixture_revision(
+        workspace_id,
+        lakehouse["id"],
+        onelake_revision,
+        runtime_contract=runtime_contract,
+        credential=credential,
+        scope="onelake",
+    )
+    print(f"Fabric OneLake fixture revision published: {onelake_revision}")
+    if scope == "onelake":
+        return
 
     with FabricApi(credential) as api:
         api.update_graphql_definition(
@@ -496,12 +515,13 @@ def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
         f"{arrow_semantic_model.get('name')} "
         f"({arrow_semantic_model.get('id')})"
     )
-    revision = fixture_revision(settings, runtime_contract)
+    revision = fixture_revision(settings, runtime_contract, scope="all")
     write_fixture_revision(
         workspace_id,
         lakehouse["id"],
         revision,
         runtime_contract=runtime_contract,
         credential=credential,
+        scope="all",
     )
     print(f"Fabric fixture revision published: {revision}")

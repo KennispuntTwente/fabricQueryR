@@ -47,9 +47,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     seed_parser.add_argument(
         "--scope",
-        choices=("all", "jobs"),
+        choices=("all", "onelake", "jobs"),
         default="all",
-        help="seed all services or only fixtures needed by Fabric job tests",
+        help=(
+            "seed all services or only fixtures needed by OneLake or "
+            "Fabric job tests"
+        ),
     )
     discover_parser = subparsers.add_parser(
         "discover", help="write the R integration-test manifest"
@@ -139,10 +142,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         deploy(settings, items=args.items)
         return 0
     if args.command == "seed":
-        if args.scope == "jobs":
-            seed(settings, scope="jobs")
-        else:
-            seed(settings)
+        seed(settings, scope=args.scope)
         return 0
     if args.command == "discover":
         if args.scope == "onelake":

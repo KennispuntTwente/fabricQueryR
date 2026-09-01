@@ -52,8 +52,14 @@ jobs:
         include:
           - lane: core
             runtime: "1.3"
+            fixture_scope: all
+            deploy_args: ""
+            recreate_snapshot: true
           - lane: preview
             runtime: "2.0"
+            fixture_scope: onelake
+            deploy_args: "--item SeedFixtures.Notebook"
+            recreate_snapshot: false
     env:
       TF_IN_AUTOMATION: "true"
       TF_DIR: infra/fabric/terraform
@@ -164,19 +170,26 @@ jobs:
           echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
 
       - name: Deploy Fabric item definitions
-        run: uv --directory tools/fabric-sandbox run fabric-sandbox deploy
+        run: >-
+          uv --directory tools/fabric-sandbox run fabric-sandbox deploy
+          ${{ matrix.deploy_args }}
 
       - name: Seed test data
-        run: uv --directory tools/fabric-sandbox run fabric-sandbox seed
+        run: >-
+          uv --directory tools/fabric-sandbox run fabric-sandbox seed
+          --scope ${{ matrix.fixture_scope }}
 
       - name: Recreate Warehouse snapshot after seeding
+        if: matrix.recreate_snapshot
         run: |
           terraform -chdir="$TF_DIR" apply -auto-approve -input=false \
             -replace=fabric_warehouse_snapshot.test
           echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
 
       - name: Discover Fabric endpoints
-        run: uv --directory tools/fabric-sandbox run fabric-sandbox discover
+        run: >-
+          uv --directory tools/fabric-sandbox run fabric-sandbox discover
+          --scope ${{ matrix.fixture_scope }}
 
       - name: Share Fabric test manifest
         uses: actions/upload-artifact@v4
