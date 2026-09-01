@@ -543,6 +543,7 @@ FabricLivySession <- R6::R6Class(
         "POST",
         paste0(self$url, "/reset-timeout"),
         fabric_livy_handle_credential(private$credential_ref),
+        payload = structure(list(), names = character()),
         idempotent = FALSE
       )
       invisible(self)

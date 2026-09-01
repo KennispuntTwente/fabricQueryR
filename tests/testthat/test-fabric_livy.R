@@ -886,12 +886,12 @@ test_that("bodyless Livy mutations carry an explicit zero-length body", {
 
   response <- fabric_livy_json(
     "POST",
-    "https://example.test/livy/sessions/1/reset-timeout",
+    "https://example.test/livy/sessions/1/statements/2/cancel",
     credential
   )
   ok <- fabric_livy_ok(
     "POST",
-    "https://example.test/livy/sessions/1/statements/2/cancel",
+    "https://example.test/livy/batches/1/cancel",
     credential
   )
 
@@ -1265,13 +1265,15 @@ test_that("high-concurrency sessions use HC and REPL endpoints", {
   session$close()
 })
 
-test_that("session reset timeout uses its documented endpoint", {
+test_that("session reset timeout sends an explicit JSON payload", {
   reset_url <- NULL
+  reset_payload <- NULL
   local_mocked_bindings(
     fabric_livy_json = function(...) list(id = "s", state = "idle"),
-    fabric_livy_ok = function(method, url, ...) {
+    fabric_livy_ok = function(method, url, payload = NULL, ...) {
       if (method == "POST") {
         reset_url <<- url
+        reset_payload <<- payload
       }
       TRUE
     }
@@ -1283,6 +1285,7 @@ test_that("session reset timeout uses its documented endpoint", {
   )
   expect_identical(session$reset_timeout(), session)
   expect_equal(reset_url, paste0(session$url, "/reset-timeout"))
+  expect_identical(reset_payload, structure(list(), names = character()))
   session$close()
 })
 
