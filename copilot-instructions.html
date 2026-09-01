@@ -54,6 +54,13 @@ uv --directory tools/fabric-sandbox run fabric-sandbox discover</code></pre>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"tools/fabric-sandbox/local-integration.R"</span><span class="op">)</span></span>
 <span><span class="fu">run_fabric_integration_tests</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>The runner first reuses matching cached AzureAuth tokens. If a matching token is unavailable and the three <code>FABRICQUERYR_*</code> variables are configured, it uses AzureAuth’s client-credentials flow. Its final fallback is AzureAuth’s normal interactive sign-in. The application or signed-in user must already have access to the target Fabric workspace.</p>
+<p>Do not use the slow integration workflow as the first execution of changed behavior. Run focused offline code/tests during implementation, then use the persistent runner for every change that crosses a live Fabric boundary. If a source-controlled item changed, deploy only its exact repository <code>Name.Type</code> before the filtered test:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">run_fabric_integration_tests</span><span class="op">(</span></span>
+<span>  filter <span class="op">=</span> <span class="st">"integration-fabric-jobs"</span>,</span>
+<span>  deploy_items <span class="op">=</span> <span class="st">"TestPipeline.DataPipeline"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Set <code>seed_fixtures = TRUE</code> only when the seed notebook or fixture inputs changed. For <code>integration-fabric-jobs</code>, the runner automatically uses a jobs-only seed and manifest, so unrelated SQL, Kusto, Power BI, or mirroring readiness cannot block the early job test. The complete decision guide is in <code>.codex/skills/fabric-development-workflow/SKILL.md</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="roxygen2-documentation">Roxygen2 documentation<a class="anchor" aria-label="anchor" href="#roxygen2-documentation"></a></h2>
