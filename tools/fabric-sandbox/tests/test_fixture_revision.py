@@ -8,6 +8,7 @@ from fabricqueryr_sandbox.fixture_revision import (
     FIXTURE_REVISION_PATH,
     JOBS_FIXTURE_REVISION_PATH,
     ONELAKE_FIXTURE_REVISION_PATH,
+    _fixture_inputs,
     fixture_revision,
     read_fixture_contract,
     read_fixture_revision,
@@ -154,6 +155,19 @@ def test_fixture_revision_preserves_binary_line_endings(tmp_path):
     fixture.write_bytes(b"\x00fixture\n")
 
     assert fixture_revision(settings) != windows_revision
+
+
+def test_fixture_revision_orders_paths_portably(tmp_path):
+    settings = make_settings(tmp_path)
+    workspace_prefix = "infra/fabric/workspace/"
+    workspace_inputs = [
+        path.relative_to(settings.repository_root).as_posix()
+        for path in _fixture_inputs(settings)
+        if path.is_relative_to(settings.workspace_definition_dir)
+    ]
+
+    assert workspace_inputs == sorted(workspace_inputs)
+    assert all(path.startswith(workspace_prefix) for path in workspace_inputs)
 
 
 def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):

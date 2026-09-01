@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from hashlib import sha256
 from pathlib import Path
 
@@ -56,6 +57,16 @@ def _fixture_input_bytes(path: Path) -> bytes:
     ):
         return content.replace(b"\r\n", b"\n")
     return content
+
+
+def _sorted_fixture_paths(
+    paths: Iterable[Path],
+    repository_root: Path,
+) -> list[Path]:
+    return sorted(
+        paths,
+        key=lambda path: path.relative_to(repository_root).as_posix(),
+    )
 
 
 def _fixture_inputs(
@@ -152,6 +163,18 @@ def _fixture_inputs(
         )
     fixture_files = sorted(
         path for path in settings.fixture_dir.rglob("*") if path.is_file()
+    )
+    workspace_files = _sorted_fixture_paths(
+        workspace_files,
+        settings.repository_root,
+    )
+    terraform_files = _sorted_fixture_paths(
+        terraform_files,
+        settings.repository_root,
+    )
+    fixture_files = _sorted_fixture_paths(
+        fixture_files,
+        settings.repository_root,
     )
     inputs = fixed + workspace_files + terraform_files + fixture_files
     missing = [path for path in inputs if not path.is_file()]
