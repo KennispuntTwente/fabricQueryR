@@ -1349,7 +1349,7 @@ test_that("OneLake shortcuts complete a live create/read/delete lifecycle", {
   )
 })
 
-test_that("OneLake bulk shortcuts and cache reset complete live LROs", {
+test_that("OneLake bulk shortcuts complete live LROs", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   token <- fabric_test_token_provider()
@@ -1412,7 +1412,11 @@ test_that("OneLake bulk shortcuts and cache reset complete live LROs", {
     current
   })
   expect_true(all(shortcut_names %in% listed$name))
+})
 
+test_that("OneLake shortcut cache reset completes a live LRO", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
   workspace <- structure(
     list(
       id = manifest$workspace_id,
@@ -1421,7 +1425,17 @@ test_that("OneLake bulk shortcuts and cache reset complete live LROs", {
     ),
     class = c("fabric_workspace", "list")
   )
-  reset <- fabric_onelake_shortcut_cache_reset(workspace, token = token)
+  reset <- tryCatch(
+    fabric_onelake_shortcut_cache_reset(workspace, token = token),
+    fabric_http_error = function(error) {
+      if (identical(error$error_code, "PrincipalTypeNotSupported")) {
+        testthat::skip(
+          "Fabric rejected cache reset for the CI principal type"
+        )
+      }
+      stop(error)
+    }
+  )
   reset_state <- fabric_operation_wait(reset, timeout = 300)
   expect_identical(reset_state$status, "Succeeded")
 })
