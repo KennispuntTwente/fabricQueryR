@@ -53,6 +53,7 @@ def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
     for group in INTEGRATION_GROUPS:
         assert f"filter: integration-fabric-{group}" in workflow
     assert "fail-fast: false" in workflow
+    assert "max-parallel: 2" in workflow
     assert "FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}" in workflow
     assert "FABRIC_SPARK_RUNTIME_VERSION: ${{ matrix.runtime }}" in workflow
     assert "fabric-test-manifest-${{ matrix.lane }}" in workflow
