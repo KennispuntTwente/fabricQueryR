@@ -53,7 +53,18 @@ def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
     for group in INTEGRATION_GROUPS:
         assert f"filter: integration-fabric-{group}" in workflow
     assert "fail-fast: false" in workflow
-    assert "max-parallel: 2" in workflow
+    assert "provision_core:" in workflow
+    assert "provision_preview:" in workflow
+    assert "integration_core:" in workflow
+    assert "integration_preview:" in workflow
+    assert "teardown_core:" in workflow
+    assert "teardown_preview:" in workflow
+    assert "steps: &provision_steps" in workflow
+    assert "steps: *provision_steps" in workflow
+    assert "steps: &integration_steps" in workflow
+    assert "steps: *integration_steps" in workflow
+    assert "steps: &teardown_steps" in workflow
+    assert "steps: *teardown_steps" in workflow
     assert "FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}" in workflow
     assert "FABRIC_SPARK_RUNTIME_VERSION: ${{ matrix.runtime }}" in workflow
     assert "fabric-test-manifest-${{ matrix.lane }}" in workflow
@@ -75,6 +86,18 @@ def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
     assert "actions/upload-artifact@v4" in workflow
     assert "actions/download-artifact@v4" in workflow
     assert workflow.count("Create workspace and test targets") == 1
+    core_tests = workflow.split("\n  integration_core:", maxsplit=1)[1].split(
+        "\n  integration_preview:", maxsplit=1
+    )[0]
+    preview_tests = workflow.split(
+        "\n  integration_preview:", maxsplit=1
+    )[1].split("\n  teardown_core:", maxsplit=1)[0]
+    assert "- provision_core" in core_tests
+    assert "- provision_preview" not in core_tests
+    assert "lane: preview" not in core_tests
+    assert "- provision_preview" in preview_tests
+    assert "- provision_core" not in preview_tests
+    assert "lane: core" not in preview_tests
     assert workflow.index("Share Fabric test manifest") < workflow.index(
         "Download Fabric test manifest"
     )
@@ -148,11 +171,17 @@ def test_live_workflow_skips_protected_teardown_for_fork_pull_requests():
         repository_root / ".github/workflows/integration-fabric.yaml"
     ).read_text()
 
-    teardown = workflow.split("\n  teardown:", maxsplit=1)[1]
-    assert "if: always() && needs.provision.result != 'skipped'" in teardown
-    assert teardown.index("if: always()") < teardown.index(
-        "environment: fabric-integration"
-    )
+    for lane in ("core", "preview"):
+        teardown = workflow.split(
+            f"\n  teardown_{lane}:", maxsplit=1
+        )[1]
+        assert (
+            f"if: always() && needs.provision_{lane}.result != 'skipped'"
+            in teardown
+        )
+        assert teardown.index("if: always()") < teardown.index(
+            "environment: fabric-integration"
+        )
 
 
 def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
@@ -171,7 +200,7 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
         "https://api.kusto.windows.net",
     ]
 
-    provision = integration.split("\n  integration:", maxsplit=1)[0]
+    provision = integration.split("\n  prepare_r:", maxsplit=1)[0]
     assert provision.index("Sign in to Azure with OIDC") < provision.index(
         "Seed test data"
     )

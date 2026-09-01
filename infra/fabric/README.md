@@ -157,7 +157,9 @@ Livy coverage. The Runtime 2.0 lane deploys only the seed notebook, uses the
 focused OneLake seed contract, and skips the unused Warehouse snapshot rebuild.
 Existing workflow artifacts retain the legacy `preview` lane identifier. Each
 feature job downloads its lane's generated manifest, acquires its own
-short-lived tokens, and uses independent R sessions. Terraform state is
+short-lived tokens, and uses independent R sessions. The core and preview test
+matrices depend only on their matching provisioner, so either lane can begin
+testing and teardown without waiting for the other lane. Terraform state is
 retained as a one-day workflow artifact and
 consumed by a final teardown job after every matrix leg succeeds, fails, or is
 skipped.
