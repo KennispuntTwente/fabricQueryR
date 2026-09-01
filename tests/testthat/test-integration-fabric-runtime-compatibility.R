@@ -117,18 +117,20 @@ test_that("Livy sessions exercise supported languages on Runtime 2.0", {
     fixed = TRUE
   )
 
-  discovered <- fabric_test_eventually(
-    function() {
-      fabric_livy_sessions(
-        lakehouse$livy_url,
-        tenant_id = auth$tenant_id,
-        client_id = auth$client_id,
-        auth_args = auth$auth_args
-      )
-    },
-    ready = function(value) session$id %in% value$id
-  )
-  expect_contains(discovered$id, session$id)
+  if (fabric_test_is_delegated_auth(auth)) {
+    discovered <- fabric_test_eventually(
+      function() {
+        fabric_livy_sessions(
+          lakehouse$livy_url,
+          tenant_id = auth$tenant_id,
+          client_id = auth$client_id,
+          auth_args = auth$auth_args
+        )
+      },
+      ready = function(value) session$id %in% value$id
+    )
+    expect_contains(discovered$id, session$id)
+  }
 
   sparkr <- recovered$run(
     paste0(
