@@ -18,6 +18,7 @@ from .discover import (
 )
 from .fabric_api import FABRIC_SCOPE, FabricApi
 from .fixture_revision import (
+    FIXTURE_SCOPES,
     INCOMPLETE_FIXTURE_REVISION,
     fixture_revision,
     write_fixture_revision,
@@ -123,6 +124,13 @@ def _logical_delta_table_row_count(delta_table: object) -> int:
     return physical_rows - deleted_rows
 
 
+def _utc_datetime(value: datetime) -> datetime:
+    """Interpret timezone-free Fabric storage timestamps as UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def wait_for_delta_log_publication(
     workspace_id: str,
     item_id: str,
@@ -183,8 +191,7 @@ def wait_for_delta_log_publication(
                     not getattr(path, "is_directory", False)
                     and name.endswith((".json", ".parquet"))
                     and modified is not None
-                    and modified.astimezone(timezone.utc)
-                    >= not_before.astimezone(timezone.utc)
+                    and _utc_datetime(modified) >= _utc_datetime(not_before)
                 ):
                     if expected_rows is None:
                         return name
@@ -246,17 +253,20 @@ def upload_fixtures(
             filesystem.get_file_client(remote_path).upload_data(source, overwrite=True)
 
 
-def seed(settings: SandboxSettings) -> None:
+def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
+    """Seed all fixtures, or only the Spark fixtures needed by job tests."""
+    if scope not in FIXTURE_SCOPES:
+        raise ValueError(
+            f"Unknown fixture scope {scope!r}; expected one of "
+            + ", ".join(FIXTURE_SCOPES)
+        )
     workspace_id = settings.require_workspace()
     credential = CachedTokenCredential(get_credential())
-    for scope in (
-        FABRIC_SCOPE,
-        STORAGE_SCOPE,
-        SQL_AUDIENCE,
-        KUSTO_SCOPE,
-        POWER_BI_SCOPE,
-    ):
-        credential.get_token(scope)
+    token_scopes = (FABRIC_SCOPE, STORAGE_SCOPE)
+    if scope == "all":
+        token_scopes += (SQL_AUDIENCE, KUSTO_SCOPE, POWER_BI_SCOPE)
+    for token_scope in token_scopes:
+        credential.get_token(token_scope)
 
     with FabricApi(credential) as api:
         spark_settings = api.configure_workspace_spark_runtime(
@@ -273,78 +283,88 @@ def seed(settings: SandboxSettings) -> None:
             )
         lakehouse = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
         notebook = api.find_item(workspace_id, "SeedFixtures", "Notebook")
-        graphql_api = api.find_item(
-            workspace_id,
-            GRAPHQL_API_NAME,
-            "GraphQLApi",
-        )
-        kql_database_item = api.find_item(
-            workspace_id,
-            "TestKQLDatabase",
-            "KQLDatabase",
-        )
-        warehouse_item = api.find_item(
-            workspace_id,
-            "TestWarehouse",
-            "Warehouse",
-        )
-        sql_database_item = api.find_item(
-            workspace_id,
-            "TestSQLDatabase",
-            "SQLDatabase",
-        )
-        mirrored_database_item = api.find_item(
-            workspace_id,
-            "TestMirroredDatabase",
-            "MirroredDatabase",
-        )
-        kql_database = _wait_for_kql_properties(
-            api,
-            workspace_id,
-            kql_database_item["id"],
-            item_type="KQLDatabase",
-        )
-        warehouse = _wait_for_sql_properties(
-            api,
-            workspace_id,
-            warehouse_item["id"],
-            item_type="Warehouse",
-        )
-        sql_database = _wait_for_sql_properties(
-            api,
-            workspace_id,
-            sql_database_item["id"],
-            item_type="SQLDatabase",
-        )
-        mirrored_database = _wait_for_sql_properties(
-            api,
-            workspace_id,
-            mirrored_database_item["id"],
-            item_type="MirroredDatabase",
-        )
-        api.wait_for_mirroring_running(
-            workspace_id,
-            mirrored_database_item["id"],
-        )
-        mirrored_publication_start = datetime.now(timezone.utc)
-        mirrored_remote_path = upload_open_mirroring_fixture(
-            workspace_id,
-            mirrored_database_item["id"],
-            credential=credential,
-        )
-        print(f"Open mirroring fixture uploaded: {mirrored_remote_path}")
+        if scope == "all":
+            graphql_api = api.find_item(
+                workspace_id,
+                GRAPHQL_API_NAME,
+                "GraphQLApi",
+            )
+            kql_database_item = api.find_item(
+                workspace_id,
+                "TestKQLDatabase",
+                "KQLDatabase",
+            )
+            warehouse_item = api.find_item(
+                workspace_id,
+                "TestWarehouse",
+                "Warehouse",
+            )
+            sql_database_item = api.find_item(
+                workspace_id,
+                "TestSQLDatabase",
+                "SQLDatabase",
+            )
+            mirrored_database_item = api.find_item(
+                workspace_id,
+                "TestMirroredDatabase",
+                "MirroredDatabase",
+            )
+            kql_database = _wait_for_kql_properties(
+                api,
+                workspace_id,
+                kql_database_item["id"],
+                item_type="KQLDatabase",
+            )
+            warehouse = _wait_for_sql_properties(
+                api,
+                workspace_id,
+                warehouse_item["id"],
+                item_type="Warehouse",
+            )
+            sql_database = _wait_for_sql_properties(
+                api,
+                workspace_id,
+                sql_database_item["id"],
+                item_type="SQLDatabase",
+            )
+            mirrored_database = _wait_for_sql_properties(
+                api,
+                workspace_id,
+                mirrored_database_item["id"],
+                item_type="MirroredDatabase",
+            )
+            api.wait_for_mirroring_running(
+                workspace_id,
+                mirrored_database_item["id"],
+            )
+            mirrored_publication_start = datetime.now(timezone.utc)
+            mirrored_remote_path = upload_open_mirroring_fixture(
+                workspace_id,
+                mirrored_database_item["id"],
+                credential=credential,
+            )
+            print(f"Open mirroring fixture uploaded: {mirrored_remote_path}")
         upload_fixtures(
             settings,
             workspace_id,
             lakehouse["id"],
             credential=credential,
         )
-        write_fixture_revision(
-            workspace_id,
-            lakehouse["id"],
-            INCOMPLETE_FIXTURE_REVISION,
-            credential=credential,
-        )
+        if scope == "jobs":
+            write_fixture_revision(
+                workspace_id,
+                lakehouse["id"],
+                INCOMPLETE_FIXTURE_REVISION,
+                credential=credential,
+                scope=scope,
+            )
+        else:
+            write_fixture_revision(
+                workspace_id,
+                lakehouse["id"],
+                INCOMPLETE_FIXTURE_REVISION,
+                credential=credential,
+            )
         job = _run_seed_notebook(
             api,
             workspace_id,
@@ -356,6 +376,22 @@ def seed(settings: SandboxSettings) -> None:
             f"exitValue={job.get('exitValue')!r}"
         )
         runtime_contract = _runtime_contract(job.get("exitValue"), settings)
+    if scope == "jobs":
+        revision = fixture_revision(
+            settings,
+            runtime_contract,
+            scope=scope,
+        )
+        write_fixture_revision(
+            workspace_id,
+            lakehouse["id"],
+            revision,
+            runtime_contract=runtime_contract,
+            credential=credential,
+            scope=scope,
+        )
+        print(f"Fabric jobs fixture revision published: {revision}")
+        return
     sql_targets = (
         (
             warehouse_item["displayName"],

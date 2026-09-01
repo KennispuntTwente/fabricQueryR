@@ -3,6 +3,10 @@
 # From the repository root:
 # source("tools/fabric-sandbox/local-integration.R")
 # run_fabric_integration_tests()
+# run_fabric_integration_tests(
+#   filter = "integration-fabric-jobs",
+#   deploy_items = "TestPipeline.DataPipeline"
+# )
 #
 # The runner first reuses matching cached AzureAuth tokens. When none are
 # available and FABRICQUERYR_TENANT_ID, FABRICQUERYR_CLIENT_ID, and
@@ -410,10 +414,33 @@ fabric_local_test_audiences <- function(filter) {
     OneLake = "https://storage.azure.com/.default",
     Kusto = "https://api.kusto.windows.net/.default"
   )
-  if (grepl("onelake", filter, ignore.case = TRUE)) {
+  scope <- fabric_local_test_scope(filter)
+  if (identical(scope, "onelake")) {
     return(all[c("Fabric", "SQL", "OneLake")])
   }
+  if (identical(scope, "jobs")) {
+    return(all[c("Fabric", "OneLake")])
+  }
   all
+}
+
+fabric_local_sandbox_uses_env_tokens <- function(auth_args) {
+  password <- auth_args$password
+  !(fabric_local_uses_client_credentials(auth_args) &&
+    is.character(password) &&
+    length(password) == 1L &&
+    !is.na(password) &&
+    nzchar(password))
+}
+
+fabric_local_test_scope <- function(filter) {
+  if (grepl("onelake", filter, ignore.case = TRUE)) {
+    return("onelake")
+  }
+  if (grepl("jobs", filter, ignore.case = TRUE)) {
+    return("jobs")
+  }
+  "all"
 }
 
 fabric_local_jwt_claims <- function(token) {
@@ -535,6 +562,30 @@ fabric_local_run <- function(command, args, label) {
   invisible(status)
 }
 
+fabric_local_deploy_arguments <- function(items) {
+  if (is.null(items)) {
+    items <- character()
+  }
+  if (
+    !is.character(items) ||
+      anyNA(items) ||
+      !all(nzchar(items))
+  ) {
+    stop(
+      "deploy_items must contain non-empty Fabric item names",
+      call. = FALSE
+    )
+  }
+  items <- unique(items)
+  if (!length(items)) {
+    return(character())
+  }
+  unlist(
+    lapply(items, function(item) c("--item", shQuote(item))),
+    use.names = FALSE
+  )
+}
+
 fabric_local_require_dependencies <- function(
   install_adbc_driver,
   require_sql = TRUE,
@@ -636,6 +687,8 @@ run_fabric_integration_tests <- function(
   client_secret = Sys.getenv("FABRICQUERYR_CLIENT_SECRET"),
   auth_args = list(),
   install_adbc_driver = TRUE,
+  deploy_items = character(),
+  seed_fixtures = FALSE,
   filter = "integration-fabric",
   repository_root = .fabric_local_repository
 ) {
@@ -646,6 +699,14 @@ run_fabric_integration_tests <- function(
       !nzchar(filter)
   ) {
     stop("filter must be one non-empty testthat filter", call. = FALSE)
+  }
+  deploy_arguments <- fabric_local_deploy_arguments(deploy_items)
+  if (
+    !is.logical(seed_fixtures) ||
+      length(seed_fixtures) != 1L ||
+      is.na(seed_fixtures)
+  ) {
+    stop("seed_fixtures must be TRUE or FALSE", call. = FALSE)
   }
   repository_root <- normalizePath(
     repository_root,
@@ -665,10 +726,11 @@ run_fabric_integration_tests <- function(
 
   old_directory <- setwd(repository_root)
   on.exit(setwd(old_directory), add = TRUE)
+  test_scope <- fabric_local_test_scope(filter)
   fabric_local_require_dependencies(
     install_adbc_driver,
-    require_sql = !grepl("onelake", filter, ignore.case = TRUE),
-    require_odbc = TRUE
+    require_sql = identical(test_scope, "all"),
+    require_odbc = !identical(test_scope, "jobs")
   )
 
   uv <- Sys.which("uv")
@@ -716,11 +778,17 @@ run_fabric_integration_tests <- function(
     "https://api.kusto.windows.net/.default" = "FABRIC_TEST_KUSTO_TOKEN"
   )
   token_variables <- token_variables[names(token_variables) %in% names(tokens)]
+  sandbox_uses_env_tokens <- fabric_local_sandbox_uses_env_tokens(auth_args)
   managed_variables <- c(
     unname(token_variables),
     "FABRIC_SANDBOX_USE_ENV_TOKENS",
+    "FABRICQUERYR_TENANT_ID",
+    "FABRICQUERYR_CLIENT_ID",
+    "FABRICQUERYR_CLIENT_SECRET",
     "FABRIC_WORKSPACE_ID",
     "FABRIC_WORKSPACE_NAME",
+    "FABRIC_SPARK_RUNTIME_LANE",
+    "FABRIC_SPARK_RUNTIME_VERSION",
     "FABRIC_TEST_MANIFEST",
     "FABRIC_INTEGRATION_REQUIRED",
     "FABRIC_DELEGATED_INTEGRATION_REQUIRED"
@@ -751,9 +819,25 @@ run_fabric_integration_tests <- function(
   )
   names(environment_tokens) <- unname(token_variables)
   do.call(Sys.setenv, as.list(environment_tokens))
+  if (!sandbox_uses_env_tokens) {
+    do.call(
+      Sys.setenv,
+      list(
+        FABRICQUERYR_TENANT_ID = context$tenant_id,
+        FABRICQUERYR_CLIENT_ID = context$client_id,
+        FABRICQUERYR_CLIENT_SECRET = auth_args$password
+      )
+    )
+  }
   Sys.setenv(
-    FABRIC_SANDBOX_USE_ENV_TOKENS = "true",
+    FABRIC_SANDBOX_USE_ENV_TOKENS = if (sandbox_uses_env_tokens) {
+      "true"
+    } else {
+      "false"
+    },
     FABRIC_WORKSPACE_NAME = workspace_name,
+    FABRIC_SPARK_RUNTIME_LANE = "preview",
+    FABRIC_SPARK_RUNTIME_VERSION = "2.0",
     FABRIC_TEST_MANIFEST = file.path(
       repository_root,
       ".fabric-test-manifest.json"
@@ -818,7 +902,7 @@ run_fabric_integration_tests <- function(
   }
   Sys.setenv(FABRIC_WORKSPACE_ID = workspace$id)
 
-  message("Refreshing the local integration manifest...")
+  message("Preparing the locked sandbox tooling...")
   fabric_local_run(
     uv,
     c(
@@ -829,6 +913,45 @@ run_fabric_integration_tests <- function(
     ),
     "Sandbox environment sync"
   )
+  if (length(deploy_arguments)) {
+    message(
+      "Deploying selected Fabric item definitions: ",
+      paste(unique(deploy_items), collapse = ", ")
+    )
+    fabric_local_run(
+      uv,
+      c(
+        "--directory",
+        "tools/fabric-sandbox",
+        "run",
+        "fabric-sandbox",
+        "deploy",
+        deploy_arguments
+      ),
+      "Selective Fabric item deployment"
+    )
+  }
+  if (isTRUE(seed_fixtures)) {
+    message("Refreshing the persistent Fabric fixtures...")
+    fabric_local_run(
+      uv,
+      c(
+        "--directory",
+        "tools/fabric-sandbox",
+        "run",
+        "fabric-sandbox",
+        "seed",
+        if (identical(test_scope, "jobs")) {
+          c("--scope", "jobs")
+        } else {
+          character()
+        }
+      ),
+      "Fabric fixture seeding"
+    )
+  }
+
+  message("Refreshing the local integration manifest...")
   fabric_local_run(
     uv,
     c(
@@ -837,8 +960,8 @@ run_fabric_integration_tests <- function(
       "run",
       "fabric-sandbox",
       "discover",
-      if (grepl("onelake", filter, ignore.case = TRUE)) {
-        c("--scope", "onelake")
+      if (!identical(test_scope, "all")) {
+        c("--scope", test_scope)
       } else {
         character()
       }

@@ -22,13 +22,23 @@ def test_local_runner_targets_the_marked_persistent_workspace():
     assert "claims$appid" in runner
     assert "claims$azp" in runner
     assert "FABRIC_SANDBOX_USE_ENV_TOKENS" in runner
+    assert "fabric_local_sandbox_uses_env_tokens" in runner
+    assert "FABRICQUERYR_CLIENT_SECRET = auth_args$password" in runner
     assert "fabric_local_test_audiences" in runner
     assert 'return(all[c("Fabric", "SQL", "OneLake")])' in runner
-    assert 'c("--scope", "onelake")' in runner
-    assert 'require_sql = !grepl("onelake", filter' in runner
-    assert "require_odbc = TRUE" in runner
+    assert 'return(all[c("Fabric", "OneLake")])' in runner
+    assert "fabric_local_test_scope" in runner
+    assert 'c("--scope", test_scope)' in runner
+    assert 'c("--scope", "jobs")' in runner
+    assert 'require_sql = identical(test_scope, "all")' in runner
+    assert 'require_odbc = !identical(test_scope, "jobs")' in runner
     assert "if (!isTRUE(require_odbc))" in runner
     assert "if (!isTRUE(require_sql))" in runner
     assert 'filter = "integration-fabric"' in runner
     assert "filter = filter" in runner
     assert "stop_on_failure = TRUE" in runner
+    assert "deploy_items = character()" in runner
+    assert '"--item", shQuote(item)' in runner
+    assert "seed_fixtures = FALSE" in runner
+    assert 'FABRIC_SPARK_RUNTIME_LANE = "preview"' in runner
+    assert 'FABRIC_SPARK_RUNTIME_VERSION = "2.0"' in runner

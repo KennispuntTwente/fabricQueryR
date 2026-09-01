@@ -122,7 +122,7 @@ def test_persistent_cleanup_forwards_ownership_boundary(
     )
 
 
-@pytest.mark.parametrize("scope", ["all", "onelake"])
+@pytest.mark.parametrize("scope", ["all", "onelake", "jobs"])
 def test_discover_dispatches_only_the_requested_scope(
     monkeypatch,
     capsys,
@@ -142,6 +142,10 @@ def test_discover_dispatches_only_the_requested_scope(
     monkeypatch.setattr(
         "fabricqueryr_sandbox.cli.discover_onelake",
         lambda supplied: calls.append(("onelake", supplied)) or manifest,
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.cli.discover_jobs",
+        lambda supplied: calls.append(("jobs", supplied)) or manifest,
     )
 
     assert main(["discover", "--scope", scope]) == 0
@@ -186,8 +190,8 @@ def test_doctor_reports_configuration_state(
     assert capsys.readouterr().out == expected_output
 
 
-@pytest.mark.parametrize("command", ["deploy", "seed"])
-def test_mutating_commands_dispatch_once(monkeypatch, command):
+@pytest.mark.parametrize("scope", ["all", "jobs"])
+def test_seed_dispatches_only_the_requested_scope(monkeypatch, scope):
     settings = object()
     calls = []
     monkeypatch.setattr(
@@ -200,14 +204,57 @@ def test_mutating_commands_dispatch_once(monkeypatch, command):
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.cli.seed",
-        lambda supplied: calls.append(("seed", supplied)),
+        lambda supplied, **kwargs: calls.append((supplied, kwargs)),
     )
 
-    assert main([command]) == 0
-    assert calls == [(command, settings)]
+    argv = ["seed"] if scope == "all" else ["seed", "--scope", scope]
+    assert main(argv) == 0
+    expected_kwargs = {} if scope == "all" else {"scope": scope}
+    assert calls == [(settings, expected_kwargs)]
 
 
-@pytest.mark.parametrize("argv", [[], ["discover", "--scope", "invalid"]])
+def test_deploy_forwards_selected_items(monkeypatch):
+    settings = object()
+    calls = []
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.cli.SandboxSettings.from_environment",
+        lambda: settings,
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.cli.deploy",
+        lambda supplied, **kwargs: calls.append((supplied, kwargs)),
+    )
+
+    assert main(
+        [
+            "deploy",
+            "--item",
+            "JobFixtures.Notebook",
+            "--item",
+            "TestPipeline.DataPipeline",
+        ]
+    ) == 0
+    assert calls == [
+        (
+            settings,
+            {
+                "items": [
+                    "JobFixtures.Notebook",
+                    "TestPipeline.DataPipeline",
+                ]
+            },
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        [],
+        ["discover", "--scope", "invalid"],
+        ["seed", "--scope", "invalid"],
+    ],
+)
 def test_parser_rejects_missing_commands_and_invalid_scopes(argv):
     with pytest.raises(SystemExit):
         build_parser().parse_args(argv)

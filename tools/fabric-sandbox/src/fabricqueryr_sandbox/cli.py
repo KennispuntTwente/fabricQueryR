@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from .cleanup import cleanup_ci_workspaces, remove_persistent_workspace
 from .deploy import deploy
-from .discover import discover, discover_onelake
+from .discover import discover, discover_jobs, discover_onelake
 from .seed import seed
 from .settings import SandboxSettings
 
@@ -29,16 +29,36 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="fabric-sandbox")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("doctor", help="validate local sandbox configuration")
-    subparsers.add_parser("deploy", help="publish Fabric workspace items")
-    subparsers.add_parser("seed", help="upload fixtures and run the seed notebook")
+    deploy_parser = subparsers.add_parser(
+        "deploy", help="publish Fabric workspace items"
+    )
+    deploy_parser.add_argument(
+        "--item",
+        action="append",
+        dest="items",
+        metavar="NAME.TYPE",
+        help=(
+            "publish only this repository item; repeat for dependencies "
+            "or omit to publish every supported item"
+        ),
+    )
+    seed_parser = subparsers.add_parser(
+        "seed", help="upload fixtures and run the seed notebook"
+    )
+    seed_parser.add_argument(
+        "--scope",
+        choices=("all", "jobs"),
+        default="all",
+        help="seed all services or only fixtures needed by Fabric job tests",
+    )
     discover_parser = subparsers.add_parser(
         "discover", help="write the R integration-test manifest"
     )
     discover_parser.add_argument(
         "--scope",
-        choices=("all", "onelake"),
+        choices=("all", "onelake", "jobs"),
         default="all",
-        help="discover all services or only OneLake Delta test items",
+        help="discover all services or a focused test manifest",
     )
     cleanup_parser = subparsers.add_parser(
         "cleanup",
@@ -116,17 +136,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "doctor":
         return doctor(settings)
     if args.command == "deploy":
-        deploy(settings)
+        deploy(settings, items=args.items)
         return 0
     if args.command == "seed":
-        seed(settings)
+        if args.scope == "jobs":
+            seed(settings, scope="jobs")
+        else:
+            seed(settings)
         return 0
     if args.command == "discover":
-        manifest = (
-            discover_onelake(settings)
-            if args.scope == "onelake"
-            else discover(settings)
-        )
+        if args.scope == "onelake":
+            manifest = discover_onelake(settings)
+        elif args.scope == "jobs":
+            manifest = discover_jobs(settings)
+        else:
+            manifest = discover(settings)
         print(
             f"wrote manifest for {len(manifest.items)} items: "
             f"{settings.manifest_path}"

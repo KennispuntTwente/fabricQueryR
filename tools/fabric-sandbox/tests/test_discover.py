@@ -1,6 +1,7 @@
 import pytest
 
 from fabricqueryr_sandbox.discover import (
+    JOBS_LAKEHOUSE_TABLES,
     NON_SCHEMA_LAKEHOUSE_TABLES,
     ONELAKE_LAKEHOUSE_TABLES,
     _wait_for_kql_properties,
@@ -8,6 +9,7 @@ from fabricqueryr_sandbox.discover import (
     _wait_for_environment_publish,
     _wait_for_sql_properties,
     discover,
+    discover_jobs,
     discover_onelake,
 )
 from fabricqueryr_sandbox.settings import SandboxSettings
@@ -237,6 +239,76 @@ def test_onelake_discovery_avoids_unrelated_service_dependencies(
         manifest.items["TestLakehouseNoSchemas"]["tables"]
         == NON_SCHEMA_LAKEHOUSE_TABLES
     )
+    assert fabric_api.refreshed == []
+
+
+def test_jobs_discovery_uses_only_job_items_and_scoped_revision(
+    monkeypatch, tmp_path
+):
+    settings = SandboxSettings(
+        workspace_id="workspace-id",
+        lakehouse_id="TestLakehouse-id",
+        workspace_name="fabricqueryr-test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+    )
+    fabric_api = FakeFabricApi()
+    revision_calls = []
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.FabricApi",
+        lambda _credential: fabric_api,
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.PowerBiApi",
+        lambda _credential: (_ for _ in ()).throw(
+            AssertionError("Power BI must not be used for jobs discovery")
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.get_credential",
+        lambda: "credential",
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.verify_fixture_revision",
+        lambda settings, workspace_id, lakehouse_id, **kwargs: (
+            revision_calls.append(("verify", kwargs)) or "jobs-revision"
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.discover.read_fixture_contract",
+        lambda workspace_id, lakehouse_id, **kwargs: (
+            revision_calls.append(("read", kwargs))
+            or {
+                "revision": "jobs-revision",
+                "runtime": {
+                    "lane": "preview",
+                    "fabric_runtime": "2.0",
+                    "spark_version": "4.0.0.0",
+                    "delta_version": "4.0.0",
+                },
+            }
+        ),
+    )
+
+    manifest = discover_jobs(settings)
+
+    assert set(manifest.items) == {
+        "TestLakehouse",
+        "JobFixtures",
+        "TestPipeline",
+        "TestSparkJob",
+    }
+    assert manifest.fixture_revision == "jobs-revision"
+    assert manifest.items["TestLakehouse"]["tables"] == (
+        JOBS_LAKEHOUSE_TABLES
+    )
+    assert revision_calls == [
+        ("verify", {"scope": "jobs"}),
+        ("read", {"scope": "jobs"}),
+    ]
     assert fabric_api.refreshed == []
 
 

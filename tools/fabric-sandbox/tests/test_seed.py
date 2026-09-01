@@ -8,6 +8,7 @@ from fabricqueryr_sandbox.seed import (
     _logical_delta_table_row_count,
     _run_seed_notebook,
     _runtime_contract,
+    _utc_datetime,
     seed,
     upload_fixtures,
     wait_for_delta_log_publication,
@@ -331,6 +332,15 @@ def test_wait_for_delta_log_publication_requires_a_new_log():
         ("warehouse/Tables/dbo/table/_delta_log", False),
     ]
     assert sleeps == [3]
+
+
+def test_storage_timestamps_without_timezone_are_utc():
+    timestamp = datetime(2026, 9, 1, 7, 0)
+
+    normalized = _utc_datetime(timestamp)
+
+    assert normalized == datetime(2026, 9, 1, 7, 0, tzinfo=timezone.utc)
+    assert normalized.tzinfo is timezone.utc
 
 
 def test_wait_for_delta_log_publication_requires_readable_expected_rows():
@@ -809,3 +819,117 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         cached_credential,
         "workspace-id",
     ) in calls
+
+
+def test_jobs_seed_skips_unrelated_service_fixtures(monkeypatch, tmp_path):
+    settings = SandboxSettings(
+        workspace_id="workspace-id",
+        lakehouse_id="lakehouse-id",
+        workspace_name="fabricqueryr-test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+    )
+    calls = []
+
+    class Credential:
+        def get_token(self, audience):
+            calls.append(("token", audience))
+            return AccessToken(f"token-for-{audience}", 4102444800)
+
+    class FakeFabricApi:
+        def __init__(self, credential):
+            calls.append(("fabric_client", credential))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def configure_workspace_spark_runtime(
+            self, workspace_id, runtime_version
+        ):
+            calls.append(("spark_runtime", workspace_id, runtime_version))
+            return {"environment": {"runtimeVersion": runtime_version}}
+
+        def find_item(self, workspace_id, display_name, item_type):
+            calls.append(("find_item", display_name, item_type))
+            return {
+                "id": f"{display_name}-id",
+                "displayName": display_name,
+                "type": item_type,
+            }
+
+        def run_notebook(
+            self, workspace_id, notebook_id, *, lakehouse_id
+        ):
+            calls.append(("run_notebook", notebook_id, lakehouse_id))
+            return {
+                "id": "seed-job",
+                "exitValue": (
+                    "fabricqueryr-seed-success:"
+                    '{"delta_version":"3.2.1",'
+                    '"fabric_runtime":"1.3","lane":"core",'
+                    '"spark_version":"3.5.5.5"}'
+                ),
+            }
+
+    def unrelated(*_args, **_kwargs):
+        raise AssertionError("jobs seed used an unrelated service")
+
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.get_credential", Credential
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.FabricApi", FakeFabricApi
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.upload_fixtures",
+        lambda settings, workspace_id, lakehouse_id, *, credential: (
+            calls.append(("upload", workspace_id, lakehouse_id, credential))
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.write_fixture_revision",
+        lambda workspace_id,
+        lakehouse_id,
+        revision,
+        **kwargs: calls.append(
+            ("write_revision", revision, kwargs.get("scope"))
+        ),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.seed.fixture_revision",
+        lambda settings, runtime, **kwargs: (
+            calls.append(("hash", runtime, kwargs.get("scope")))
+            or "jobs-revision"
+        ),
+    )
+    for name in (
+        "_wait_for_kql_properties",
+        "_wait_for_sql_properties",
+        "upload_open_mirroring_fixture",
+        "seed_sql_fixture",
+        "seed_test_semantic_model",
+        "prepare_arrow_test_semantic_model",
+    ):
+        monkeypatch.setattr(f"fabricqueryr_sandbox.seed.{name}", unrelated)
+
+    seed(settings, scope="jobs")
+
+    assert [call[1] for call in calls if call[0] == "token"] == [
+        "https://api.fabric.microsoft.com/.default",
+        "https://storage.azure.com/.default",
+    ]
+    assert [call[1:] for call in calls if call[0] == "find_item"] == [
+        ("TestLakehouse", "Lakehouse"),
+        ("SeedFixtures", "Notebook"),
+    ]
+    assert [call[1:] for call in calls if call[0] == "write_revision"] == [
+        ("incomplete", "jobs"),
+        ("jobs-revision", "jobs"),
+    ]
+    assert ("hash", RUNTIME_CONTRACT, "jobs") in calls

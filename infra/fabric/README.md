@@ -214,6 +214,75 @@ filter. For example:
 run_fabric_integration_tests(filter = "integration-fabric-sql")
 ```
 
+When a source-controlled item definition changed, deploy only that item to the
+existing persistent workspace before running its feature group. Item selectors
+are the exact `Name.Type` directory names under `infra/fabric/workspace/`:
+
+```r
+run_fabric_integration_tests(
+  filter = "integration-fabric-jobs",
+  deploy_items = c(
+    "JobFixtures.Notebook",
+    "TestPipeline.DataPipeline",
+    "TestSparkJob.SparkJobDefinition"
+  )
+)
+```
+
+The deploy command resolves the persistent workspace and its Lakehouse IDs, so
+the runner does not need local Terraform state. It can also publish a newly
+added source-controlled item without rebuilding the workspace. Select all
+changed dependencies together; selective deployment does not infer dependency
+relationships.
+
+Changes to `SeedFixtures.Notebook` or `infra/fabric/fixtures/` also require a
+fixture refresh:
+
+```r
+run_fabric_integration_tests(
+  filter = "integration-fabric-onelake",
+  deploy_items = "SeedFixtures.Notebook",
+  seed_fixtures = TRUE
+)
+```
+
+When the target is `integration-fabric-jobs`, the same `seed_fixtures = TRUE`
+flag uses the focused jobs fixture contract. It uploads the shared fixture
+inputs, runs the Spark seed notebook, and then stops; it does not wait for SQL,
+Kusto, Power BI, or open-mirroring readiness. Discovery writes a four-item
+manifest for `TestLakehouse`, `JobFixtures`, `TestPipeline`, and `TestSparkJob`
+using an independent jobs revision marker. This keeps an unrelated service from
+blocking job development:
+
+```r
+run_fabric_integration_tests(
+  filter = "integration-fabric-jobs",
+  deploy_items = c(
+    "SeedFixtures.Notebook",
+    "JobFixtures.Notebook",
+    "TestPipeline.DataPipeline",
+    "TestSparkJob.SparkJobDefinition"
+  ),
+  seed_fixtures = TRUE
+)
+```
+
+For direct CLI use, repeat `--item` for each definition. The client-secret
+variables and `FABRIC_WORKSPACE_NAME` must be available to that process:
+
+```text
+uv --directory tools/fabric-sandbox run fabric-sandbox deploy \
+  --item JobFixtures.Notebook \
+  --item TestPipeline.DataPipeline
+
+uv --directory tools/fabric-sandbox run fabric-sandbox seed --scope jobs
+uv --directory tools/fabric-sandbox run fabric-sandbox discover --scope jobs
+```
+
+Omit `--item` only when a full source-controlled item deployment is intended.
+Terraform-managed workspace resources still require the Terraform lifecycle;
+selective item deployment does not modify them.
+
 User Data Function invocation has a separate pre-published live fixture because the
 current User Data Function item-management API supports delegated users but not
 the service principal that provisions the disposable CI workspace. Publish
@@ -259,14 +328,16 @@ metadata/error redaction while preserving function output.
 
 The local runner:
 
-1. checks the R, ODBC, ADBC, `uv`, and sandbox-tool dependencies;
+1. checks the R, `uv`, sandbox-tool, and filter-specific SQL dependencies;
 2. reuses the tenant, client ID, and offline refresh token from a cached Fabric
    'AzureAuth' token;
-3. silently obtains user tokens for Fabric, Power BI, SQL, OneLake, and Kusto,
-   prompting through 'AzureAuth' only when the cached login cannot do so;
-4. verifies the Fabric token's `oid` claim is the configured workspace admin;
+3. silently obtains only the Fabric service tokens needed by the selected test
+   filter, prompting through 'AzureAuth' only when the cached login cannot do
+   so;
+4. verifies the Fabric token identifies the configured user or application;
 5. resolves the single marked `fabricqueryr-dev-dhrkoning` workspace;
-6. regenerates `.fabric-test-manifest.json` from its live items; and
+6. regenerates `.fabric-test-manifest.json` from the live items needed by the
+   selected filter; and
 7. calls the existing
    `devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)`.
    The 'AzureAuth' acquisition test uses the interactive user context locally;
@@ -275,9 +346,12 @@ The local runner:
 Raw bearer tokens exported by the runner stay in the R process and child
 discovery process only. The runner restores the previous environment variables
 and token-provider option when it finishes; 'AzureAuth' continues to manage its
-normal user token cache. If a matching 'AzureAuth' token is missing, 'AzureAuth'
-starts its normal interactive browser login. For a terminal without a usable
-browser, request device-code login explicitly:
+normal user token cache. With a configured client secret, the child sandbox
+process receives the credentials only through its temporary environment so it
+can refresh tokens during long Fabric notebook runs; those variables are also
+restored when the runner finishes. If a matching 'AzureAuth' token is missing,
+'AzureAuth' starts its normal interactive browser login. For a terminal without
+a usable browser, request device-code login explicitly:
 
 ```r
 run_fabric_integration_tests(

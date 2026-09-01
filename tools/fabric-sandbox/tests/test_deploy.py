@@ -7,6 +7,7 @@ from azure.core.credentials import AccessToken
 import fabric_cicd.constants as fabric_cicd_constants
 from fabric_cicd import FabricWorkspace, append_feature_flag
 from fabric_cicd._items._environment import _process_environment_file
+import pytest
 
 from fabricqueryr_sandbox.deploy import deploy
 from fabricqueryr_sandbox.settings import SandboxSettings
@@ -297,7 +298,8 @@ def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
         lambda **kwargs: workspaces.append(kwargs) or kwargs,
     )
     monkeypatch.setattr(
-        "fabricqueryr_sandbox.deploy.publish_all_items", published.append
+        "fabricqueryr_sandbox.deploy.publish_all_items",
+        lambda workspace, **kwargs: published.append((workspace, kwargs)),
     )
     monkeypatch.setattr(
         "fabricqueryr_sandbox.deploy.get_credential", lambda: "credential"
@@ -319,4 +321,173 @@ def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
         "Environment",
     ]
     assert workspaces[0]["workspace_id"] == "workspace-id"
-    assert published == [workspaces[0]]
+    assert published == [(workspaces[0], {"items_to_include": None})]
+
+
+def test_deploy_selects_exact_repository_items(monkeypatch, tmp_path):
+    settings = SandboxSettings(
+        workspace_id="workspace-id",
+        lakehouse_id="lakehouse-id",
+        workspace_name="test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+        non_schema_lakehouse_id="non-schema-lakehouse-id",
+    )
+    (settings.workspace_definition_dir / "JobFixtures.Notebook").mkdir(
+        parents=True
+    )
+    (settings.workspace_definition_dir / "TestPipeline.DataPipeline").mkdir()
+    flags = []
+    workspaces = []
+    published = []
+
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.append_feature_flag", flags.append
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.FabricWorkspace",
+        lambda **kwargs: workspaces.append(kwargs) or kwargs,
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.publish_all_items",
+        lambda workspace, **kwargs: published.append((workspace, kwargs)),
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.get_credential", lambda: "credential"
+    )
+
+    deploy(
+        settings,
+        items=["JobFixtures.Notebook", "TestPipeline.DataPipeline"],
+    )
+
+    assert flags == [
+        "enable_environment_variable_replacement",
+        "enable_experimental_features",
+        "enable_items_to_include",
+    ]
+    assert workspaces[0]["item_type_in_scope"] == [
+        "Notebook",
+        "DataPipeline",
+        "SparkJobDefinition",
+        "SemanticModel",
+        "Environment",
+    ]
+    assert published == [
+        (
+            workspaces[0],
+            {
+                "items_to_include": [
+                    "JobFixtures.Notebook",
+                    "TestPipeline.DataPipeline",
+                ]
+            },
+        )
+    ]
+
+
+def test_deploy_resolves_persistent_targets_by_name(monkeypatch, tmp_path):
+    settings = SandboxSettings(
+        workspace_id=None,
+        lakehouse_id=None,
+        workspace_name="fabricqueryr-dev-owner",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+        non_schema_lakehouse_id=None,
+    )
+    (settings.workspace_definition_dir / "TestPipeline.DataPipeline").mkdir(
+        parents=True
+    )
+
+    class FakeFabricApi:
+        def __init__(self, credential):
+            assert credential == "credential"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def list_workspaces(self, *, roles):
+            assert roles == "Admin"
+            return [
+                {
+                    "id": "workspace-id",
+                    "displayName": "fabricqueryr-dev-owner",
+                }
+            ]
+
+        def list_items(self, workspace_id):
+            assert workspace_id == "workspace-id"
+            return [
+                {
+                    "id": "lakehouse-id",
+                    "displayName": "TestLakehouse",
+                    "type": "Lakehouse",
+                },
+                {
+                    "id": "non-schema-lakehouse-id",
+                    "displayName": "TestLakehouseNoSchemas",
+                    "type": "Lakehouse",
+                },
+            ]
+
+    workspaces = []
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.FabricApi", FakeFabricApi)
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.get_credential", lambda: "credential"
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.append_feature_flag", lambda _: None
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.FabricWorkspace",
+        lambda **kwargs: workspaces.append(kwargs) or kwargs,
+    )
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.publish_all_items", lambda *_, **__: None
+    )
+
+    deploy(settings, items=["TestPipeline.DataPipeline"])
+
+    assert workspaces[0]["workspace_id"] == "workspace-id"
+    assert environ["$ENV:FABRIC_TEST_LAKEHOUSE_ID"] == "lakehouse-id"
+    assert (
+        environ["$ENV:FABRIC_NON_SCHEMA_LAKEHOUSE_ID"]
+        == "non-schema-lakehouse-id"
+    )
+
+
+def test_deploy_rejects_unknown_repository_items(monkeypatch, tmp_path):
+    settings = SandboxSettings(
+        workspace_id="workspace-id",
+        lakehouse_id="lakehouse-id",
+        workspace_name="test",
+        capacity_id=None,
+        principal_id=None,
+        environment="TEST",
+        repository_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+        non_schema_lakehouse_id="non-schema-lakehouse-id",
+    )
+    settings.workspace_definition_dir.mkdir(parents=True)
+    credentials_requested = []
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.get_credential",
+        lambda: credentials_requested.append(True),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Missing.Notebook",
+    ):
+        deploy(settings, items=["Missing.Notebook"])
+
+    assert credentials_requested == []

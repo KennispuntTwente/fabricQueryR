@@ -40,6 +40,25 @@ uses AzureAuth's client-credentials flow. Its final fallback is AzureAuth's
 normal interactive sign-in. The application or signed-in user must already
 have access to the target Fabric workspace.
 
+Do not use the slow integration workflow as the first execution of changed
+behavior. Run focused offline code/tests during implementation, then use the
+persistent runner for every change that crosses a live Fabric boundary. If a
+source-controlled item changed, deploy only its exact repository `Name.Type`
+before the filtered test:
+
+```r
+run_fabric_integration_tests(
+  filter = "integration-fabric-jobs",
+  deploy_items = "TestPipeline.DataPipeline"
+)
+```
+
+Set `seed_fixtures = TRUE` only when the seed notebook or fixture inputs changed.
+For `integration-fabric-jobs`, the runner automatically uses a jobs-only seed
+and manifest, so unrelated SQL, Kusto, Power BI, or mirroring readiness cannot
+block the early job test. The complete decision guide is in
+`.codex/skills/fabric-development-workflow/SKILL.md`.
+
 ## Roxygen2 documentation
 
 Write public documentation for a typical R user first. Assume the reader knows

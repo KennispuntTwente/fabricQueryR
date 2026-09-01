@@ -6,6 +6,7 @@ import pytest
 
 from fabricqueryr_sandbox.fixture_revision import (
     FIXTURE_REVISION_PATH,
+    JOBS_FIXTURE_REVISION_PATH,
     fixture_revision,
     read_fixture_contract,
     read_fixture_revision,
@@ -72,6 +73,9 @@ def make_settings(root: Path) -> SandboxSettings:
         "TestPipeline.DataPipeline/pipeline-content.json": "{}\n",
         "TestSparkJob.SparkJobDefinition/SparkJobDefinitionV1.json": "{}\n",
         "TestSparkJob.SparkJobDefinition/Main/main.py": "print('v1')\n",
+        "TestEnvironment.Environment/Setting/Sparkcompute.yml": (
+            "runtimeVersion: '1.3'\n"
+        ),
         "Model.SemanticModel/definition.pbism": "{}\n",
         "Model.SemanticModel/model.bim": "{}\n",
     }
@@ -184,6 +188,29 @@ def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):
     assert fixture_revision(settings, RUNTIME_CONTRACT) != different_job_notebook
 
 
+def test_jobs_fixture_revision_excludes_unrelated_services(tmp_path):
+    settings = make_settings(tmp_path)
+    first = fixture_revision(settings, RUNTIME_CONTRACT, scope="jobs")
+
+    graphql_api = (
+        settings.repository_root
+        / "tools/fabric-sandbox/src/fabricqueryr_sandbox/graphql_api.py"
+    )
+    graphql_api.write_text("graphql-api-v2\n", encoding="utf-8")
+    terraform = (
+        settings.repository_root / "infra/fabric/terraform/main.tf"
+    )
+    terraform.write_text("terraform-v2\n", encoding="utf-8")
+    assert fixture_revision(settings, RUNTIME_CONTRACT, scope="jobs") == first
+
+    job_notebook = (
+        settings.workspace_definition_dir
+        / "JobFixtures.Notebook/notebook-content.py"
+    )
+    job_notebook.write_text("job-notebook-v2\n", encoding="utf-8")
+    assert fixture_revision(settings, RUNTIME_CONTRACT, scope="jobs") != first
+
+
 def test_fixture_revision_round_trip_and_verification(tmp_path):
     settings = make_settings(tmp_path)
     service = FakeService()
@@ -246,3 +273,35 @@ def test_fixture_revision_round_trip_and_verification(tmp_path):
             "lakehouse-id",
             service_client=service,
         )
+
+
+def test_jobs_fixture_revision_uses_an_independent_marker(tmp_path):
+    settings = make_settings(tmp_path)
+    service = FakeService()
+    expected = fixture_revision(settings, RUNTIME_CONTRACT, scope="jobs")
+
+    write_fixture_revision(
+        "workspace-id",
+        "lakehouse-id",
+        expected,
+        runtime_contract=RUNTIME_CONTRACT,
+        service_client=service,
+        scope="jobs",
+    )
+
+    assert read_fixture_revision(
+        "workspace-id",
+        "lakehouse-id",
+        service_client=service,
+        scope="jobs",
+    ) == expected
+    assert verify_fixture_revision(
+        settings,
+        "workspace-id",
+        "lakehouse-id",
+        service_client=service,
+        scope="jobs",
+    ) == expected
+    files = service.filesystems["workspace-id"].files
+    assert f"lakehouse-id/{JOBS_FIXTURE_REVISION_PATH}" in files
+    assert f"lakehouse-id/{FIXTURE_REVISION_PATH}" not in files

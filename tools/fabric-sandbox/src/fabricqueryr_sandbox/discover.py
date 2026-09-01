@@ -106,6 +106,70 @@ ONELAKE_LAKEHOUSE_TABLES = {
     "spark_job_result": "fabricqueryr_spark_job_result",
 }
 NON_SCHEMA_LAKEHOUSE_TABLES = {"basic": "fabricqueryr_basic"}
+JOBS_LAKEHOUSE_TABLES = {
+    "basic": "fabricqueryr_basic",
+    "spark_job_result": "fabricqueryr_spark_job_result",
+}
+
+
+def discover_jobs(settings: SandboxSettings) -> SandboxManifest:
+    """Write the minimal manifest needed by Fabric item job tests."""
+    workspace_id = settings.require_workspace()
+    with FabricApi(get_credential()) as api:
+        lakehouse_item = api.find_item(workspace_id, "TestLakehouse", "Lakehouse")
+        job_notebook_item = api.find_item(
+            workspace_id, "JobFixtures", "Notebook"
+        )
+        pipeline_item = api.find_item(
+            workspace_id, "TestPipeline", "DataPipeline"
+        )
+        spark_job_item = api.find_item(
+            workspace_id, "TestSparkJob", "SparkJobDefinition"
+        )
+
+    revision = verify_fixture_revision(
+        settings,
+        workspace_id,
+        lakehouse_item["id"],
+        scope="jobs",
+    )
+    fixture_contract = read_fixture_contract(
+        workspace_id,
+        lakehouse_item["id"],
+        scope="jobs",
+    )
+    manifest = SandboxManifest(
+        workspace_id=workspace_id,
+        workspace_name=settings.workspace_name,
+        fixture_revision=revision,
+        runtime=fixture_contract["runtime"],
+        items={
+            "TestLakehouse": {
+                "id": lakehouse_item["id"],
+                "type": "Lakehouse",
+                "display_name": lakehouse_item["displayName"],
+                "schema": "dbo",
+                "tables": dict(JOBS_LAKEHOUSE_TABLES),
+            },
+            "JobFixtures": {
+                "id": job_notebook_item["id"],
+                "type": "Notebook",
+                "display_name": job_notebook_item["displayName"],
+            },
+            "TestPipeline": {
+                "id": pipeline_item["id"],
+                "type": "DataPipeline",
+                "display_name": pipeline_item["displayName"],
+            },
+            "TestSparkJob": {
+                "id": spark_job_item["id"],
+                "type": "SparkJobDefinition",
+                "display_name": spark_job_item["displayName"],
+            },
+        },
+    )
+    manifest.write(settings.manifest_path)
+    return manifest
 
 
 def discover_onelake(settings: SandboxSettings) -> SandboxManifest:

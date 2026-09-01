@@ -114,6 +114,12 @@ test_that("local auth arguments resolve explicit and environment flows", {
     certificate = "certificate.pem"
   )))
   expect_false(environment$fabric_local_uses_client_credentials(explicit))
+  expect_false(environment$fabric_local_sandbox_uses_env_tokens(resolved))
+  expect_true(environment$fabric_local_sandbox_uses_env_tokens(explicit))
+  expect_true(environment$fabric_local_sandbox_uses_env_tokens(list(
+    auth_type = "client_credentials",
+    certificate = "certificate.pem"
+  )))
 })
 
 test_that("local cached token lookup filters and deduplicates identities", {
@@ -353,11 +359,45 @@ test_that("local runner selects only the audiences needed by its filter", {
   onelake <- environment$fabric_local_test_audiences(
     "integration-fabric-onelake"
   )
+  jobs <- environment$fabric_local_test_audiences(
+    "integration-fabric-jobs"
+  )
 
   expect_named(all, c("Fabric", "Power BI", "SQL", "OneLake", "Kusto"))
   expect_named(onelake, c("Fabric", "SQL", "OneLake"))
+  expect_named(jobs, c("Fabric", "OneLake"))
   expect_identical(
     unname(onelake[["SQL"]]),
     "https://database.windows.net//.default"
+  )
+  expect_identical(
+    environment$fabric_local_test_scope("integration-fabric"),
+    "all"
+  )
+  expect_identical(
+    environment$fabric_local_test_scope("integration-fabric-onelake"),
+    "onelake"
+  )
+  expect_identical(
+    environment$fabric_local_test_scope("integration-fabric-jobs"),
+    "jobs"
+  )
+})
+
+test_that("local runner builds exact selective deployment arguments", {
+  environment <- fabric_test_local_runner()
+
+  arguments <- environment$fabric_local_deploy_arguments(c(
+    "JobFixtures.Notebook",
+    "TestPipeline.DataPipeline",
+    "JobFixtures.Notebook"
+  ))
+
+  expect_identical(arguments[c(1L, 3L)], c("--item", "--item"))
+  expect_match(arguments[[2L]], "JobFixtures.Notebook", fixed = TRUE)
+  expect_match(arguments[[4L]], "TestPipeline.DataPipeline", fixed = TRUE)
+  expect_identical(
+    environment$fabric_local_deploy_arguments(character()),
+    character()
   )
 })
