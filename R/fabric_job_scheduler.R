@@ -131,7 +131,8 @@ fabric_job_instances <- function(
 #' A Cron schedule is Fabric's minute-interval schedule; this function does not
 #' accept a cron expression because the REST API does not use one. Daylight
 #' saving behavior is controlled by Fabric using `time_zone`, not by the R
-#' process's local time zone.
+#' process's local time zone. Arguments that do not belong to the selected
+#' documented schedule type are rejected.
 #' @references
 #' [Create item schedule](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/create-item-schedule)
 #'
@@ -160,6 +161,33 @@ fabric_job_schedule_config <- function(
   weekday = NULL
 ) {
   type <- .fabric_schedule_match(type, .fabric_schedule_types, "type")
+  supplied_type_arguments <- list(
+    interval = interval,
+    times = times,
+    weekdays = weekdays,
+    recurrence = recurrence,
+    day_of_month = day_of_month,
+    week_index = week_index,
+    weekday = weekday
+  )
+  allowed_type_arguments <- switch(
+    type,
+    Cron = "interval",
+    Daily = "times",
+    Weekly = c("times", "weekdays"),
+    Monthly = c(
+      "times",
+      "recurrence",
+      "day_of_month",
+      "week_index",
+      "weekday"
+    )
+  )
+  .fabric_schedule_reject_supplied(
+    supplied_type_arguments,
+    allowed_type_arguments,
+    type
+  )
   configuration <- list(
     startDateTime = .fabric_schedule_utc(start_time, "start_time"),
     endDateTime = .fabric_schedule_utc(end_time, "end_time"),
@@ -829,6 +857,26 @@ print.fabric_job_schedule <- function(x, ...) {
     return(configuration)
   }
   configuration$type <- .fabric_schedule_types[[type_index]]
+  schedule_fields <- c(
+    "interval",
+    "times",
+    "weekdays",
+    "recurrence",
+    "occurrence"
+  )
+  allowed_schedule_fields <- switch(
+    configuration$type,
+    Cron = "interval",
+    Daily = "times",
+    Weekly = c("times", "weekdays"),
+    Monthly = c("times", "recurrence", "occurrence")
+  )
+  .fabric_schedule_reject_fields(
+    configuration,
+    schedule_fields,
+    allowed_schedule_fields,
+    paste0(configuration$type, " schedule configuration")
+  )
   required <- c("startDateTime", "endDateTime", "localTimeZoneId")
   missing_fields <- required[!required %in% names(configuration)]
   if (length(missing_fields)) {
@@ -884,6 +932,12 @@ print.fabric_job_schedule <- function(x, ...) {
     )
     occurrence$occurrenceType <- occurrence_type
     if (identical(occurrence_type, "DayOfMonth")) {
+      .fabric_schedule_reject_fields(
+        occurrence,
+        c("dayOfMonth", "weekIndex", "weekday"),
+        "dayOfMonth",
+        "DayOfMonth occurrence"
+      )
       .fabric_schedule_integer(
         occurrence$dayOfMonth,
         1L,
@@ -892,6 +946,12 @@ print.fabric_job_schedule <- function(x, ...) {
       )
       occurrence$dayOfMonth <- as.integer(occurrence$dayOfMonth)
     } else {
+      .fabric_schedule_reject_fields(
+        occurrence,
+        c("dayOfMonth", "weekIndex", "weekday"),
+        c("weekIndex", "weekday"),
+        "OrdinalWeekday occurrence"
+      )
       occurrence$weekIndex <- .fabric_schedule_match(
         occurrence$weekIndex,
         .fabric_schedule_week_indices,
@@ -906,6 +966,45 @@ print.fabric_job_schedule <- function(x, ...) {
     configuration$occurrence <- occurrence
   }
   structure(configuration, class = c("fabric_job_schedule_config", "list"))
+}
+
+.fabric_schedule_reject_supplied <- function(arguments, allowed, type) {
+  supplied <- names(arguments)[!vapply(arguments, is.null, logical(1))]
+  incompatible <- setdiff(supplied, allowed)
+  if (length(incompatible)) {
+    .fabric_abort(
+      paste0(
+        type,
+        " schedules do not use: ",
+        paste0("`", incompatible, "`", collapse = ", ")
+      ),
+      class = "fabric_job_validation_error"
+    )
+  }
+  invisible(TRUE)
+}
+
+.fabric_schedule_reject_fields <- function(
+  value,
+  known_fields,
+  allowed_fields,
+  label
+) {
+  incompatible <- intersect(
+    setdiff(known_fields, allowed_fields),
+    names(value)
+  )
+  if (length(incompatible)) {
+    .fabric_abort(
+      paste0(
+        label,
+        " contains incompatible fields: ",
+        paste0("`", incompatible, "`", collapse = ", ")
+      ),
+      class = "fabric_job_validation_error"
+    )
+  }
+  invisible(TRUE)
 }
 
 .fabric_schedule_utc <- function(value, name) {

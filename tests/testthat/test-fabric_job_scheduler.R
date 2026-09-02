@@ -182,6 +182,84 @@ test_that("known schedule inputs are validated before requests", {
   )
 })
 
+test_that("schedule constructors reject arguments from other known shapes", {
+  common <- list(
+    start_time = "2026-01-01T00:00:00Z",
+    end_time = "2027-01-01T00:00:00Z"
+  )
+  incompatible <- list(
+    Cron = list(interval = 15L, times = "09:00"),
+    Daily = list(times = "09:00", interval = 15L),
+    Weekly = list(
+      times = "09:00",
+      weekdays = "Monday",
+      recurrence = 1L
+    ),
+    Monthly = list(
+      times = "09:00",
+      recurrence = 1L,
+      day_of_month = 1L,
+      weekdays = "Monday"
+    )
+  )
+
+  for (type in names(incompatible)) {
+    expect_error(
+      do.call(
+        fabric_job_schedule_config,
+        c(list(type = type), common, incompatible[[type]])
+      ),
+      paste0(type, " schedules do not use"),
+      class = "fabric_job_validation_error",
+      info = type
+    )
+  }
+})
+
+test_that("known raw schedule shapes reject cross-type fields", {
+  daily <- unclass(scheduler_test_configuration("Daily"))
+  daily$interval <- 15L
+  expect_error(
+    .fabric_job_schedule_configuration(daily),
+    "Daily schedule configuration contains incompatible fields: `interval`",
+    class = "fabric_job_validation_error"
+  )
+
+  monthly <- unclass(scheduler_test_configuration("Monthly"))
+  monthly$occurrence$weekIndex <- "First"
+  monthly$occurrence$weekday <- "Monday"
+  expect_error(
+    .fabric_job_schedule_configuration(monthly),
+    "DayOfMonth occurrence contains incompatible fields",
+    class = "fabric_job_validation_error"
+  )
+
+  ordinal <- unclass(fabric_job_schedule_config(
+    "Monthly",
+    start_time = "2026-01-01T00:00:00Z",
+    end_time = "2027-01-01T00:00:00Z",
+    times = "09:00",
+    recurrence = 1L,
+    week_index = "First",
+    weekday = "Monday"
+  ))
+  ordinal$occurrence$dayOfMonth <- 1L
+  expect_error(
+    .fabric_job_schedule_configuration(ordinal),
+    "OrdinalWeekday occurrence contains incompatible fields: `dayOfMonth`",
+    class = "fabric_job_validation_error"
+  )
+})
+
+test_that("known schedule shapes preserve unrecognized future fields", {
+  daily <- unclass(scheduler_test_configuration("Daily"))
+  daily$futureServiceField <- list(version = 2L)
+
+  normalized <- .fabric_job_schedule_configuration(daily)
+
+  expect_identical(normalized$futureServiceField, list(version = 2L))
+})
+
 test_that("schedule listing normalizes common fields and preserves future data", {
   future <- list(
     id = "33333333-3333-3333-3333-333333333333",

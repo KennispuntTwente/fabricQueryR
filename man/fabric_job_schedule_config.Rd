@@ -62,7 +62,8 @@ UTC.
 A Cron schedule is Fabric's minute-interval schedule; this function does not
 accept a cron expression because the REST API does not use one. Daylight
 saving behavior is controlled by Fabric using \code{time_zone}, not by the R
-process's local time zone.
+process's local time zone. Arguments that do not belong to the selected
+documented schedule type are rejected.
 }
 \examples{
 # Describe a schedule in the Windows time zone used by Fabric
