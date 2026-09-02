@@ -59,6 +59,7 @@ jobs:
       TF_DIR: infra/fabric/terraform
       TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
+      TF_VAR_fixture_scope: ${{ matrix.fixture_scope }}
       FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
       FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}
@@ -156,12 +157,14 @@ jobs:
           echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_NON_SCHEMA_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw non_schema_lakehouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
           echo "FABRIC_MIRRORED_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw mirrored_database_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
+          if [[ "${{ matrix.fixture_scope }}" == "all" ]]; then
+            echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
+            echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
+            echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
+            echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
+            echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
+          fi
 
       - name: Deploy Fabric item definitions
         run: >-
@@ -177,7 +180,7 @@ jobs:
         if: matrix.recreate_snapshot
         run: |
           terraform -chdir="$TF_DIR" apply -auto-approve -input=false \
-            -replace=fabric_warehouse_snapshot.test
+            '-replace=fabric_warehouse_snapshot.test[0]'
           echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
 
       - name: Discover Fabric endpoints
@@ -548,12 +551,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [core]
+        include:
+          - lane: core
+            fixture_scope: all
     env: &teardown_env
       TF_IN_AUTOMATION: "true"
       TF_DIR: infra/fabric/terraform
       TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
+      TF_VAR_fixture_scope: ${{ matrix.fixture_scope }}
 
     steps: &teardown_steps
       - uses: actions/checkout@v4
@@ -598,6 +604,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [preview]
+        include:
+          - lane: preview
+            fixture_scope: onelake
     env: *teardown_env
     steps: *teardown_steps

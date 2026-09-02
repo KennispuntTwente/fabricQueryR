@@ -73,6 +73,8 @@ def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
     assert "runtime: \"2.0\"" in workflow
     assert "fixture_scope: all" in workflow
     assert "fixture_scope: onelake" in workflow
+    assert "TF_VAR_fixture_scope: ${{ matrix.fixture_scope }}" in workflow
+    assert workflow.count("TF_VAR_fixture_scope: ${{ matrix.fixture_scope }}") == 2
     assert 'deploy_args: "--item SeedFixtures.Notebook"' in workflow
     assert "recreate_snapshot: true" in workflow
     assert "recreate_snapshot: false" in workflow
@@ -86,6 +88,10 @@ def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
     assert "actions/upload-artifact@v4" in workflow
     assert "actions/download-artifact@v4" in workflow
     assert workflow.count("Create workspace and test targets") == 1
+    export = workflow.split(
+        "- name: Export Terraform outputs", maxsplit=1
+    )[1].split("- name: Deploy Fabric item definitions", maxsplit=1)[0]
+    assert 'if [[ "${{ matrix.fixture_scope }}" == "all" ]]' in export
     core_tests = workflow.split("\n  integration_core:", maxsplit=1)[1].split(
         "\n  integration_preview:", maxsplit=1
     )[0]
@@ -256,7 +262,7 @@ def test_warehouse_snapshot_is_recreated_after_seeded_objects():
         snapshot_step = workflow[snapshot:discover]
 
         assert seed < snapshot < discover
-        assert "-replace=fabric_warehouse_snapshot.test" in snapshot_step
+        assert "'-replace=fabric_warehouse_snapshot.test[0]'" in snapshot_step
         assert "FABRIC_WAREHOUSE_SNAPSHOT_ID=" in snapshot_step
         if path.name == "integration-fabric.yaml":
             assert "if: matrix.recreate_snapshot" in snapshot_step

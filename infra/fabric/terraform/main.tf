@@ -1,3 +1,7 @@
+locals {
+  provision_full_fixture = var.fixture_scope == "all"
+}
+
 resource "fabric_workspace" "sandbox" {
   display_name = var.workspace_name
   description  = var.workspace_description
@@ -59,6 +63,8 @@ resource "fabric_warehouse" "test" {
 }
 
 resource "fabric_warehouse_snapshot" "test" {
+  count = local.provision_full_fixture ? 1 : 0
+
   display_name = "TestWarehouseSnapshot"
   description  = "Ephemeral warehouse snapshot for fabricQueryR integration tests"
   workspace_id = fabric_workspace.sandbox.id
@@ -75,6 +81,8 @@ resource "fabric_warehouse_snapshot" "test" {
 }
 
 resource "fabric_sql_database" "test" {
+  count = local.provision_full_fixture ? 1 : 0
+
   display_name = "TestSQLDatabase"
   description  = "Ephemeral integration-test SQL database for fabricQueryR"
   workspace_id = fabric_workspace.sandbox.id
@@ -112,6 +120,8 @@ resource "fabric_mirrored_database" "test" {
 }
 
 resource "fabric_eventhouse" "test" {
+  count = local.provision_full_fixture ? 1 : 0
+
   display_name = "TestEventhouse"
   description  = "Ephemeral integration-test Eventhouse for fabricQueryR"
   workspace_id = fabric_workspace.sandbox.id
@@ -128,13 +138,15 @@ resource "fabric_eventhouse" "test" {
 }
 
 resource "fabric_kql_database" "test" {
+  count = local.provision_full_fixture ? 1 : 0
+
   display_name = "TestKQLDatabase"
   description  = "Ephemeral integration-test KQL database for fabricQueryR"
   workspace_id = fabric_workspace.sandbox.id
 
   configuration = {
     database_type = "ReadWrite"
-    eventhouse_id = fabric_eventhouse.test.id
+    eventhouse_id = fabric_eventhouse.test[0].id
   }
 
   timeouts = {
@@ -145,6 +157,8 @@ resource "fabric_kql_database" "test" {
 }
 
 resource "fabric_graphql_api" "test" {
+  count = local.provision_full_fixture ? 1 : 0
+
   display_name = "TestGraphQL"
   description  = "Ephemeral GraphQL API for fabricQueryR integration tests"
   workspace_id = fabric_workspace.sandbox.id

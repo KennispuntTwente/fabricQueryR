@@ -170,7 +170,7 @@ jobs:
         if: inputs.action == 'rebuild'
         run: |
           terraform -chdir="$TF_DIR" apply -auto-approve -input=false \
-            -replace=fabric_warehouse_snapshot.test
+            '-replace=fabric_warehouse_snapshot.test[0]'
           echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
 
       - name: Discover Fabric endpoints

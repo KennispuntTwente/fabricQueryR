@@ -14,6 +14,17 @@ variable "workspace_description" {
   default     = "Ephemeral fabricQueryR integration-test workspace"
 }
 
+variable "fixture_scope" {
+  description = "Fabric target set to provision for the requested integration-test scope."
+  type        = string
+  default     = "all"
+
+  validation {
+    condition     = contains(["all", "onelake"], var.fixture_scope)
+    error_message = "fixture_scope must be all or onelake."
+  }
+}
+
 variable "test_principal_id" {
   description = "Optional Entra object ID of a principal other than the workspace creator."
   type        = string

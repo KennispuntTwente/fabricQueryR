@@ -35,12 +35,12 @@ output "warehouse_id" {
 
 output "warehouse_snapshot_id" {
   description = "ID of the Warehouse snapshot exercised by SQL integration tests."
-  value       = fabric_warehouse_snapshot.test.id
+  value       = one(fabric_warehouse_snapshot.test[*].id)
 }
 
 output "sql_database_id" {
   description = "ID of the SQL Database exercised by SQL integration tests."
-  value       = fabric_sql_database.test.id
+  value       = one(fabric_sql_database.test[*].id)
 }
 
 output "mirrored_database_id" {
@@ -50,15 +50,15 @@ output "mirrored_database_id" {
 
 output "eventhouse_id" {
   description = "ID of the Eventhouse exercised by KQL integration tests."
-  value       = fabric_eventhouse.test.id
+  value       = one(fabric_eventhouse.test[*].id)
 }
 
 output "kql_database_id" {
   description = "ID of the KQL database exercised by KQL integration tests."
-  value       = fabric_kql_database.test.id
+  value       = one(fabric_kql_database.test[*].id)
 }
 
 output "graphql_api_id" {
   description = "ID of the GraphQL API exercised by integration tests."
-  value       = fabric_graphql_api.test.id
+  value       = one(fabric_graphql_api.test[*].id)
 }

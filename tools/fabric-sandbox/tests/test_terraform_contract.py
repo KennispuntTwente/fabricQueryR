@@ -5,6 +5,8 @@ def test_terraform_owns_all_integration_targets():
     repository_root = Path(__file__).parents[3]
     main = (repository_root / "infra/fabric/terraform/main.tf").read_text()
     outputs = (repository_root / "infra/fabric/terraform/outputs.tf").read_text()
+    variables = (repository_root / "infra/fabric/terraform/variables.tf").read_text()
+    migrations = (repository_root / "infra/fabric/terraform/migrations.tf").read_text()
     versions = (repository_root / "infra/fabric/terraform/versions.tf").read_text()
     mirror_definition = (
         repository_root
@@ -26,7 +28,13 @@ def test_terraform_owns_all_integration_targets():
     assert 'display_name = "TestEventhouse"' in main
     assert 'display_name = "TestKQLDatabase"' in main
     assert 'display_name = "TestGraphQL"' in main
-    assert "eventhouse_id = fabric_eventhouse.test.id" in main
+    assert "eventhouse_id = fabric_eventhouse.test[0].id" in main
+    assert main.count("count = local.provision_full_fixture ? 1 : 0") == 5
+    assert 'variable "fixture_scope"' in variables
+    assert 'default     = "all"' in variables
+    assert '["all", "onelake"]' in variables
+    assert migrations.count("moved {") == 5
+    assert "to   = fabric_sql_database.test[0]" in migrations
     assert '"type": "GenericMirror"' in mirror_definition
     assert '"defaultSchema": "dbo"' in mirror_definition
     assert 'output "warehouse_id"' in outputs
@@ -36,4 +44,5 @@ def test_terraform_owns_all_integration_targets():
     assert 'output "eventhouse_id"' in outputs
     assert 'output "kql_database_id"' in outputs
     assert 'output "graphql_api_id"' in outputs
+    assert outputs.count("one(fabric_") == 5
     assert "preview = true" in versions
