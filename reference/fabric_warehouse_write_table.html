@@ -245,8 +245,13 @@ indexes, permissions, and other table-level metadata. Both overwrite paths
 run in an explicit Warehouse transaction and roll back on a confirmed SQL
 failure.</p>
 <p><code>COPY INTO</code> authenticates to OneLake as the identity executing the SQL
-statement. That identity therefore needs the documented Warehouse bulk-load
-permissions and Contributor access to the source and destination workspaces.</p>
+statement. That identity needs read access to the staged Lakehouse files and
+the Warehouse T-SQL permissions required by the selected mode, including the
+applicable bulk-load, DML, and DDL permissions. The identity used to stage
+and clean up files also needs OneLake write access to the staging folder.
+Contributor access to both workspaces is a simple sufficient setup, but it
+is not required when equivalent granular item, OneLake, and T-SQL permissions
+are granted.</p>
 <p>Local staging is always removed. Remote staging is removed only after a
 confirmed successful load unless <code>keep_staging_on_failure = FALSE</code> and the
 failure occurred before SQL execution. Retaining files after an ambiguous
@@ -260,6 +265,8 @@ source while <code>COPY INTO</code> might still be completing.</p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/transactions" class="external-link">Transactions in Fabric Warehouse</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/create-table" class="external-link">Create tables in Fabric Warehouse</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/query-parquet-files" class="external-link">Query Parquet files in Fabric Warehouse</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/onelake/security/data-access-control-model" class="external-link">OneLake security access-control model</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/data-warehouse/share-warehouse-manage-permissions" class="external-link">Warehouse permissions</a></p>
     </div>
 
     <div class="section level2">
