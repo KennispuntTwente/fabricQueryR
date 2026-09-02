@@ -33,6 +33,7 @@ jobs:
       PERSISTENT_WORKSPACE_NAME: fabricqueryr-dev-dhrkoning
       TF_VAR_workspace_name: fabricqueryr-dev-dhrkoning
       TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
+      TF_VAR_provision_sql_database: "true"
       TF_VAR_test_principal_id: 9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5
       TF_VAR_test_principal_type: User
       TF_VAR_test_principal_role: Admin
@@ -119,6 +120,13 @@ jobs:
           if [ "$apply_status" -eq 0 ]; then
             exit 0
           fi
+          if grep -Fq "SqlDatabasePerCapacityLimitReached" "$apply_log"; then
+            echo "::warning::Fabric capacity cannot add a SQL Database; continuing without that optional target"
+            export TF_VAR_provision_sql_database=false
+            echo "TF_VAR_provision_sql_database=false" >> "$GITHUB_ENV"
+            "${terraform_apply[@]}"
+            exit 0
+          fi
           if ! grep -Eq \
             "context deadline exceeded|Provider returned invalid result object after apply" \
             "$apply_log"; then
@@ -139,11 +147,13 @@ jobs:
           echo "FABRIC_NON_SCHEMA_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw non_schema_lakehouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
           echo "FABRIC_MIRRORED_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw mirrored_database_id)" >> "$GITHUB_ENV"
           echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
           echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
           echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
+          if [[ "$TF_VAR_provision_sql_database" == "true" ]]; then
+            echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
+          fi
 
       - name: Install Microsoft ODBC driver
         if: inputs.action == 'rebuild'
@@ -186,6 +196,11 @@ jobs:
             echo "- Workspace: \`$FABRIC_WORKSPACE_NAME\`"
             echo "- Workspace ID: \`$FABRIC_WORKSPACE_ID\`"
             echo "- Interactive admin object ID: \`$TF_VAR_test_principal_id\`"
+            if [[ "$TF_VAR_provision_sql_database" == "true" ]]; then
+              echo "- SQL Database fixture: provisioned"
+            else
+              echo "- SQL Database fixture: omitted because the Fabric capacity limit was reached"
+            fi
             echo "- Re-run this workflow with **rebuild** to reset it from source."
             echo "- Run it with **teardown** to remove it."
             echo "- From the repository root, source \`playground/sandbox.R\` and \`playground/playground.R\` to try the package features."
