@@ -65,7 +65,9 @@ field helper. Record fields are read-only.</p>
 <p>Methods delegate to the corresponding <code>fabric_*()</code> function. Their <code>...</code>
 arguments are forwarded unchanged, and the credential used for discovery is
 reused while the object is in the current R process. An explicitly
-supplied <code>token</code>, <code>tenant_id</code>, <code>client_id</code>, or <code>auth_args</code> takes precedence.</p>
+supplied <code>token</code>, <code>tenant_id</code>, <code>client_id</code>, <code>auth_args</code>, or <code>api_base</code> takes
+precedence. The Fabric API base used for discovery is also reused, so chained
+methods stay on the same public, sovereign-cloud, or workspace endpoint.</p>
 <p>SQL-capable resources inherit common <code>sql_*()</code> methods. Lakehouses,
 Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
 semantic models, and runnable job items add workload-specific methods.
@@ -113,7 +115,8 @@ workload detail route do not by themselves imply a specialized R6 class.</p>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/FabricItem.html">FabricWorkspace</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  <span class="va">record</span>,</span>
 <span>  legacy_class <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fabric_workspace"</span>, <span class="st">"list"</span><span class="op">)</span>,</span>
-<span>  credential <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  credential <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  api_base <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
@@ -125,6 +128,9 @@ workload detail route do not by themselves imply a specialized R6 class.</p>
 
       <dt><code>credential</code></dt>
 <dd><p>Optional internal authentication credential.</p></dd>
+
+      <dt><code>api_base</code></dt>
+<dd><p>Optional Fabric REST API base inherited from discovery.</p></dd>
 
 
 </dl><p></p></div>
@@ -524,7 +530,8 @@ workload detail route do not by themselves imply a specialized R6 class.</p>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/FabricItem.html">FabricItem</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  <span class="va">record</span>,</span>
 <span>  legacy_class <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fabric_item"</span>, <span class="st">"list"</span><span class="op">)</span>,</span>
-<span>  credential <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  credential <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  api_base <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>
@@ -536,6 +543,9 @@ workload detail route do not by themselves imply a specialized R6 class.</p>
 
       <dt><code>credential</code></dt>
 <dd><p>Optional internal authentication credential.</p></dd>
+
+      <dt><code>api_base</code></dt>
+<dd><p>Optional Fabric REST API base inherited from discovery.</p></dd>
 
 
 </dl><p></p></div>

@@ -28,8 +28,10 @@ collision-safe field access and `$as_list()` or
 Methods delegate to the corresponding `fabric_*()` function. Their `...`
 arguments are forwarded unchanged, and the credential used for discovery
 is reused while the object is in the current R process. An explicitly
-supplied `token`, `tenant_id`, `client_id`, or `auth_args` takes
-precedence.
+supplied `token`, `tenant_id`, `client_id`, `auth_args`, or `api_base`
+takes precedence. The Fabric API base used for discovery is also reused,
+so chained methods stay on the same public, sovereign-cloud, or
+workspace endpoint.
 
 SQL-capable resources inherit common `sql_*()` methods. Lakehouses,
 Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL
@@ -104,7 +106,8 @@ Internal constructor used by discovery factories.
     FabricWorkspace$new(
       record,
       legacy_class = c("fabric_workspace", "list"),
-      credential = NULL
+      credential = NULL,
+      api_base = NULL
     )
 
 #### Arguments
@@ -120,6 +123,10 @@ Internal constructor used by discovery factories.
 - `credential`:
 
   Optional internal authentication credential.
+
+- `api_base`:
+
+  Optional Fabric REST API base inherited from discovery.
 
 ------------------------------------------------------------------------
 
@@ -554,7 +561,8 @@ Internal constructor used by discovery factories.
     FabricItem$new(
       record,
       legacy_class = c("fabric_item", "list"),
-      credential = NULL
+      credential = NULL,
+      api_base = NULL
     )
 
 #### Arguments
@@ -570,6 +578,10 @@ Internal constructor used by discovery factories.
 - `credential`:
 
   Optional internal authentication credential.
+
+- `api_base`:
+
+  Optional Fabric REST API base inherited from discovery.
 
 ------------------------------------------------------------------------
 

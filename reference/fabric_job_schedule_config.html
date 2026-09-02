@@ -127,7 +127,8 @@ dates in a particular month are skipped by Fabric. Supply this or the
     <p>A Cron schedule is Fabric's minute-interval schedule; this function does not
 accept a cron expression because the REST API does not use one. Daylight
 saving behavior is controlled by Fabric using <code>time_zone</code>, not by the R
-process's local time zone.</p>
+process's local time zone. Arguments that do not belong to the selected
+documented schedule type are rejected.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

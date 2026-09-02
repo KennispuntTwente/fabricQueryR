@@ -13,6 +13,7 @@ fabric_item(
   type = NULL,
   detail = NULL,
   detail_errors = c("abort", "record"),
+  include = NULL,
   personal_workspace_tenant_id = NULL,
   personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -61,6 +62,12 @@ fabric_item(
   What to do if some connection details cannot be read `"record"`
   returns the available information and stores an error message with the
   affected item; `"abort"` stops the call
+
+- include:
+
+  Optional character vector of additional item properties to request.
+  Fabric currently documents `"DefaultIdentity"`; values are sent as the
+  API's comma-separated `include` query parameter
 
 - personal_workspace_tenant_id:
 
@@ -123,6 +130,11 @@ read scope and access to the item. Microsoft currently limits User Data
 Function detail retrieval to delegated user identities, so its automatic
 default is lightweight. Set `detail = TRUE` explicitly when using a
 supported identity
+
+## References
+
+[Get item REST
+API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/get-item)
 
 ## Examples
 
