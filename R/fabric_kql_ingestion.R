@@ -2976,6 +2976,20 @@ kusto_ingestion_refresh_due <- function(configuration, now = Sys.time()) {
 }
 
 kusto_write_validate_configuration <- function(serialized, configuration) {
+  if (serialized$total_bytes > configuration$max_data_size) {
+    .fabric_abort(
+      paste0(
+        "Staging produced ",
+        serialized$total_bytes,
+        " bytes of Parquet data, exceeding Kusto's current maxDataSize of ",
+        configuration$max_data_size,
+        " bytes"
+      ),
+      class = c("fabric_kql_size_error", "fabric_kql_write_error"),
+      bytes = serialized$total_bytes,
+      max_data_size = configuration$max_data_size
+    )
+  }
   if (serialized$file_count > configuration$max_blobs) {
     .fabric_abort(
       paste0(

@@ -992,8 +992,50 @@ test_that("Eventhouse writer does not submit Arrow buffers as rawSize", {
 
   expect_s3_class(result, "fabric_kql_write_result")
   expect_gt(result$buffer_bytes, 10000)
+  expect_lte(result$bytes, 10000)
   expect_identical(upload_calls, 1L)
   expect_null(submitted$raw_sizes)
+})
+
+test_that("Eventhouse writer enforces the advertised total data size", {
+  skip_if_not_installed("arrow")
+  upload_calls <- 0L
+  local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration(max_data_size = 1)
+    },
+    onelake_upload_target = function(...) {
+      upload_calls <<- upload_calls + 1L
+    }
+  )
+
+  error <- expect_error(
+    fabric_kql_write_table(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      "Raw",
+      data.frame(id = 1L),
+      database = "Telemetry",
+      token = "test-token",
+      storage_token = "storage-token"
+    ),
+    "maxDataSize of 1 bytes",
+    class = "fabric_kql_size_error"
+  )
+  expect_gt(error$bytes, error$max_data_size)
+  expect_identical(error$max_data_size, 1)
+  expect_equal(upload_calls, 0L)
+})
+
+test_that("KQL data-size validation accepts the exact service limit", {
+  configuration <- kql_write_test_configuration(max_data_size = 100)
+  serialized <- list(total_bytes = 100, file_count = 1L)
+
+  expect_invisible(kusto_write_validate_configuration(
+    serialized,
+    configuration
+  ))
 })
 
 test_that("Eventhouse writer enforces the advertised blob count", {
