@@ -9,6 +9,18 @@ from pathlib import Path
 RUNTIME_LANES = {"core": "1.3", "runtime2": "2.0", "preview": "2.0"}
 
 
+def _environment_bool(name: str, *, default: bool) -> bool:
+    value = environ.get(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true"}:
+        return True
+    if normalized in {"0", "false"}:
+        return False
+    raise ValueError(f"{name} must be true or false")
+
+
 @dataclass(frozen=True)
 class SandboxSettings:
     """Configuration shared by local and CI sandbox commands."""
@@ -24,6 +36,7 @@ class SandboxSettings:
     spark_runtime_lane: str = "core"
     spark_runtime_version: str = "1.3"
     non_schema_lakehouse_id: str | None = None
+    provision_sql_database: bool = True
 
     def __post_init__(self) -> None:
         expected = RUNTIME_LANES.get(self.spark_runtime_lane)
@@ -65,6 +78,10 @@ class SandboxSettings:
             ),
             non_schema_lakehouse_id=environ.get(
                 "FABRIC_NON_SCHEMA_LAKEHOUSE_ID"
+            ),
+            provision_sql_database=_environment_bool(
+                "TF_VAR_provision_sql_database",
+                default=True,
             ),
         )
 

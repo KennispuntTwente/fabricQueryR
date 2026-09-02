@@ -25,6 +25,12 @@ variable "fixture_scope" {
   }
 }
 
+variable "provision_sql_database" {
+  description = "Whether the full fixture scope includes its SQL Database target."
+  type        = bool
+  default     = true
+}
+
 variable "test_principal_id" {
   description = "Optional Entra object ID of a principal other than the workspace creator."
   type        = string

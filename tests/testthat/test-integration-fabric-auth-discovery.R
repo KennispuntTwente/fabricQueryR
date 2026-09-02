@@ -109,13 +109,15 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     "TestEnvironment",
     "TestWarehouse",
     "TestWarehouseSnapshot",
-    "TestSQLDatabase",
     "TestEventhouse",
     "TestKQLDatabase",
     "TestSemanticModel",
     "TestArrowSemanticModel",
     "TestGraphQL"
   )
+  if (!is.null(manifest$items$TestSQLDatabase)) {
+    expected_items <- c(expected_items, "TestSQLDatabase")
+  }
   for (name in expected_items) {
     expected <- manifest$items[[name]]
     discovered <- find_item(items, expected$id)
@@ -170,23 +172,25 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     manifest$items$TestWarehouseSnapshot$database_name
   )
 
-  sql_databases <- fabric_sql_databases(workspace, token = token)
-  sql_database <- find_item(
-    sql_databases,
-    manifest$items$TestSQLDatabase$id
-  )
-  expect_equal(
-    sql_database$sql_connection_string,
-    manifest$items$TestSQLDatabase$connection_string
-  )
-  expect_equal(
-    sql_database$sql_server,
-    manifest$items$TestSQLDatabase$server_fqdn
-  )
-  expect_equal(
-    sql_database$sql_database,
-    manifest$items$TestSQLDatabase$database_name
-  )
+  if (!is.null(manifest$items$TestSQLDatabase)) {
+    sql_databases <- fabric_sql_databases(workspace, token = token)
+    sql_database <- find_item(
+      sql_databases,
+      manifest$items$TestSQLDatabase$id
+    )
+    expect_equal(
+      sql_database$sql_connection_string,
+      manifest$items$TestSQLDatabase$connection_string
+    )
+    expect_equal(
+      sql_database$sql_server,
+      manifest$items$TestSQLDatabase$server_fqdn
+    )
+    expect_equal(
+      sql_database$sql_database,
+      manifest$items$TestSQLDatabase$database_name
+    )
+  }
 
   semantic_models <- fabric_semantic_models(workspace, token = token)
   model <- find_item(semantic_models, manifest$items$TestSemanticModel$id)

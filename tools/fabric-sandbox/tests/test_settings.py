@@ -84,6 +84,25 @@ def test_runtime_2_lane_can_be_selected_from_environment(
     assert settings.spark_runtime_version == "2.0"
 
 
+def test_sql_database_provisioning_can_be_disabled_from_environment(
+    monkeypatch,
+):
+    monkeypatch.setenv("TF_VAR_provision_sql_database", "false")
+
+    settings = SandboxSettings.from_environment()
+
+    assert settings.provision_sql_database is False
+
+
+def test_sql_database_provisioning_rejects_invalid_environment_value(
+    monkeypatch,
+):
+    monkeypatch.setenv("TF_VAR_provision_sql_database", "sometimes")
+
+    with pytest.raises(ValueError, match="must be true or false"):
+        SandboxSettings.from_environment()
+
+
 def test_preview_remains_a_runtime_2_compatibility_alias(tmp_path):
     settings = SandboxSettings(
         workspace_id=None,

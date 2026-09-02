@@ -341,23 +341,24 @@ def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
                 "TestKQLDatabase",
                 "KQLDatabase",
             )
-            sql_database_item = api.find_item(
-                workspace_id,
-                "TestSQLDatabase",
-                "SQLDatabase",
-            )
             kql_database = _wait_for_kql_properties(
                 api,
                 workspace_id,
                 kql_database_item["id"],
                 item_type="KQLDatabase",
             )
-            sql_database = _wait_for_sql_properties(
-                api,
-                workspace_id,
-                sql_database_item["id"],
-                item_type="SQLDatabase",
-            )
+            if settings.provision_sql_database:
+                sql_database_item = api.find_item(
+                    workspace_id,
+                    "TestSQLDatabase",
+                    "SQLDatabase",
+                )
+                sql_database = _wait_for_sql_properties(
+                    api,
+                    workspace_id,
+                    sql_database_item["id"],
+                    item_type="SQLDatabase",
+                )
         upload_fixtures(
             settings,
             workspace_id,
@@ -398,7 +399,7 @@ def seed(settings: SandboxSettings, *, scope: str = "all") -> None:
             warehouse_item["displayName"],
         ),
     ]
-    if scope == "all":
+    if scope == "all" and settings.provision_sql_database:
         sql_targets.append(
             (
                 sql_database_item["displayName"],

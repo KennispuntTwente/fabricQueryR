@@ -239,12 +239,32 @@ def test_provisioning_retries_only_transient_provider_timeouts():
         )[1].split("- name: Export Terraform outputs", maxsplit=1)[0]
 
         assert "-parallelism=4" in provision
-        assert provision.count('"${terraform_apply[@]}"') == 2
+        expected_apply_count = (
+            3 if path.name == "integration-fabric.yaml" else 2
+        )
+        assert provision.count('"${terraform_apply[@]}"') == expected_apply_count
         assert "context deadline exceeded" in provision
         assert "Provider returned invalid result object after apply" in provision
         assert "state show -no-color" in provision
         assert "fabric_mirrored_database.test" in provision
         assert 'exit "$apply_status"' in provision
+
+
+def test_core_provisioning_falls_back_only_for_sql_database_capacity():
+    repository_root = Path(__file__).parents[3]
+    workflow = (
+        repository_root / ".github/workflows/integration-fabric.yaml"
+    ).read_text()
+    provision = workflow.split(
+        "- name: Create workspace and test targets", maxsplit=1
+    )[1].split("- name: Export Terraform outputs", maxsplit=1)[0]
+
+    assert "SqlDatabasePerCapacityLimitReached" in provision
+    assert '[[ "$TF_VAR_fixture_scope" == "all" ]]' in provision
+    assert "export TF_VAR_provision_sql_database=false" in provision
+    assert 'echo "TF_VAR_provision_sql_database=false"' in provision
+    assert "TF_VAR_provision_sql_database: \"true\"" in workflow
+    assert '[[ "$TF_VAR_provision_sql_database" == "true" ]]' in workflow
 
 
 def test_warehouse_snapshot_is_recreated_after_seeded_objects():

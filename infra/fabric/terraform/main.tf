@@ -1,5 +1,6 @@
 locals {
   provision_full_fixture = var.fixture_scope == "all"
+  provision_sql_database = local.provision_full_fixture && var.provision_sql_database
 }
 
 resource "fabric_workspace" "sandbox" {
@@ -81,7 +82,7 @@ resource "fabric_warehouse_snapshot" "test" {
 }
 
 resource "fabric_sql_database" "test" {
-  count = local.provision_full_fixture ? 1 : 0
+  count = local.provision_sql_database ? 1 : 0
 
   display_name = "TestSQLDatabase"
   description  = "Ephemeral integration-test SQL database for fabricQueryR"

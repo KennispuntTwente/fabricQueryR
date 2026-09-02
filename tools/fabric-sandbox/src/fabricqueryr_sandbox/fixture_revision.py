@@ -204,6 +204,10 @@ def fixture_revision(
     digest.update(b"spark_runtime_version\0")
     digest.update(settings.spark_runtime_version.encode("utf-8"))
     digest.update(b"\0")
+    if scope == "all":
+        digest.update(b"provision_sql_database\0")
+        digest.update(str(settings.provision_sql_database).encode("ascii"))
+        digest.update(b"\0")
     if runtime_contract is not None:
         digest.update(b"observed_runtime_contract\0")
         digest.update(

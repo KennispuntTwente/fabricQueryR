@@ -190,6 +190,12 @@ def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):
     )
     assert different_runtime != first
 
+    without_sql_database = fixture_revision(
+        replace(settings, provision_sql_database=False),
+        RUNTIME_CONTRACT,
+    )
+    assert without_sql_database != first
+
     different_build = fixture_revision(
         settings,
         {**RUNTIME_CONTRACT, "spark_version": "3.5.6.0"},
@@ -251,6 +257,14 @@ def test_jobs_fixture_revision_excludes_unrelated_services(tmp_path):
 def test_onelake_fixture_revision_excludes_unrelated_services(tmp_path):
     settings = make_settings(tmp_path)
     first = fixture_revision(settings, RUNTIME_CONTRACT, scope="onelake")
+    assert (
+        fixture_revision(
+            replace(settings, provision_sql_database=False),
+            RUNTIME_CONTRACT,
+            scope="onelake",
+        )
+        == first
+    )
 
     graphql_api = (
         settings.repository_root

@@ -284,20 +284,17 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
       item = fabric_test_manifest_item(manifest, "TestWarehouseSnapshot"),
       type = "WarehouseSnapshot",
       table = fabric_test_manifest_item(manifest, "TestWarehouse")$tables$types
-    ),
-    SQLDatabase = list(
-      item = fabric_test_manifest_item(manifest, "TestSQLDatabase"),
-      type = "SQLDatabase",
-      table = fabric_test_manifest_item(
-        manifest,
-        "TestSQLDatabase"
-      )$tables$types,
-      view = fabric_test_manifest_item(
-        manifest,
-        "TestSQLDatabase"
-      )$views$types
     )
   )
+  sql_database <- manifest$items$TestSQLDatabase
+  if (!is.null(sql_database)) {
+    cases$SQLDatabase <- list(
+      item = sql_database,
+      type = "SQLDatabase",
+      table = sql_database$tables$types,
+      view = sql_database$views$types
+    )
+  }
 
   for (name in names(cases)) {
     case <- cases[[name]]
@@ -553,6 +550,11 @@ test_that("provisioned Warehouse snapshot is discoverable and connectable", {
 })
 
 test_that("provisioned SQL Database target is discoverable and connectable", {
+  manifest <- fabric_test_manifest()
+  skip_if(
+    is.null(manifest$items$TestSQLDatabase),
+    "Fabric capacity quota omitted the SQL Database fixture"
+  )
   results <- lapply(
     fabric_test_sql_backends(),
     function(backend) fabric_test_sql_item("TestSQLDatabase", backend)

@@ -60,6 +60,7 @@ jobs:
       TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
       TF_VAR_fixture_scope: ${{ matrix.fixture_scope }}
+      TF_VAR_provision_sql_database: "true"
       FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
       FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}
@@ -139,6 +140,14 @@ jobs:
           if [ "$apply_status" -eq 0 ]; then
             exit 0
           fi
+          if [[ "$TF_VAR_fixture_scope" == "all" ]] && grep -Fq \
+            "SqlDatabasePerCapacityLimitReached" "$apply_log"; then
+            echo "::warning::Fabric capacity cannot add a SQL Database; continuing without that optional target"
+            export TF_VAR_provision_sql_database=false
+            echo "TF_VAR_provision_sql_database=false" >> "$GITHUB_ENV"
+            "${terraform_apply[@]}"
+            exit 0
+          fi
           if ! grep -Eq \
             "context deadline exceeded|Provider returned invalid result object after apply" \
             "$apply_log"; then
@@ -160,10 +169,12 @@ jobs:
           echo "FABRIC_MIRRORED_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw mirrored_database_id)" >> "$GITHUB_ENV"
           if [[ "${{ matrix.fixture_scope }}" == "all" ]]; then
             echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
-            echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
             echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
             echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
             echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
+            if [[ "$TF_VAR_provision_sql_database" == "true" ]]; then
+              echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
+            fi
           fi
 
       - name: Deploy Fabric item definitions

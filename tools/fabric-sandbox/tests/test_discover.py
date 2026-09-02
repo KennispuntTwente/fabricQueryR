@@ -19,6 +19,7 @@ class FakeFabricApi:
     def __init__(self):
         self.sleeps = []
         self.refreshed = []
+        self.found = []
 
     def __enter__(self):
         return self
@@ -27,6 +28,7 @@ class FakeFabricApi:
         return None
 
     def find_item(self, _workspace_id, display_name, item_type):
+        self.found.append((display_name, item_type))
         return {
             "id": f"{display_name}-id",
             "displayName": display_name,
@@ -336,7 +338,12 @@ def test_jobs_discovery_uses_only_job_items_and_scoped_revision(
     assert fabric_api.refreshed == []
 
 
-def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
+@pytest.mark.parametrize("provision_sql_database", [True, False])
+def test_discover_requires_and_serializes_all_targets(
+    monkeypatch,
+    tmp_path,
+    provision_sql_database,
+):
     settings = SandboxSettings(
         workspace_id="workspace-id",
         lakehouse_id="TestLakehouse-id",
@@ -346,6 +353,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         environment="TEST",
         repository_root=tmp_path,
         manifest_path=tmp_path / "manifest.json",
+        provision_sql_database=provision_sql_database,
     )
     fabric_api = FakeFabricApi()
     monkeypatch.setattr(
@@ -381,7 +389,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
 
     assert manifest.fixture_revision == "fixture-revision"
     assert manifest.runtime["fabric_runtime"] == "1.3"
-    assert set(manifest.items) == {
+    expected_items = {
         "TestLakehouse",
         "TestLakehouseNoSchemas",
         "SeedFixtures",
@@ -392,13 +400,15 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "TestWarehouse",
         "TestMirroredDatabase",
         "TestWarehouseSnapshot",
-        "TestSQLDatabase",
         "TestEventhouse",
         "TestKQLDatabase",
         "TestSemanticModel",
         "TestArrowSemanticModel",
         "TestGraphQL",
     }
+    if provision_sql_database:
+        expected_items.add("TestSQLDatabase")
+    assert set(manifest.items) == expected_items
     assert manifest.items["JobFixtures"] == {
         "id": "JobFixtures-id",
         "type": "Notebook",
@@ -458,7 +468,7 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "parent_warehouse_id": "TestWarehouse-id",
         "snapshot_date_time": "2026-08-09T12:00:00Z",
     }
-    assert manifest.items["TestSQLDatabase"] == {
+    expected_sql_database = {
         "id": "TestSQLDatabase-id",
         "type": "SQLDatabase",
         "display_name": "TestSQLDatabase",
@@ -471,6 +481,12 @@ def test_discover_requires_and_serializes_all_targets(monkeypatch, tmp_path):
         "tables": {"types": "fabricqueryr_sql_types"},
         "views": {"types": "fabricqueryr_sql_types_view"},
     }
+    assert manifest.items.get("TestSQLDatabase") == (
+        expected_sql_database if provision_sql_database else None
+    )
+    assert (("TestSQLDatabase", "SQLDatabase") in fabric_api.found) is (
+        provision_sql_database
+    )
     assert manifest.items["TestMirroredDatabase"] == {
         "id": "TestMirroredDatabase-id",
         "type": "MirroredDatabase",

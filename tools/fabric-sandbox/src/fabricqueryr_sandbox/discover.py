@@ -435,9 +435,11 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             "TestWarehouseSnapshot",
             "WarehouseSnapshot",
         )
-        sql_database_item = api.find_item(
-            workspace_id, "TestSQLDatabase", "SQLDatabase"
-        )
+        sql_database_item = None
+        if settings.provision_sql_database:
+            sql_database_item = api.find_item(
+                workspace_id, "TestSQLDatabase", "SQLDatabase"
+            )
         mirrored_database_item = api.find_item(
             workspace_id,
             "TestMirroredDatabase",
@@ -467,12 +469,14 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
             warehouse_snapshot_item["id"],
             item_type="WarehouseSnapshot",
         )
-        sql_database = _wait_for_sql_properties(
-            api,
-            workspace_id,
-            sql_database_item["id"],
-            item_type="SQLDatabase",
-        )
+        sql_database = None
+        if sql_database_item is not None:
+            sql_database = _wait_for_sql_properties(
+                api,
+                workspace_id,
+                sql_database_item["id"],
+                item_type="SQLDatabase",
+            )
         mirrored_database = _wait_for_sql_properties(
             api,
             workspace_id,
@@ -506,7 +510,9 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
     sql_endpoint = properties["sqlEndpointProperties"]
     warehouse_properties = warehouse["properties"]
     warehouse_snapshot_properties = warehouse_snapshot["properties"]
-    sql_database_properties = sql_database["properties"]
+    sql_database_properties = (
+        sql_database["properties"] if sql_database is not None else None
+    )
     mirrored_database_properties = mirrored_database["properties"]
     eventhouse_properties = eventhouse["properties"]
     kql_database_properties = kql_database["properties"]
@@ -738,18 +744,25 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
                     "snapshotDateTime"
                 ],
             },
-            "TestSQLDatabase": {
-                "id": sql_database_item["id"],
-                "type": "SQLDatabase",
-                "display_name": sql_database_item["displayName"],
-                "connection_string": sql_database_properties["connectionString"],
-                "server_fqdn": sql_database_properties["serverFqdn"],
-                "database_name": sql_database_properties["databaseName"],
-                "tables": {
-                    "types": SQL_FIXTURE_TABLE,
-                },
-                "views": {"types": SQL_FIXTURE_VIEW},
-            },
+            **(
+                {
+                    "TestSQLDatabase": {
+                        "id": sql_database_item["id"],
+                        "type": "SQLDatabase",
+                        "display_name": sql_database_item["displayName"],
+                        "connection_string": sql_database_properties[
+                            "connectionString"
+                        ],
+                        "server_fqdn": sql_database_properties["serverFqdn"],
+                        "database_name": sql_database_properties["databaseName"],
+                        "tables": {"types": SQL_FIXTURE_TABLE},
+                        "views": {"types": SQL_FIXTURE_VIEW},
+                    }
+                }
+                if sql_database_item is not None
+                and sql_database_properties is not None
+                else {}
+            ),
             "TestMirroredDatabase": {
                 "id": mirrored_database_item["id"],
                 "type": "MirroredDatabase",

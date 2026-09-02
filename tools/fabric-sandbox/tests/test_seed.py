@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -396,7 +397,12 @@ def test_wait_for_delta_log_publication_requires_readable_expected_rows():
     assert sleeps == [10]
 
 
-def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
+@pytest.mark.parametrize("provision_sql_database", [True, False])
+def test_seed_requires_every_live_fixture_to_be_ready(
+    monkeypatch,
+    tmp_path,
+    provision_sql_database,
+):
     settings = SandboxSettings(
         workspace_id="workspace-id",
         lakehouse_id="lakehouse-id",
@@ -408,6 +414,10 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         manifest_path=tmp_path / "manifest.json",
     )
     calls = []
+    settings = replace(
+        settings,
+        provision_sql_database=provision_sql_database,
+    )
 
     class FakeFabricApi:
         def __init__(self, credential):
@@ -840,7 +850,7 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
     assert calls.index(graphql_call) > max(
         index for index, call in enumerate(calls) if call[0] == "seed_sql"
     )
-    assert (
+    sql_database_seed = (
         "seed_sql",
         (
             "Server=database.sql.test;"
@@ -849,7 +859,15 @@ def test_seed_requires_every_live_fixture_to_be_ready(monkeypatch, tmp_path):
         "TestSQLDatabase-internal",
         "token-for-https://database.windows.net//.default",
         False,
-    ) in calls
+    )
+    assert (sql_database_seed in calls) is provision_sql_database
+    sql_database_lookup = (
+        "find_item",
+        "workspace-id",
+        "TestSQLDatabase",
+        "SQLDatabase",
+    )
+    assert (sql_database_lookup in calls) is provision_sql_database
     assert ("seed_power_bi", cached_credential, "workspace-id") in calls
     assert (
         "prepare_arrow_power_bi",
