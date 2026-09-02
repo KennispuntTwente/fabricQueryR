@@ -1006,7 +1006,7 @@ fabric_operation_result <- function(
   same_custom_origin <- !inherits(parsed, "try-error") &&
     identical(tolower(parsed$scheme %||% ""), tolower(base$scheme %||% "")) &&
     identical(tolower(host), tolower(base$hostname %||% "")) &&
-    identical(parsed$port %||% "", base$port %||% "")
+    identical(.httr2_normalized_port(parsed), .httr2_normalized_port(base))
   guid <- "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
   core_route <- if (inherits(parsed, "try-error")) {
     NULL

@@ -844,24 +844,25 @@
   value
 }
 
+# Return explicit or scheme-default port text for same-origin comparison
+.httr2_normalized_port <- function(parsed) {
+  as.character(
+    parsed$port %||%
+      switch(
+        tolower(parsed$scheme %||% ""),
+        http = "80",
+        https = "443",
+        NA_character_
+      )
+  )
+}
+
 # Resolve `next_link` relative to `current_url` and enforce `origin_url`'s
 # origin. Returns a safe continuation URL used by collection readers
 .httr2_continuation_url <- function(origin_url, current_url, next_link) {
   candidate <- httr2::url_modify_relative(current_url, next_link)
   origin <- httr2::url_parse(origin_url)
   next_url <- httr2::url_parse(candidate)
-  # Return explicit or scheme-default port text for same-origin comparison
-  normalized_port <- function(parsed) {
-    as.character(
-      parsed$port %||%
-        switch(
-          tolower(parsed$scheme %||% ""),
-          http = "80",
-          https = "443",
-          NA_character_
-        )
-    )
-  }
   same_origin <- identical(
     tolower(origin$scheme %||% ""),
     tolower(next_url$scheme %||% "")
@@ -870,7 +871,10 @@
       tolower(origin$hostname %||% ""),
       tolower(next_url$hostname %||% "")
     ) &&
-    identical(normalized_port(origin), normalized_port(next_url))
+    identical(
+      .httr2_normalized_port(origin),
+      .httr2_normalized_port(next_url)
+    )
   if (!same_origin) {
     .fabric_abort(
       "The service returned a continuation URL on a different origin"

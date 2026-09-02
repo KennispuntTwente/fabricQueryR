@@ -487,6 +487,44 @@ test_that("workload-scoped operation locations remain resumable", {
   expect_equal(from_result$result_url, paste0(status_url, "/result"))
 })
 
+test_that("custom LRO origins normalize the default HTTPS port", {
+  implicit_base <- "https://fabric.example/v1"
+  explicit_base <- "https://fabric.example:443/v1"
+  implicit_location <- paste0(
+    "https://fabric.example/v1/operations/",
+    operation_test_id
+  )
+  explicit_location <- paste0(
+    "https://fabric.example:443/v1/operations/",
+    operation_test_id
+  )
+
+  from_explicit_location <- .fabric_operation_urls(
+    operation_id = NULL,
+    location = explicit_location,
+    current_url = implicit_base,
+    api_base = implicit_base
+  )
+  from_explicit_base <- .fabric_operation_urls(
+    operation_id = NULL,
+    location = implicit_location,
+    current_url = explicit_base,
+    api_base = explicit_base
+  )
+
+  expect_identical(from_explicit_location$status_url, explicit_location)
+  expect_identical(from_explicit_base$status_url, implicit_location)
+  expect_error(
+    .fabric_operation_urls(
+      operation_id = NULL,
+      location = sub(":443", ":444", explicit_location, fixed = TRUE),
+      current_url = implicit_base,
+      api_base = implicit_base
+    ),
+    class = "fabric_operation_protocol_error"
+  )
+})
+
 test_that("workload-scoped operation locations reject unsafe route segments", {
   workspace_id <- "11111111-2222-3333-4444-555555555555"
   base <- paste0(
