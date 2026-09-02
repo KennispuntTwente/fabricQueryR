@@ -19,4 +19,3 @@ infra/fabric/terraform/terraform.tfvars
 *.gz
 /fabricQueryR.Rcheck
 /check-review
-/tests/testthat/_snaps
