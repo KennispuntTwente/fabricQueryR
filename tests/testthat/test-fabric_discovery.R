@@ -1170,6 +1170,109 @@ test_that("item listing forwards folder and include options safely", {
   expect_identical(parsed$query$include, "DefaultIdentity")
 })
 
+test_that("single-item lookup forwards include for IDs and names", {
+  workspace_id <- "11111111-1111-4111-8111-111111111111"
+  item_id <- "22222222-2222-4222-8222-222222222222"
+  requested_urls <- character()
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = workspace_id,
+        displayName = "Workspace",
+        api_base = "https://example.test/v1"
+      )
+    },
+    .httr2_json = function(req, ...) {
+      requested_urls <<- c(requested_urls, req$url)
+      list(
+        id = item_id,
+        displayName = "Sales",
+        type = "Warehouse",
+        defaultIdentity = list(type = "ServicePrincipal")
+      )
+    },
+    .httr2_collection = function(url, ...) {
+      requested_urls <<- c(requested_urls, url)
+      list(list(
+        id = item_id,
+        displayName = "Sales",
+        type = "Warehouse",
+        defaultIdentity = list(type = "ServicePrincipal")
+      ))
+    },
+    fabric_enrich_item = function(record, ...) record
+  )
+
+  by_id <- fabric_item(
+    "Workspace",
+    item_id,
+    include = "DefaultIdentity",
+    token = "token",
+    output = "list"
+  )
+  by_name <- fabric_item(
+    "Workspace",
+    "Sales",
+    include = c("DefaultIdentity", "FutureProperty"),
+    token = "token",
+    output = "list"
+  )
+
+  expect_identical(by_id$defaultIdentity$type, "ServicePrincipal")
+  expect_identical(by_name$defaultIdentity$type, "ServicePrincipal")
+  expect_identical(
+    httr2::url_parse(requested_urls[[1L]])$query$include,
+    "DefaultIdentity"
+  )
+  expect_identical(
+    httr2::url_parse(requested_urls[[2L]])$query$include,
+    "DefaultIdentity,FutureProperty"
+  )
+})
+
+test_that("single-item include refreshes a supplied discovery record", {
+  workspace_id <- "11111111-1111-4111-8111-111111111111"
+  item_id <- "22222222-2222-4222-8222-222222222222"
+  requested_url <- NULL
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(...) {
+      list(
+        id = workspace_id,
+        displayName = "Workspace",
+        api_base = "https://example.test/v1"
+      )
+    },
+    .httr2_json = function(req, ...) {
+      requested_url <<- req$url
+      list(
+        id = item_id,
+        displayName = "Sales",
+        type = "Warehouse",
+        defaultIdentity = list(type = "User")
+      )
+    },
+    fabric_enrich_item = function(record, ...) record
+  )
+  supplied <- structure(
+    list(id = item_id, displayName = "Sales", type = "Warehouse"),
+    class = c("fabric_item", "list")
+  )
+
+  refreshed <- fabric_item(
+    "Workspace",
+    supplied,
+    include = "DefaultIdentity",
+    token = "token",
+    output = "list"
+  )
+
+  expect_identical(refreshed$defaultIdentity$type, "User")
+  expect_identical(
+    httr2::url_parse(requested_url)$query$include,
+    "DefaultIdentity"
+  )
+})
+
 test_that("item folder options validate before authentication", {
   auth_calls <- 0L
   token <- function(...) {
@@ -1192,6 +1295,11 @@ test_that("item folder options validate before authentication", {
   )) {
     expect_error(
       fabric_items("Workspace", include = value, token = token),
+      "include must be NULL or a unique vector of property names",
+      fixed = TRUE
+    )
+    expect_error(
+      fabric_item("Workspace", "Item", include = value, token = token),
       "include must be NULL or a unique vector of property names",
       fixed = TRUE
     )

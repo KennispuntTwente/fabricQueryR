@@ -289,19 +289,7 @@ fabric_items <- function(
       .fabric_abort("root_folder_id must be NULL or a Fabric folder GUID")
     }
   }
-  if (!is.null(include)) {
-    valid_include <- is.character(include) &&
-      length(include) > 0L &&
-      !anyNA(include) &&
-      all(grepl("^[A-Za-z][A-Za-z0-9]*$", include)) &&
-      !anyDuplicated(tolower(include))
-    if (!valid_include) {
-      .fabric_abort(
-        "include must be NULL or a unique vector of property names"
-      )
-    }
-    include <- paste(include, collapse = ",")
-  }
+  include <- fabric_normalize_item_include(include)
   fabric_validate_personal_workspace_identity(
     personal_workspace_tenant_id,
     personal_workspace_owner
@@ -434,6 +422,8 @@ fabric_items <- function(
 #' scope and access to the item. Microsoft currently limits User Data Function
 #' detail retrieval to delegated user identities, so its automatic default is
 #' lightweight. Set `detail = TRUE` explicitly when using a supported identity
+#' @references
+#' [Get item REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/get-item)
 #' @examples
 #' \dontrun{
 #' # Discover a workspace and obtain a lightweight Warehouse object
@@ -453,6 +443,7 @@ fabric_item <- function(
   type = NULL,
   detail = NULL,
   detail_errors = c("abort", "record"),
+  include = NULL,
   personal_workspace_tenant_id = NULL,
   personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -478,6 +469,7 @@ fabric_item <- function(
     .fabric_abort("detail must be NULL, TRUE, or FALSE")
   }
   detail_errors <- match.arg(detail_errors)
+  include <- fabric_normalize_item_include(include)
   fabric_validate_personal_workspace_identity(
     personal_workspace_tenant_id,
     personal_workspace_owner
@@ -503,20 +495,35 @@ fabric_item <- function(
   # paged name search only when the caller supplied a display name
 
   supplied <- fabric_as_record(item)
-  if (!is.null(supplied)) {
+  if (!is.null(supplied) && is.null(include)) {
     record <- supplied
   } else {
+    item_id <- if (is.null(supplied)) {
+      item
+    } else {
+      fabric_record_value(supplied, "id")
+    }
     if (
-      !is.character(item) || length(item) != 1L || is.na(item) || !nzchar(item)
+      !is.character(item_id) ||
+        length(item_id) != 1L ||
+        is.na(item_id) ||
+        !nzchar(item_id)
     ) {
       .fabric_abort("item must be one non-empty string or a discovered item")
     }
+    if (!is.null(supplied) && !fabric_is_guid(item_id)) {
+      .fabric_abort(
+        "A supplied item record must contain a canonical GUID `id`"
+      )
+    }
 
-    if (fabric_is_guid(item)) {
+    if (fabric_is_guid(item_id)) {
+      req <- httr2::request(
+        paste0(base, "/workspaces/", ws$id, "/items/", item_id)
+      )
+      req <- httr2::req_url_query(req, include = include)
       record <- .httr2_json(
-        httr2::request(
-          paste0(base, "/workspaces/", ws$id, "/items/", item)
-        ),
+        req,
         simplifyVector = FALSE,
         credential = credential,
         audience = .fabric_audience$fabric
@@ -525,13 +532,13 @@ fabric_item <- function(
       req <- httr2::request(
         paste0(base, "/workspaces/", ws$id, "/items")
       )
-      req <- httr2::req_url_query(req, type = type)
+      req <- httr2::req_url_query(req, type = type, include = include)
       candidates <- .httr2_collection(
         req$url,
         credential = credential,
         audience = .fabric_audience$fabric
       )
-      record <- fabric_unique_name(candidates, item, "item")
+      record <- fabric_unique_name(candidates, item_id, "item")
     }
   }
 
@@ -907,6 +914,23 @@ fabric_discovery_optional_string <- function(value, name) {
     .fabric_abort(paste0(name, " must be NULL or one non-empty string"))
   }
   invisible(value)
+}
+
+fabric_normalize_item_include <- function(include) {
+  if (is.null(include)) {
+    return(NULL)
+  }
+  valid <- is.character(include) &&
+    length(include) > 0L &&
+    !anyNA(include) &&
+    all(grepl("^[A-Za-z][A-Za-z0-9]*$", include)) &&
+    !anyDuplicated(tolower(include))
+  if (!valid) {
+    .fabric_abort(
+      "include must be NULL or a unique vector of property names"
+    )
+  }
+  paste(include, collapse = ",")
 }
 
 # Check the optional personal-workspace `tenant_id` and `owner` as a pair

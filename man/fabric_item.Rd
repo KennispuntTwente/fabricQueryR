@@ -10,6 +10,7 @@ fabric_item(
   type = NULL,
   detail = NULL,
   detail_errors = c("abort", "record"),
+  include = NULL,
   personal_workspace_tenant_id = NULL,
   personal_workspace_owner = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -45,6 +46,10 @@ default to lightweight records}
 \item{detail_errors}{What to do if some connection details cannot be read
 \code{"record"} returns the available information and stores an error message
 with the affected item; \code{"abort"} stops the call}
+
+\item{include}{Optional character vector of additional item properties to
+request. Fabric currently documents \code{"DefaultIdentity"}; values are sent
+as the API's comma-separated \code{include} query parameter}
 
 \item{personal_workspace_tenant_id}{Optional Microsoft Entra tenant ID used
 to build the XMLA endpoint for a Personal workspace}
@@ -105,4 +110,7 @@ warehouse <- fabric_item(workspace, warehouses[[1L]])
 # `$sql_connection_info()` calls fabric_sql_connection_info()
 warehouse$sql_connection_info()
 }
+}
+\references{
+\href{https://learn.microsoft.com/en-us/rest/api/fabric/core/items/get-item}{Get item REST API}
 }
