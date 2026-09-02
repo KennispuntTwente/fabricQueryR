@@ -113,6 +113,40 @@ test_that("workspace discovery can return plain records explicitly", {
   expect_identical(workspace$description, "Primary")
 })
 
+test_that("workspace R6 methods retain a custom Fabric API origin", {
+  requests <- character()
+  httr2::local_mocked_responses(function(req) {
+    requests <<- c(requests, req$url)
+    if (grepl("/items", req$url, fixed = TRUE)) {
+      discovery_response(list(value = list()), req$url)
+    } else {
+      discovery_response(
+        list(
+          value = list(list(
+            id = "11111111-1111-4111-8111-111111111111",
+            displayName = "Analytics",
+            type = "Workspace"
+          ))
+        ),
+        req$url
+      )
+    }
+  })
+
+  workspace <- fabric_workspaces(
+    token = "token",
+    api_base = "https://highapi.fabric.microsoft.us"
+  )[[1L]]
+  items <- workspace$items(detail = FALSE)
+
+  expect_length(items, 0L)
+  expect_length(requests, 2L)
+  expect_true(all(startsWith(
+    requests,
+    "https://highapi.fabric.microsoft.us/v1/"
+  )))
+})
+
 test_that("workspace resolution retrieves preferred OneLake endpoints", {
   workspace_id <- "11111111-1111-4111-8111-111111111111"
   requests <- character()

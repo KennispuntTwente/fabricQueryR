@@ -10,7 +10,13 @@ FabricRecord <- R6::R6Class(
     #' @param record One named Fabric API record.
     #' @param legacy_class Classes restored by `$as_list()`.
     #' @param credential Optional internal authentication credential.
-    initialize = function(record, legacy_class, credential = NULL) {
+    #' @param api_base Optional Fabric REST API base inherited from discovery.
+    initialize = function(
+      record,
+      legacy_class,
+      credential = NULL,
+      api_base = NULL
+    ) {
       if (!is.list(record) || is.null(names(record))) {
         .fabric_abort("`record` must be one named Fabric record list")
       }
@@ -32,6 +38,11 @@ FabricRecord <- R6::R6Class(
       reference <- .fabric_r6_credential_reference(credential)
       private$credential_ref <- reference$reference
       private$credential_key <- reference$key
+      private$api_base <- if (is.null(api_base)) {
+        NULL
+      } else {
+        fabric_api_base(api_base)
+      }
 
       reserved <- ls(self, all.names = TRUE)
       for (name in setdiff(names(record), reserved)) {
@@ -112,6 +123,7 @@ FabricRecord <- R6::R6Class(
     legacy_class = NULL,
     credential_ref = NULL,
     credential_key = NULL,
+    api_base = NULL,
 
     value = function(...) {
       fabric_record_value(private$record, ...)
@@ -149,7 +161,8 @@ FabricRecord <- R6::R6Class(
           NULL
         },
         authenticated = authenticated,
-        output = output
+        output = output,
+        api_base = private$api_base
       )
     }
   )
@@ -170,7 +183,9 @@ FabricRecord <- R6::R6Class(
 #' Methods delegate to the corresponding `fabric_*()` function. Their `...`
 #' arguments are forwarded unchanged, and the credential used for discovery is
 #' reused while the object is in the current R process. An explicitly
-#' supplied `token`, `tenant_id`, `client_id`, or `auth_args` takes precedence.
+#' supplied `token`, `tenant_id`, `client_id`, `auth_args`, or `api_base` takes
+#' precedence. The Fabric API base used for discovery is also reused, so chained
+#' methods stay on the same public, sovereign-cloud, or workspace endpoint.
 #'
 #' SQL-capable resources inherit common `sql_*()` methods. Lakehouses,
 #' Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
@@ -226,12 +241,14 @@ FabricWorkspace <- R6::R6Class(
     #' @param record One named Fabric workspace record.
     #' @param legacy_class Classes assigned by `$as_list()`.
     #' @param credential Optional internal authentication credential.
+    #' @param api_base Optional Fabric REST API base inherited from discovery.
     initialize = function(
       record,
       legacy_class = c("fabric_workspace", "list"),
-      credential = NULL
+      credential = NULL,
+      api_base = NULL
     ) {
-      super$initialize(record, legacy_class, credential)
+      super$initialize(record, legacy_class, credential, api_base)
     },
 
     #' @description Discover items in this workspace.
@@ -411,12 +428,14 @@ FabricItem <- R6::R6Class(
     #' @param record One named Fabric item record.
     #' @param legacy_class Classes assigned by `$as_list()`.
     #' @param credential Optional internal authentication credential.
+    #' @param api_base Optional Fabric REST API base inherited from discovery.
     initialize = function(
       record,
       legacy_class = c("fabric_item", "list"),
-      credential = NULL
+      credential = NULL,
+      api_base = NULL
     ) {
-      super$initialize(record, legacy_class, credential)
+      super$initialize(record, legacy_class, credential, api_base)
     },
 
     #' @description Retrieve a fresh item record and supported workload details.
@@ -1421,7 +1440,12 @@ length.FabricRecord <- function(x) {
 
 # Convert one legacy record into the appropriate R6 class. This remains
 # internal so discovery functions control credentials and legacy classes.
-fabric_r6_record <- function(record, legacy_class, credential = NULL) {
+fabric_r6_record <- function(
+  record,
+  legacy_class,
+  credential = NULL,
+  api_base = NULL
+) {
   type <- fabric_record_value(record, "type")
   type <- if (is.character(type) && length(type) == 1L && !is.na(type)) {
     tolower(type)
@@ -1451,7 +1475,8 @@ fabric_r6_record <- function(record, legacy_class, credential = NULL) {
   generator$new(
     record = record,
     legacy_class = legacy_class,
-    credential = credential
+    credential = credential,
+    api_base = api_base
   )
 }
 
@@ -1489,7 +1514,8 @@ fabric_r6_record <- function(record, legacy_class, credential = NULL) {
   dots,
   credential,
   authenticated,
-  output
+  output,
+  api_base
 ) {
   dot_names <- names(dots)
   if (
@@ -1517,6 +1543,13 @@ fabric_r6_record <- function(record, legacy_class, credential = NULL) {
       )
     }
     dots$output <- output
+  }
+  if (
+    !is.null(api_base) &&
+      "api_base" %in% names(formals(fun)) &&
+      !"api_base" %in% c(names(args), names(dots))
+  ) {
+    dots$api_base <- api_base
   }
   auth_names <- c("token", "tenant_id", "client_id", "auth_args")
   if (

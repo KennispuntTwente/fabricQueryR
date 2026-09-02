@@ -35,7 +35,9 @@ field helper. Record fields are read-only.
 Methods delegate to the corresponding \verb{fabric_*()} function. Their \code{...}
 arguments are forwarded unchanged, and the credential used for discovery is
 reused while the object is in the current R process. An explicitly
-supplied \code{token}, \code{tenant_id}, \code{client_id}, or \code{auth_args} takes precedence.
+supplied \code{token}, \code{tenant_id}, \code{client_id}, \code{auth_args}, or \code{api_base} takes
+precedence. The Fabric API base used for discovery is also reused, so chained
+methods stay on the same public, sovereign-cloud, or workspace endpoint.
 
 SQL-capable resources inherit common \verb{sql_*()} methods. Lakehouses,
 Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
@@ -119,7 +121,8 @@ report$type
     \preformatted{FabricWorkspace$new(
   record,
   legacy_class = c("fabric_workspace", "list"),
-  credential = NULL
+  credential = NULL,
+  api_base = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -129,6 +132,7 @@ report$type
       \item{\code{record}}{One named Fabric workspace record.}
       \item{\code{legacy_class}}{Classes assigned by \verb{$as_list()}.}
       \item{\code{credential}}{Optional internal authentication credential.}
+      \item{\code{api_base}}{Optional Fabric REST API base inherited from discovery.}
     }
     \if{html}{\out{</div>}}
   }
@@ -552,7 +556,8 @@ report$type
     \preformatted{FabricItem$new(
   record,
   legacy_class = c("fabric_item", "list"),
-  credential = NULL
+  credential = NULL,
+  api_base = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -562,6 +567,7 @@ report$type
       \item{\code{record}}{One named Fabric item record.}
       \item{\code{legacy_class}}{Classes assigned by \verb{$as_list()}.}
       \item{\code{credential}}{Optional internal authentication credential.}
+      \item{\code{api_base}}{Optional Fabric REST API base inherited from discovery.}
     }
     \if{html}{\out{</div>}}
   }

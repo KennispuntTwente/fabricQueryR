@@ -430,6 +430,7 @@ test_that("Workspace methods keep R6 output through discovery chains", {
       workspace,
       detail = TRUE,
       token = NULL,
+      api_base = .fabric_api_base,
       output = "list",
       ...
     ) {
@@ -437,6 +438,7 @@ test_that("Workspace methods keep R6 output through discovery chains", {
         workspace = workspace,
         detail = detail,
         token = token,
+        api_base = api_base,
         output = output
       )
       list("lakehouse-result")
@@ -449,7 +451,8 @@ test_that("Workspace methods keep R6 output through discovery chains", {
       type = "Workspace"
     ),
     legacy_class = c("fabric_workspace", "list"),
-    credential = fabric_credential(token = "discovery-token")
+    credential = fabric_credential(token = "discovery-token"),
+    api_base = "https://highapi.fabric.microsoft.us"
   )
 
   expect_identical(
@@ -459,7 +462,61 @@ test_that("Workspace methods keep R6 output through discovery chains", {
   expect_identical(calls$lakehouses$workspace, workspace)
   expect_identical(calls$lakehouses$detail, FALSE)
   expect_identical(calls$lakehouses$output, "r6")
+  expect_identical(
+    calls$lakehouses$api_base,
+    "https://highapi.fabric.microsoft.us/v1"
+  )
   expect_s3_class(calls$lakehouses$token, "fabric_credential")
+
+  workspace$lakehouses(api_base = "https://fabric.example")
+  expect_identical(calls$lakehouses$api_base, "https://fabric.example")
+})
+
+test_that("Item detail methods retain the Fabric API discovery origin", {
+  calls <- new.env(parent = emptyenv())
+  local_mocked_bindings(
+    fabric_item = function(
+      workspace,
+      item,
+      token = NULL,
+      api_base = .fabric_api_base,
+      output = "list",
+      ...
+    ) {
+      calls$details <- list(
+        workspace = workspace,
+        item = item,
+        token = token,
+        api_base = api_base,
+        output = output
+      )
+      "details-result"
+    }
+  )
+  item <- fabric_r6_record(
+    list(
+      id = "11111111-1111-4111-8111-111111111111",
+      workspaceId = "22222222-2222-4222-8222-222222222222",
+      displayName = "Sales Lake",
+      type = "Lakehouse"
+    ),
+    legacy_class = c("fabric_item", "list"),
+    credential = fabric_credential(token = "discovery-token"),
+    api_base = "https://highapi.fabric.microsoft.us/v1"
+  )
+
+  expect_identical(item$details(), "details-result")
+  expect_identical(
+    calls$details$workspace,
+    "22222222-2222-4222-8222-222222222222"
+  )
+  expect_identical(calls$details$item, item)
+  expect_identical(
+    calls$details$api_base,
+    "https://highapi.fabric.microsoft.us/v1"
+  )
+  expect_identical(calls$details$output, "r6")
+  expect_s3_class(calls$details$token, "fabric_credential")
 })
 
 test_that("Semantic-model and job methods delegate to public functions", {

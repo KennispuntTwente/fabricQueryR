@@ -137,7 +137,12 @@ fabric_workspaces <- function(
 
   # Add a small class while keeping every field returned by Fabric
 
-  fabric_workspace_list(records, output = output, credential = credential)
+  fabric_workspace_list(
+    records,
+    output = output,
+    credential = credential,
+    api_base = base
+  )
 }
 
 #' Discover Microsoft Fabric items
@@ -399,7 +404,12 @@ fabric_items <- function(
 
   # Return discovery records in the stable form expected by the caller
 
-  fabric_item_list(records, output = output, credential = credential)
+  fabric_item_list(
+    records,
+    output = output,
+    credential = credential,
+    api_base = base
+  )
 }
 
 #' Discover one Microsoft Fabric item
@@ -582,7 +592,8 @@ fabric_item <- function(
   fabric_item_list(
     list(record),
     output = output,
-    credential = credential
+    credential = credential,
+    api_base = base
   )[[1L]]
 }
 
@@ -1577,13 +1588,24 @@ fabric_add_derived_targets <- function(record, api_base) {
 fabric_workspace_list <- function(
   records,
   output = c("r6", "list"),
-  credential = NULL
+  credential = NULL,
+  api_base = NULL
 ) {
   output <- .fabric_r6_output(output)
   lapply(records, function(record) {
     legacy_class <- c("fabric_workspace", "list")
     if (identical(output, "r6")) {
-      fabric_r6_record(record, legacy_class, credential)
+      record_api_base <- if (is.null(api_base)) {
+        NULL
+      } else {
+        fabric_workspace_api_base(record, api_base)
+      }
+      fabric_r6_record(
+        record,
+        legacy_class,
+        credential,
+        api_base = record_api_base
+      )
     } else {
       structure(record, class = legacy_class)
     }
@@ -1595,13 +1617,14 @@ fabric_workspace_list <- function(
 fabric_item_list <- function(
   records,
   output = c("r6", "list"),
-  credential = NULL
+  credential = NULL,
+  api_base = NULL
 ) {
   output <- .fabric_r6_output(output)
   lapply(records, function(record) {
     legacy_class <- c("fabric_item", "list")
     if (identical(output, "r6")) {
-      fabric_r6_record(record, legacy_class, credential)
+      fabric_r6_record(record, legacy_class, credential, api_base)
     } else {
       structure(record, class = legacy_class)
     }

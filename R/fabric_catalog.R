@@ -113,7 +113,7 @@ fabric_catalog_search <- function(
     credential = credential
   )
   lapply(records, function(entry) {
-    .fabric_catalog_entry(entry, output, credential)
+    .fabric_catalog_entry(entry, output, credential, api_base = base)
   })
 }
 
@@ -252,7 +252,8 @@ fabric_catalog_search <- function(
 .fabric_catalog_entry <- function(
   entry,
   output = c("r6", "list"),
-  credential = NULL
+  credential = NULL,
+  api_base = NULL
 ) {
   output <- .fabric_r6_output(output)
   hierarchy <- if (is.list(entry$hierarchy)) entry$hierarchy else NULL
@@ -290,7 +291,7 @@ fabric_catalog_search <- function(
     class = c("fabric_catalog_entry", "fabric_item", "list")
   )
   if (identical(output, "r6")) {
-    fabric_r6_record(record, class(record), credential)
+    fabric_r6_record(record, class(record), credential, api_base)
   } else {
     record
   }
