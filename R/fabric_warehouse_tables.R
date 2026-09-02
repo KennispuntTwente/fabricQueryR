@@ -399,8 +399,13 @@ fabric_warehouse_read_table <- function(
 #' failure.
 #'
 #' `COPY INTO` authenticates to OneLake as the identity executing the SQL
-#' statement. That identity therefore needs the documented Warehouse bulk-load
-#' permissions and Contributor access to the source and destination workspaces.
+#' statement. That identity needs read access to the staged Lakehouse files and
+#' the Warehouse T-SQL permissions required by the selected mode, including the
+#' applicable bulk-load, DML, and DDL permissions. The identity used to stage
+#' and clean up files also needs OneLake write access to the staging folder.
+#' Contributor access to both workspaces is a simple sufficient setup, but it
+#' is not required when equivalent granular item, OneLake, and T-SQL permissions
+#' are granted.
 #'
 #' Local staging is always removed. Remote staging is removed only after a
 #' confirmed successful load unless `keep_staging_on_failure = FALSE` and the
@@ -417,6 +422,10 @@ fabric_warehouse_read_table <- function(
 #' [Create tables in Fabric Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/create-table)
 #'
 #' [Query Parquet files in Fabric Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/query-parquet-files)
+#'
+#' [OneLake security access-control model](https://learn.microsoft.com/en-us/fabric/onelake/security/data-access-control-model)
+#'
+#' [Warehouse permissions](https://learn.microsoft.com/en-us/fabric/data-warehouse/share-warehouse-manage-permissions)
 #' @examples
 #' \dontrun{
 #' # Discover both the destination Warehouse and staging Lakehouse
