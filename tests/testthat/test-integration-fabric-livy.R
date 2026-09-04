@@ -191,6 +191,21 @@ test_that("FabricLivySession shares state and preserves statement failures", {
     "9007199254740993"
   )
 
+  integer_boundaries <- session$run(
+    paste0(
+      "SELECT stack(3, CAST(-2147483648 AS INT), ",
+      "CAST(2147483647 AS INT), CAST(NULL AS INT)) ",
+      "AS fabricqueryr_int"
+    ),
+    kind = "sql",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_identical(
+    integer_boundaries$output$parsed$fabricqueryr_int,
+    c(-2147483648, 2147483647, NA_real_)
+  )
+
   special_values <- session$run(
     paste0(
       "SELECT CAST('NaN' AS DOUBLE) AS nan_value, ",

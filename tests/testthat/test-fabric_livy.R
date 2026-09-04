@@ -1017,6 +1017,23 @@ test_that("Livy raw JSON boundaries preserve Spark BIGINT values", {
     parsed_decimal$amount,
     c("12345678901234567890.123456789012345", NA_character_)
   )
+
+  raw_integer <- paste0(
+    '{"schema":{"type":"struct","fields":[',
+    '{"name":"value","type":"integer","nullable":true}]},',
+    '"data":[[-2147483648],[2147483647],[null]]}'
+  )
+  parsed_integer <- fabric_livy_parse_sql_json(raw_integer)
+  expect_identical(
+    parsed_integer$value,
+    c(-2147483648, 2147483647, NA_real_)
+  )
+  for (value in c("-2147483649", "2147483648", "1.5")) {
+    expect_error(
+      fabric_livy_convert_column(list(value), "integer"),
+      class = "fabric_livy_protocol_error"
+    )
+  }
 })
 
 test_that("Livy HTTP decoding preserves numeric DECIMAL tokens", {

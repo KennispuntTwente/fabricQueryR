@@ -1382,7 +1382,7 @@ fabric_livy_convert_column <- function(values, type) {
   }
 
   # Numeric Spark types must convert without silently losing invalid values
-  if (kind %in% c("byte", "short", "integer", "int")) {
+  if (kind %in% c("byte", "short")) {
     text <- fabric_livy_atomic_text(values)
     out <- suppressWarnings(as.integer(text))
     if (any(!is.na(text) & is.na(out))) {
@@ -1390,6 +1390,25 @@ fabric_livy_convert_column <- function(values, type) {
     }
 
     return(out)
+  }
+
+  if (kind %in% c("integer", "int")) {
+    text <- fabric_livy_atomic_text(values)
+    out <- suppressWarnings(as.numeric(text))
+    present <- !is.na(text)
+    invalid <- present &
+      (!is.finite(out) |
+        out != floor(out) |
+        out < -2147483648 |
+        out > 2147483647)
+    if (any(invalid)) {
+      fabric_livy_invalid_type(kind)
+    }
+
+    if (any(present & out == -2147483648)) {
+      return(out)
+    }
+    return(as.integer(out))
   }
 
   if (kind %in% c("float", "double")) {
