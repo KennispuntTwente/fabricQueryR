@@ -150,7 +150,8 @@ FabricRecord <- R6::R6Class(
       dots = list(),
       authenticated = TRUE,
       output = NULL,
-      inherit_api_base = TRUE
+      inherit_api_base = TRUE,
+      api_base_through_dots = FALSE
     ) {
       .fabric_r6_invoke(
         fun = fun,
@@ -163,7 +164,8 @@ FabricRecord <- R6::R6Class(
         },
         authenticated = authenticated,
         output = output,
-        api_base = if (isTRUE(inherit_api_base)) private$api_base else NULL
+        api_base = if (isTRUE(inherit_api_base)) private$api_base else NULL,
+        api_base_through_dots = api_base_through_dots
       )
     }
   )
@@ -286,7 +288,8 @@ FabricWorkspace <- R6::R6Class(
         fabric_lakehouses,
         args = list(workspace = self, detail = detail),
         dots = list(...),
-        output = "r6"
+        output = "r6",
+        api_base_through_dots = TRUE
       )
     },
 
@@ -415,7 +418,8 @@ FabricWorkspace <- R6::R6Class(
         fun,
         args = list(workspace = self, detail = detail),
         dots = dots,
-        output = "r6"
+        output = "r6",
+        api_base_through_dots = TRUE
       )
     }
   )
@@ -1526,7 +1530,8 @@ fabric_r6_record <- function(
   credential,
   authenticated,
   output,
-  api_base
+  api_base,
+  api_base_through_dots = FALSE
 ) {
   dot_names <- names(dots)
   if (
@@ -1557,7 +1562,10 @@ fabric_r6_record <- function(
   }
   if (
     !is.null(api_base) &&
-      "api_base" %in% names(formals(fun)) &&
+      ("api_base" %in%
+        names(formals(fun)) ||
+        isTRUE(api_base_through_dots) &&
+          "..." %in% names(formals(fun))) &&
       !"api_base" %in% c(names(args), names(dots))
   ) {
     dots$api_base <- api_base

@@ -424,24 +424,15 @@ test_that("KQL and GraphQL subclasses delegate query workflows", {
 })
 
 test_that("Workspace methods keep R6 output through discovery chains", {
-  calls <- new.env(parent = emptyenv())
+  calls <- list()
   local_mocked_bindings(
-    fabric_lakehouses = function(
-      workspace,
-      detail = TRUE,
-      token = NULL,
-      api_base = .fabric_api_base,
-      output = "list",
-      ...
-    ) {
-      calls$lakehouses <- list(
-        workspace = workspace,
-        detail = detail,
-        token = token,
-        api_base = api_base,
-        output = output
+    .httr2_collection = function(url, credential, audience, ...) {
+      calls[[length(calls) + 1L]] <<- list(
+        url = url,
+        credential = credential,
+        audience = audience
       )
-      list("lakehouse-result")
+      list()
     }
   )
   workspace <- fabric_r6_record(
@@ -455,21 +446,42 @@ test_that("Workspace methods keep R6 output through discovery chains", {
     api_base = "https://highapi.fabric.microsoft.us"
   )
 
-  expect_identical(
-    workspace$lakehouses(detail = FALSE),
-    list("lakehouse-result")
+  expect_length(workspace$lakehouses(detail = FALSE), 0L)
+  expect_length(workspace$warehouses(detail = FALSE), 0L)
+  expect_length(
+    workspace$lakehouses(
+      detail = FALSE,
+      api_base = "https://fabric.example"
+    ),
+    0L
   )
-  expect_identical(calls$lakehouses$workspace, workspace)
-  expect_identical(calls$lakehouses$detail, FALSE)
-  expect_identical(calls$lakehouses$output, "r6")
-  expect_identical(
-    calls$lakehouses$api_base,
-    "https://highapi.fabric.microsoft.us/v1"
-  )
-  expect_s3_class(calls$lakehouses$token, "fabric_credential")
 
-  workspace$lakehouses(api_base = "https://fabric.example")
-  expect_identical(calls$lakehouses$api_base, "https://fabric.example")
+  expect_length(calls, 3L)
+  expect_true(all(vapply(
+    calls,
+    function(call) inherits(call$credential, "fabric_credential"),
+    logical(1)
+  )))
+  expect_true(all(vapply(
+    calls,
+    function(call) identical(call$audience, .fabric_audience$fabric),
+    logical(1)
+  )))
+  expect_match(
+    calls[[1L]]$url,
+    "https://highapi.fabric.microsoft.us/v1/workspaces/",
+    fixed = TRUE
+  )
+  expect_match(
+    calls[[2L]]$url,
+    "https://highapi.fabric.microsoft.us/v1/workspaces/",
+    fixed = TRUE
+  )
+  expect_match(
+    calls[[3L]]$url,
+    "https://fabric.example/v1/workspaces/",
+    fixed = TRUE
+  )
 })
 
 test_that("Item detail methods retain the Fabric API discovery origin", {
