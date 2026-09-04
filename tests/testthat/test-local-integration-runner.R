@@ -364,7 +364,11 @@ test_that("local runner selects only the audiences needed by its filter", {
   )
 
   expect_named(all, c("Fabric", "Power BI", "SQL", "OneLake", "Kusto"))
-  expect_named(onelake, c("Fabric", "SQL", "OneLake"))
+  expect_named(onelake, c("Fabric", "Power BI", "SQL", "OneLake"))
+  expect_identical(
+    unname(onelake[["Power BI"]]),
+    "https://analysis.windows.net/powerbi/api/.default"
+  )
   expect_named(jobs, c("Fabric", "OneLake"))
   expect_identical(
     unname(onelake[["SQL"]]),

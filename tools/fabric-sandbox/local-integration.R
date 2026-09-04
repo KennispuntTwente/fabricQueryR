@@ -416,7 +416,7 @@ fabric_local_test_audiences <- function(filter) {
   )
   scope <- fabric_local_test_scope(filter)
   if (identical(scope, "onelake")) {
-    return(all[c("Fabric", "SQL", "OneLake")])
+    return(all[c("Fabric", "Power BI", "SQL", "OneLake")])
   }
   if (identical(scope, "jobs")) {
     return(all[c("Fabric", "OneLake")])

@@ -25,7 +25,10 @@ def test_local_runner_targets_the_marked_persistent_workspace():
     assert "fabric_local_sandbox_uses_env_tokens" in runner
     assert "FABRICQUERYR_CLIENT_SECRET = auth_args$password" in runner
     assert "fabric_local_test_audiences" in runner
-    assert 'return(all[c("Fabric", "SQL", "OneLake")])' in runner
+    assert (
+        'return(all[c("Fabric", "Power BI", "SQL", "OneLake")])'
+        in runner
+    )
     assert 'return(all[c("Fabric", "OneLake")])' in runner
     assert "fabric_local_test_scope" in runner
     assert 'c("--scope", test_scope)' in runner
