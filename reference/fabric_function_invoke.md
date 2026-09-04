@@ -1,9 +1,6 @@
 # Invoke a published Fabric user data function
 
-Calls the public REST endpoint for one published Microsoft Fabric user
-data function and returns the service's synchronous execution result.
-Function definition, publication, and deployment are intentionally
-outside this helper's scope.
+**\[experimental\]**
 
 ## Usage
 
@@ -94,6 +91,22 @@ A `fabric_function_result` list with `function_name`, `invocation_id`,
 be legitimate domain data. The rest of `response` is redacted and
 retains unknown future fields. Inspect `status` and `errors`; receiving
 a result does not by itself mean the function succeeded.
+
+## Details
+
+Calls the public REST endpoint for one published Microsoft Fabric user
+data function and returns the service's synchronous execution result.
+Function definition, publication, and deployment are intentionally
+outside this helper's scope.
+
+This invocation API is experimental because its request and response
+handling is covered by offline tests, but the package cannot currently
+maintain repeatable end-to-end coverage against published functions. The
+package's development sandbox uses a service principal, while Fabric's
+User Data Function create, update-definition, and delete APIs currently
+support delegated user identities only. The sandbox therefore cannot
+provision and maintain the published public-function fixtures needed for
+that coverage.
 
 ## Before you invoke
 

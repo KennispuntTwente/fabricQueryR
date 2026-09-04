@@ -466,7 +466,11 @@ A list of `FabricItem` objects.
 
 ### `FabricWorkspace$user_data_functions()`
 
-Discover User Data Functions in this workspace.
+**\[experimental\]**
+
+Discover User Data Functions in this workspace. The service-principal
+development sandbox can use Core discovery, but it cannot provision and
+fully inspect disposable User Data Function fixtures.
 
 #### Usage
 

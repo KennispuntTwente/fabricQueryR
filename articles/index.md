@@ -30,5 +30,5 @@
 
 - [Automate and inspect Microsoft Fabric
   jobs](https://kennispunttwente.github.io/fabricQueryR/articles/job-automation.md):
-- [Invoke Fabric user data
-  functions](https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.md):
+- [Invoke Fabric user data functions
+  (experimental)](https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.md):

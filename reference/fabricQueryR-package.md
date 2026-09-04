@@ -99,7 +99,7 @@ called through the corresponding `fabric_*()` functions
   and `$paginate()`
   ([`fabric_graphql_paginate()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_paginate.md))
 
-- Use
+- Use experimental
   [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
   to call published business logic through a User Data Function's
   explicit public URL

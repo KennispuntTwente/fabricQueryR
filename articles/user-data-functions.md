@@ -1,9 +1,27 @@
-# Invoke Fabric user data functions
+# Invoke Fabric user data functions (experimental)
 
 A Fabric *user data function* is reusable Python code that Fabric hosts
 and runs. It can accept inputs, perform a task, and return a result.
 With ‘fabricQueryR’, an R session can call the published function and
 receive its structured response.
+
+## Lifecycle
+
+The package’s User Data Function discovery and invocation APIs are
+experimental. Their validation, request construction, and response
+handling are covered by offline tests, and lightweight Core item
+discovery is exercised against Fabric. However, the package cannot
+currently maintain repeatable end-to-end coverage for detailed User Data
+Function discovery and public function invocation.
+
+The persistent sandbox is provisioned with a service principal.
+Microsoft’s User Data Function create, update-definition, detailed Get,
+and delete APIs currently support delegated users, but not service
+principals or managed identities. The sandbox therefore cannot
+provision, publish, fully inspect, and remove its own disposable
+public-function fixtures. Until repeatable end-to-end coverage is
+possible, treat these APIs and their returned service shapes as subject
+to change.
 
 This guide prepares a function for external use, makes one small call,
 and then introduces structured parameters and safe retries. Start with a
@@ -15,7 +33,7 @@ In the Fabric portal, publish the user data functions item, switch to
 *Run only* mode, open the function’s properties, enable *Public access*,
 and copy the *Public URL*. Each function has its own URL.
 
-[`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
+[`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_user_data_functions.md)
 and `workspace$user_data_functions()` default to `detail = FALSE`. This
 uses the Core item listing, which supports delegated users, service
 principals, and managed identities, and returns a read-only `FabricItem`

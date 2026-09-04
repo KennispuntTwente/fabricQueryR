@@ -40,8 +40,6 @@ fabric_spark_job_definitions(workspace, detail = TRUE, ...)
 
 fabric_environments(workspace, detail = TRUE, ...)
 
-fabric_user_data_functions(workspace, detail = FALSE, ...)
-
 fabric_graphql_apis(workspace, detail = FALSE, ...)
 ```
 
@@ -102,7 +100,7 @@ currently provided.
 | `fabric_data_pipelines()` | `DataPipeline` | `TRUE` | `FabricJobItem` |
 | `fabric_spark_job_definitions()` | `SparkJobDefinition` | `TRUE` | `FabricJobItem` |
 | `fabric_environments()` | `Environment` | `TRUE` | `FabricItem` |
-| `fabric_user_data_functions()` | `UserDataFunction` | `FALSE` | `FabricItem` |
+| [`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_user_data_functions.md) | `UserDataFunction` | `FALSE` | `FabricItem` |
 | `fabric_graphql_apis()` | `GraphQLApi` | `FALSE` | `FabricGraphQLApi` |
 
 ## Choosing a helper
@@ -135,7 +133,8 @@ currently provided.
 
 - `fabric_environments()` finds reusable Spark runtime configurations
 
-- `fabric_user_data_functions()` finds serverless Python function items
+- [`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_user_data_functions.md)
+  finds serverless Python function items
 
 - `fabric_graphql_apis()` finds APIs configured in Fabric with
   `$query()`

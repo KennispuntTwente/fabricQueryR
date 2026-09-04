@@ -37,9 +37,10 @@ Find Fabric workspaces, items, and workload-specific connection details
   [`fabric_data_pipelines()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_spark_job_definitions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_environments()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
-  [`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   [`fabric_graphql_apis()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_typed_items.md)
   : Typed Microsoft Fabric item discovery
+- [`fabric_user_data_functions()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_user_data_functions.md)
+  **\[experimental\]** : Discover Fabric User Data Functions
 
 ## SQL connectivity
 
@@ -210,10 +211,10 @@ Explore schemas, execute operations, and collect cursor-based pages
 
 ## User Data Functions
 
-Invoke published Fabric business logic through trusted public URLs
+Experimental discovery and invocation of published Fabric functions
 
 - [`fabric_function_invoke()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_function_invoke.md)
-  : Invoke a published Fabric user data function
+  **\[experimental\]** : Invoke a published Fabric user data function
 
 ## Item jobs
 
