@@ -52,12 +52,15 @@
 #' an ambiguous response. Retain the returned operation ID before starting
 #' unrelated work
 #'
-#' For idempotent batch designs, set `ingest_if_not_exists` to one or more
-#' stable keys. The function also attaches the corresponding `ingest-by:` tags
-#' unless they are already present. A later submission with a matching key is
-#' observable in detailed status instead of silently duplicating committed
-#' extents. Idempotency checks can race when the same key is queued concurrently,
-#' so serialize submissions that share a key
+#' For idempotent ingestion, submit one source per call and set
+#' `ingest_if_not_exists` to one or more stable keys for that source. The
+#' function also attaches the corresponding `ingest-by:` tags unless they are
+#' already present. A later submission with a matching key is observable in
+#' detailed status instead of silently duplicating a committed extent. The
+#' function rejects keys for multi-source requests because Kusto applies the
+#' shared properties to every source and ingests tagged sources independently.
+#' Idempotency checks can race when the same key is queued concurrently, so
+#' serialize submissions that share a key
 #'
 #' @section Tracking and failures:
 #' `fabric_kql_ingestion_status()` accepts the handle returned by
@@ -110,8 +113,9 @@
 #'   existing table schema: ordered text formats map by column position, while
 #'   JSON, Parquet, Avro, ORC, and W3CLOGFILE map case-sensitive field names
 #' @param tags Character vector of extent tags to attach
-#' @param ingest_if_not_exists Stable keys used for idempotent ingestion. The
-#'   service checks existing `ingest-by:` tags for these values
+#' @param ingest_if_not_exists Stable keys used for idempotent ingestion of one
+#'   source. The service checks existing `ingest-by:` tags for these values.
+#'   Cannot be combined with a multi-source request
 #' @param ignore_first_record Whether to skip the first record in every source,
 #'   commonly used for CSV headers
 #' @param skip_batching Whether to bypass normal Kusto ingestion batching. This
@@ -266,6 +270,20 @@ fabric_kql_ingest <- function(
   if (any(startsWith(tolower(ingest_if_not_exists), "ingest-by:"))) {
     .fabric_abort(
       "ingest_if_not_exists values must omit the 'ingest-by:' prefix"
+    )
+  }
+  if (length(blobs) > 1L && length(ingest_if_not_exists)) {
+    .fabric_abort(
+      c(
+        "Cannot safely apply shared idempotency keys to multiple sources",
+        "x" = "{.arg sources} contains {length(blobs)} files",
+        "i" = paste0(
+          "Submit each source separately with its own stable key or omit ",
+          "{.arg ingest_if_not_exists}"
+        )
+      ),
+      class = c("fabric_kql_idempotency_error", "fabric_kql_ingestion_error"),
+      .format = TRUE
     )
   }
   idempotency_tags <- paste0("ingest-by:", ingest_if_not_exists)
@@ -1805,11 +1823,8 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' @param max_rows_per_file Optional exact maximum rows per staged file.
 #' @param tags Extent tags passed to [fabric_kql_ingest()].
 #' @param ingest_if_not_exists Stable idempotency keys passed to
-#'   [fabric_kql_ingest()]. Cannot be combined with `skip_batching = TRUE` when
-#'   staging produces multiple files.
-#' @param skip_batching Whether Kusto should ingest each staged file
-#'   independently. Cannot be combined with `ingest_if_not_exists` for a
-#'   multi-file write.
+#'   [fabric_kql_ingest()]. Requires staging to produce exactly one file.
+#' @param skip_batching Whether Kusto should bypass normal ingestion batching.
 #' @param creation_time Optional extent creation time passed to
 #'   [fabric_kql_ingest()].
 #' @param timeout Positive number of seconds shared by submission and tracked
@@ -2130,18 +2145,14 @@ fabric_kql_write_table <- function(
   }
   if (
     serialized$file_count > 1L &&
-      isTRUE(skip_batching) &&
       length(ingest_if_not_exists)
   ) {
     .fabric_abort(
       c(
-        "Cannot safely apply one idempotency key to independently ingested files",
-        "x" = paste0(
-          "{.arg skip_batching} is {.code TRUE} and staging produced ",
-          "{serialized$file_count} Parquet files"
-        ),
+        "Cannot safely apply shared idempotency keys to multiple staged files",
+        "x" = "Staging produced {serialized$file_count} Parquet files",
         "i" = paste0(
-          "Disable {.arg skip_batching}, stage one file, or omit ",
+          "Stage exactly one file per write or omit ",
           "{.arg ingest_if_not_exists}"
         )
       ),

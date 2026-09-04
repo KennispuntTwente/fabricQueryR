@@ -904,6 +904,19 @@ test_that("Eventhouse writer rejects unsafe multi-file idempotency", {
       data.frame(id = 1:3),
       database = "Telemetry",
       ingest_if_not_exists = "batch-1",
+      max_rows_per_file = 1,
+      token = "test-token",
+      storage_token = "storage-token"
+    )
+  )
+  expect_snapshot(
+    error = TRUE,
+    fabric_kql_write_table(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      "Raw",
+      data.frame(id = 1:3),
+      database = "Telemetry",
+      ingest_if_not_exists = "batch-1",
       skip_batching = TRUE,
       max_rows_per_file = 1,
       token = "test-token",

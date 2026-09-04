@@ -74,12 +74,9 @@ Azure Storage's single-request Put Blob limit.}
 \item{tags}{Extent tags passed to \code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}.}
 
 \item{ingest_if_not_exists}{Stable idempotency keys passed to
-\code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}. Cannot be combined with \code{skip_batching = TRUE} when
-staging produces multiple files.}
+\code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}. Requires staging to produce exactly one file.}
 
-\item{skip_batching}{Whether Kusto should ingest each staged file
-independently. Cannot be combined with \code{ingest_if_not_exists} for a
-multi-file write.}
+\item{skip_batching}{Whether Kusto should bypass normal ingestion batching.}
 
 \item{creation_time}{Optional extent creation time passed to
 \code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}.}

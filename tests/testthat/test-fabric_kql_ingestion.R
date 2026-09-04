@@ -280,6 +280,24 @@ test_that("fabric_kql_ingest omits a mapping reference for identity mapping", {
   )
 })
 
+test_that("fabric_kql_ingest rejects shared keys for multiple sources", {
+  expect_snapshot(
+    error = TRUE,
+    fabric_kql_ingest(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      table = "Raw",
+      sources = c(
+        "https://example.test/a.parquet",
+        "https://example.test/b.parquet"
+      ),
+      database = "Telemetry",
+      format = "parquet",
+      ingest_if_not_exists = "batch-1",
+      token = "test-token"
+    )
+  )
+})
+
 test_that("submission failures are not replayed after throttling", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {

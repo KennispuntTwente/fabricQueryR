@@ -86,8 +86,9 @@ JSON, Parquet, Avro, ORC, and W3CLOGFILE map case-sensitive field names}
 
 \item{tags}{Character vector of extent tags to attach}
 
-\item{ingest_if_not_exists}{Stable keys used for idempotent ingestion. The
-service checks existing \verb{ingest-by:} tags for these values}
+\item{ingest_if_not_exists}{Stable keys used for idempotent ingestion of one
+source. The service checks existing \verb{ingest-by:} tags for these values.
+Cannot be combined with a multi-source request}
 
 \item{ignore_first_record}{Whether to skip the first record in every source,
 commonly used for CSV headers}
@@ -183,12 +184,15 @@ therefore not automatically replayed after throttling, network failure, or
 an ambiguous response. Retain the returned operation ID before starting
 unrelated work
 
-For idempotent batch designs, set \code{ingest_if_not_exists} to one or more
-stable keys. The function also attaches the corresponding \verb{ingest-by:} tags
-unless they are already present. A later submission with a matching key is
-observable in detailed status instead of silently duplicating committed
-extents. Idempotency checks can race when the same key is queued concurrently,
-so serialize submissions that share a key
+For idempotent ingestion, submit one source per call and set
+\code{ingest_if_not_exists} to one or more stable keys for that source. The
+function also attaches the corresponding \verb{ingest-by:} tags unless they are
+already present. A later submission with a matching key is observable in
+detailed status instead of silently duplicating a committed extent. The
+function rejects keys for multi-source requests because Kusto applies the
+shared properties to every source and ingests tagged sources independently.
+Idempotency checks can race when the same key is queued concurrently, so
+serialize submissions that share a key
 }
 
 \section{Tracking and failures}{
