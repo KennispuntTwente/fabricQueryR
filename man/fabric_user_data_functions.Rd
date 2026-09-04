@@ -30,11 +30,12 @@ path uses Core item discovery and works with delegated users, service
 principals, and managed identities. Set \code{detail = TRUE} to call the
 workload-specific Get API, which currently supports delegated users only.
 
-This helper is experimental because the package's service-principal sandbox
-can exercise only lightweight Core discovery. Fabric's User Data Function
-create, update-definition, detailed Get, and delete APIs do not currently
-support service principals or managed identities, so the standard live lane
-cannot provision and fully inspect a disposable User Data Function fixture.
+This helper is experimental because the package can verify only lightweight
+Core discovery through its service-principal development sandbox. Fabric's
+User Data Function create, update-definition, detailed Get, and delete APIs
+do not currently support service principals or managed identities, so the
+sandbox cannot provision and fully inspect a disposable User Data Function
+fixture for repeatable end-to-end coverage.
 }
 \examples{
 \dontrun{

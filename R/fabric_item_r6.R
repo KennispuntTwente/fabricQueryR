@@ -379,8 +379,8 @@ FabricWorkspace <- R6::R6Class(
 
     #' @description `r lifecycle::badge("experimental")`
     #'
-    #' Discover User Data Functions in this workspace. Core discovery is covered
-    #' by live tests, but the service-principal sandbox cannot provision and
+    #' Discover User Data Functions in this workspace. The service-principal
+    #' development sandbox can use Core discovery, but it cannot provision and
     #' fully inspect disposable User Data Function fixtures.
     #' @param detail Whether to retrieve workload details.
     #' @param ... Additional discovery arguments.

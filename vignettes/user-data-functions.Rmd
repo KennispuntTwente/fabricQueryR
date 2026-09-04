@@ -21,17 +21,17 @@ structured response.
 The package's User Data Function discovery and invocation APIs are
 experimental. Their validation, request construction, and response handling
 are covered by offline tests, and lightweight Core item discovery is exercised
-against Fabric. However, detailed User Data Function discovery and public
-function invocation are not exercised by the standard live integration lane.
+against Fabric. However, the package cannot currently maintain repeatable
+end-to-end coverage for detailed User Data Function discovery and public
+function invocation.
 
 The persistent sandbox is provisioned with a service principal. Microsoft's
 User Data Function create, update-definition, detailed Get, and delete APIs
 currently support delegated users, but not service principals or managed
 identities. The sandbox therefore cannot provision, publish, fully inspect, and
-remove its own disposable public-function fixtures. The opt-in live invocation
-tests instead require URLs for functions that a user has published manually.
-Until repeatable end-to-end coverage is possible, treat these APIs and their
-returned service shapes as subject to change.
+remove its own disposable public-function fixtures. Until repeatable end-to-end
+coverage is possible, treat these APIs and their returned service shapes as
+subject to change.
 
 This guide prepares a function for external use, makes one small call, and then
 introduces structured parameters and safe retries. Start with a simple function

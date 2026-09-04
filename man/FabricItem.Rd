@@ -465,8 +465,8 @@ report$type
 \subsection{\code{FabricWorkspace$user_data_functions()}}{
   \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 
-Discover User Data Functions in this workspace. Core discovery is covered
-by live tests, but the service-principal sandbox cannot provision and
+Discover User Data Functions in this workspace. The service-principal
+development sandbox can use Core discovery, but it cannot provision and
 fully inspect disposable User Data Function fixtures.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}

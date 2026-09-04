@@ -1158,10 +1158,11 @@ test_that("user-data-function docs explain their experimental lifecycle", {
 
   expect_match(normalized, "APIs are experimental", fixed = TRUE)
   expect_match(normalized, "covered by offline tests", fixed = TRUE)
-  expect_match(normalized, "standard live integration lane", fixed = TRUE)
+  expect_match(normalized, "repeatable end-to-end coverage", fixed = TRUE)
   expect_match(normalized, "service principal", fixed = TRUE)
   expect_match(normalized, "not service principals", fixed = TRUE)
-  expect_match(normalized, "published manually", fixed = TRUE)
+  expect_equal(grepl("opt-in", normalized, fixed = TRUE), FALSE)
+  expect_equal(grepl("integration lane", normalized, fixed = TRUE), FALSE)
 })
 
 test_that("authentication docs define the custom-endpoint trust boundary", {
