@@ -107,9 +107,13 @@
 #' @section Permissions and status handling:
 #' Running and cancelling need an item execute permission. Checking or waiting
 #' also needs an item read permission, as does resolving a parameterized run's
-#' collection `Location`. 'fabricQueryR' reconciles notebook status information
-#' from Fabric before returning it and stops with a typed error if Fabric reports
-#' an unfamiliar state instead of waiting indefinitely
+#' collection `Location`. For a parameterized Notebook, 'fabricQueryR' captures
+#' recent history before submission so a collection `Location` cannot be
+#' confused with an earlier run. Recovery stops with an accepted-but-unresolved
+#' error when multiple new runs make the identity ambiguous. 'fabricQueryR'
+#' reconciles notebook status information from Fabric before returning it and
+#' stops with a typed error if Fabric reports an unfamiliar state instead of
+#' waiting indefinitely
 #' @references
 #' [Core Job Scheduler REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/)
 #'
@@ -250,6 +254,21 @@ fabric_job_run <- function(
     payload <- NULL
   }
 
+  recovery_baseline <- if (
+    identical(route$route, "notebook") && !is.null(payload)
+  ) {
+    tryCatch(
+      .httr2_collection(
+        .fabric_job_history_url(base, target),
+        credential = credential,
+        audience = .fabric_audience$fabric
+      ),
+      error = identity
+    )
+  } else {
+    NULL
+  }
+
   # 3 Submit the job -------------------------------------------------------------------------------
 
   # Submit the job only after authentication and payload fields are ready
@@ -271,6 +290,7 @@ fabric_job_run <- function(
     base,
     credential,
     submitted_at,
+    recovery_baseline = recovery_baseline,
     retry_after = result$retry_after,
     .sleep = .sleep,
     .now = .now
@@ -315,6 +335,7 @@ fabric_job_run <- function(
   api_base,
   credential,
   submitted_at,
+  recovery_baseline = NULL,
   retry_after = NULL,
   .sleep = Sys.sleep,
   .now = Sys.time
@@ -367,14 +388,45 @@ fabric_job_run <- function(
     }
     .fabric_abort(message, class = "fabric_job_protocol_error")
   }
-  history_url <- paste0(
-    api_base,
-    "/workspaces/",
-    target$workspace_id,
-    "/items/",
-    target$item_id,
-    "/jobs/instances"
-  )
+  history_url <- .fabric_job_history_url(api_base, target)
+  if (is.null(recovery_baseline)) {
+    .fabric_job_recovery_abort(
+      result,
+      target,
+      route,
+      message = paste0(
+        "Fabric accepted the job with a collection Location, but no ",
+        "pre-submission history was available to identify its instance"
+      )
+    )
+  }
+  if (inherits(recovery_baseline, "error")) {
+    .fabric_job_recovery_abort(
+      result,
+      target,
+      route,
+      message = paste0(
+        "Fabric accepted the parameterized job, but pre-submission history ",
+        "could not be read to identify its instance"
+      ),
+      parent = recovery_baseline
+    )
+  }
+  baseline_ids <- unique(vapply(
+    Filter(
+      function(record) {
+        is.list(record) &&
+          is.character(record$id) &&
+          length(record$id) == 1L &&
+          !is.na(record$id) &&
+          fabric_is_guid(record$id)
+      },
+      recovery_baseline
+    ),
+    `[[`,
+    character(1),
+    "id"
+  ))
   retry_after <- as.numeric(retry_after %||% 0)
   if (
     length(retry_after) != 1L ||
@@ -409,6 +461,7 @@ fabric_job_run <- function(
     .sleep(delay)
   }
   deadline <- submitted_at + max(recovery_timeout, retry_after)
+  candidate_id <- NULL
   repeat {
     records <- tryCatch(
       .httr2_collection(
@@ -477,9 +530,62 @@ fabric_job_run <- function(
       },
       records
     )
+    correlation_ids <- unique(c(result$request_id, result$activity_id))
+    correlation_ids <- correlation_ids[vapply(
+      correlation_ids,
+      function(value) {
+        is.character(value) &&
+          length(value) == 1L &&
+          !is.na(value) &&
+          fabric_is_guid(value)
+      },
+      logical(1)
+    )]
+    if (length(correlation_ids)) {
+      correlated <- Filter(
+        function(record) {
+          root_id <- record$rootActivityId
+          is.character(root_id) &&
+            length(root_id) == 1L &&
+            !is.na(root_id) &&
+            tolower(root_id) %in% tolower(correlation_ids)
+        },
+        matches
+      )
+      correlated_ids <- unique(vapply(
+        correlated,
+        `[[`,
+        character(1),
+        "id"
+      ))
+      if (length(correlated_ids) == 1L) {
+        return(correlated_ids[[1L]])
+      }
+      if (length(correlated_ids) > 1L) {
+        .fabric_job_recovery_abort(
+          result,
+          target,
+          route,
+          message = paste0(
+            "Fabric accepted the parameterized job, but its response ",
+            "correlated with multiple recent instances"
+          ),
+          matching_ids = correlated_ids
+        )
+      }
+    }
     ids <- unique(vapply(matches, `[[`, character(1), "id"))
+    ids <- ids[!tolower(ids) %in% tolower(baseline_ids)]
     if (length(ids) == 1L) {
-      return(ids[[1L]])
+      if (
+        !is.null(candidate_id) &&
+          identical(tolower(candidate_id), tolower(ids[[1L]]))
+      ) {
+        return(ids[[1L]])
+      }
+      candidate_id <- ids[[1L]]
+    } else {
+      candidate_id <- NULL
     }
     if (length(ids) > 1L) {
       .fabric_job_recovery_abort(
@@ -507,6 +613,17 @@ fabric_job_run <- function(
     }
     .sleep(min(poll_interval, remaining))
   }
+}
+
+.fabric_job_history_url <- function(api_base, target) {
+  paste0(
+    api_base,
+    "/workspaces/",
+    target$workspace_id,
+    "/items/",
+    target$item_id,
+    "/jobs/instances"
+  )
 }
 
 .fabric_job_recovery_abort <- function(
@@ -1086,6 +1203,10 @@ print.fabric_job_instance <- function(x, ...) {
     status_code = status,
     location = httr2::resp_header(response, "location"),
     retry_after = .httr2_retry_after(response),
+    request_id = httr2::resp_header(response, "x-ms-request-id") %||%
+      httr2::resp_header(response, "request-id"),
+    activity_id = httr2::resp_header(response, "x-ms-activity-id") %||%
+      httr2::resp_header(response, "activity-id"),
     body = if (isTRUE(parse_json) && status != 204L) {
       if (httr2::resp_has_body(response)) {
         httr2::resp_body_json(response, simplifyVector = FALSE)

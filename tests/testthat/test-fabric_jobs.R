@@ -141,7 +141,8 @@ test_that("notebook run uses the released workload-specific route", {
         ),
         retry_after = 7
       )
-    }
+    },
+    .httr2_collection = function(...) list()
   )
 
   job <- fabric_job_run(
@@ -392,24 +393,31 @@ test_that("parameterized jobs recover collection Location instance IDs", {
       expect_s3_class(credential, "fabric_credential")
       expect_identical(audience, .fabric_audience$fabric)
       if (history_calls == 1L) {
-        return(list())
-      }
-      list(
-        list(
+        return(list(list(
           id = "44444444-4444-4444-4444-444444444444",
           itemId = "11111111-1111-1111-1111-111111111111",
           jobType = "RunNotebook",
           invokeType = "Manual",
-          startTimeUtc = "2020-01-01T00:00:00Z"
-        ),
-        list(
+          startTimeUtc = "2026-08-30T11:58:00Z"
+        )))
+      }
+      records <- list(list(
+        id = "44444444-4444-4444-4444-444444444444",
+        itemId = "11111111-1111-1111-1111-111111111111",
+        jobType = "RunNotebook",
+        invokeType = "Manual",
+        startTimeUtc = "2026-08-30T11:58:00Z"
+      ))
+      if (history_calls >= 3L) {
+        records[[2L]] <- list(
           id = "33333333-3333-3333-3333-333333333333",
           itemId = "11111111-1111-1111-1111-111111111111",
           jobType = "RunNotebook",
           invokeType = "Manual",
           startTimeUtc = "2026-08-30T12:00:00Z"
         )
-      )
+      }
+      records
     }
   )
 
@@ -426,8 +434,8 @@ test_that("parameterized jobs recover collection Location instance IDs", {
   )
 
   expect_identical(job$id, "33333333-3333-3333-3333-333333333333")
-  expect_identical(history_calls, 2L)
-  expect_equal(waits, c(5, 1))
+  expect_identical(history_calls, 4L)
+  expect_equal(waits, c(5, 1, 1))
   expect_match(
     history_url,
     paste0(
@@ -440,6 +448,7 @@ test_that("parameterized jobs recover collection Location instance IDs", {
 
 test_that("parameterized job recovery refuses ambiguous history", {
   now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
+  history_calls <- 0L
   local_mocked_bindings(
     .fabric_job_request = function(...) {
       list(
@@ -450,6 +459,10 @@ test_that("parameterized job recovery refuses ambiguous history", {
       )
     },
     .httr2_collection = function(...) {
+      history_calls <<- history_calls + 1L
+      if (history_calls == 1L) {
+        return(list())
+      }
       started <- "2026-08-30T12:00:00Z"
       list(
         list(
@@ -484,6 +497,58 @@ test_that("parameterized job recovery refuses ambiguous history", {
   expect_identical(error$accepted, TRUE)
   expect_length(error$matching_ids, 2L)
   expect_match(conditionMessage(error), "do not resubmit", fixed = TRUE)
+})
+
+test_that("parameterized job recovery detects staggered concurrent runs", {
+  now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
+  history_calls <- 0L
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      list(
+        status_code = 202L,
+        location = "/jobs/instances?jobType=RunNotebook",
+        retry_after = NULL,
+        body = list()
+      )
+    },
+    .httr2_collection = function(...) {
+      history_calls <<- history_calls + 1L
+      if (history_calls == 1L) {
+        return(list())
+      }
+      ids <- if (history_calls == 2L) {
+        "33333333-3333-3333-3333-333333333333"
+      } else {
+        c(
+          "33333333-3333-3333-3333-333333333333",
+          "44444444-4444-4444-4444-444444444444"
+        )
+      }
+      lapply(ids, function(id) {
+        list(
+          id = id,
+          jobType = "RunNotebook",
+          invokeType = "Manual",
+          startTimeUtc = "2026-08-30T12:00:00Z"
+        )
+      })
+    }
+  )
+
+  error <- rlang::catch_cnd(fabric_job_run(
+    job_test_item(),
+    parameters = list(label = "unit"),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1",
+    .sleep = function(seconds) {
+      now <<- now + seconds
+    },
+    .now = function() now
+  ))
+
+  expect_s3_class(error, "fabric_job_accepted_unresolved")
+  expect_length(error$matching_ids, 2L)
+  expect_identical(history_calls, 3L)
 })
 
 test_that("parameterized job recovery times out as accepted and unresolved", {
@@ -521,7 +586,7 @@ test_that("parameterized job recovery times out as accepted and unresolved", {
 
   expect_s3_class(error, "fabric_job_accepted_unresolved")
   expect_identical(error$accepted, TRUE)
-  expect_identical(history_calls, 3L)
+  expect_identical(history_calls, 4L)
   expect_match(conditionMessage(error), "recovery deadline", fixed = TRUE)
 })
 
