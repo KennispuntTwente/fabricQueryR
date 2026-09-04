@@ -1224,6 +1224,58 @@ test_that("Lakehouse writer never removes staging after an ambiguous timeout", {
   expect_equal(cleanup_calls, 0L)
 })
 
+test_that("Lakehouse writer retains staging when accepted-load polling fails", {
+  skip_if_not_installed("arrow")
+  cleanup_calls <- 0L
+  poll_status <- 401L
+  fabric_credential_seen <- NULL
+  storage_credential_seen <- NULL
+  operation <- structure(
+    list(id = lakehouse_table_test_operation),
+    class = "fabric_operation"
+  )
+  local_mocked_bindings(
+    .fabric_lakehouse_staging_id = function() paste0("poll-", poll_status),
+    onelake_upload_target = function(target, credential, ...) {
+      storage_credential_seen <<- credential
+      tibble::tibble(path = target$path)
+    },
+    .fabric_lakehouse_load_submit = function(target, settings, credential) {
+      fabric_credential_seen <<- credential
+      operation
+    },
+    fabric_operation_wait = function(...) {
+      rlang::abort(
+        "status access failed",
+        class = "fabric_http_error",
+        status = poll_status
+      )
+    },
+    .fabric_lakehouse_remove_staging = function(...) {
+      cleanup_calls <<- cleanup_calls + 1L
+      TRUE
+    }
+  )
+
+  for (status in c(401L, 403L, 404L)) {
+    poll_status <- status
+    error <- rlang::catch_cnd(fabric_lakehouse_write_table(
+      lakehouse_table_test_item(),
+      table = "orders",
+      data = data.frame(id = 1L),
+      keep_staging_on_failure = FALSE,
+      token = "fabric-token",
+      storage_token = "storage-token"
+    ))
+
+    expect_s3_class(error, "fabric_lakehouse_write_error")
+    expect_true(error$staging_retained)
+    expect_true(error$operation_accepted)
+  }
+  expect_equal(cleanup_calls, 0L)
+  expect_false(identical(fabric_credential_seen, storage_credential_seen))
+})
+
 test_that("Lakehouse writer validates names and unsupported R types", {
   skip_if_not_installed("arrow")
   expect_error(

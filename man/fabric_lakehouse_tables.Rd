@@ -269,7 +269,9 @@ Retained staging paths are included in \code{fabric_lakehouse_write_error}
 conditions so the source can be inspected or passed to
 \code{fabric_lakehouse_load_table()} again. Cleanup failures after a successful
 load produce a warning and return \code{staging_retained = TRUE}; they do not make
-a committed table load appear to have failed.
+a committed table load appear to have failed. Once Fabric accepts a load,
+staging is retained if status polling loses access or fails ambiguously;
+only a confirmed terminal operation failure permits failure cleanup.
 }
 
 \examples{

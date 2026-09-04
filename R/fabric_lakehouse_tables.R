@@ -149,7 +149,9 @@
 #' conditions so the source can be inspected or passed to
 #' `fabric_lakehouse_load_table()` again. Cleanup failures after a successful
 #' load produce a warning and return `staging_retained = TRUE`; they do not make
-#' a committed table load appear to have failed.
+#' a committed table load appear to have failed. Once Fabric accepts a load,
+#' staging is retained if status polling loses access or fails ambiguously;
+#' only a confirmed terminal operation failure permits failure cleanup.
 #'
 #' @return `fabric_lakehouse_tables()` returns a tibble with table `name`,
 #'   `schema`, `full_name`, `type`, `format`, `location`, timestamps, list-column
@@ -745,7 +747,8 @@ fabric_lakehouse_write_table <- function(
         storage_target,
         storage_credential,
         staging_path,
-        keep_staging_on_failure
+        keep_staging_on_failure,
+        operation_accepted = TRUE
       )
     }
   )
@@ -1439,11 +1442,13 @@ fabric_lakehouse_write_table <- function(
   storage_target,
   credential,
   staging_path,
-  keep_staging
+  keep_staging,
+  operation_accepted = FALSE
 ) {
   retained <- TRUE
   confirmed_failure <- inherits(error, "fabric_operation_failed") ||
-    (inherits(error, "fabric_http_error") &&
+    (!isTRUE(operation_accepted) &&
+      inherits(error, "fabric_http_error") &&
       !is.null(error$status) &&
       error$status >= 400L &&
       error$status < 500L &&
@@ -1463,7 +1468,8 @@ fabric_lakehouse_write_table <- function(
     class = c("fabric_lakehouse_write_error", "fabric_lakehouse_error"),
     parent = error,
     staging_path = staging_path,
-    staging_retained = retained
+    staging_retained = retained,
+    operation_accepted = operation_accepted
   )
 }
 
