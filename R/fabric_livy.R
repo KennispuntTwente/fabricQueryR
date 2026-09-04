@@ -715,8 +715,8 @@ fabric_livy_json <- function(
     deadline = deadline
   )
   tryCatch(
-    httr2::resp_body_json(
-      response,
+    fabric_livy_decode_json(
+      httr2::resp_body_string(response, encoding = "UTF-8"),
       simplifyVector = FALSE,
       bigint_as_char = TRUE
     ),
@@ -1114,12 +1114,103 @@ fabric_livy_parse_json <- function(value) {
   if (is.data.frame(obj)) tibble::as_tibble(obj) else obj
 }
 
+# Decode JSON while retaining the lexical spelling of schema-declared DECIMAL
+# cells. Returns the normal jsonlite structure with only those cells restored
+fabric_livy_decode_json <- function(
+  value,
+  simplifyVector = FALSE,
+  bigint_as_char = TRUE
+) {
+  decoded <- jsonlite::fromJSON(
+    value,
+    simplifyVector = simplifyVector,
+    bigint_as_char = bigint_as_char
+  )
+  lexical <- jsonlite::fromJSON(
+    fabric_livy_quote_json_numbers(value),
+    simplifyVector = FALSE
+  )
+  fabric_livy_restore_decimal_tokens(decoded, lexical)
+}
+
+# Quote JSON number tokens without changing quoted strings. Returns valid JSON
+# whose numeric values can be decoded as their exact source text
+fabric_livy_quote_json_numbers <- function(value) {
+  string <- '"(?:\\\\.|[^"\\\\])*"(*SKIP)(*F)'
+  number <- paste0(
+    "(-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?",
+    "(?:[eE][+-]?[0-9]+)?)"
+  )
+  gsub(paste(string, number, sep = "|"), '"\\1"', value, perl = TRUE)
+}
+
+# Merge exact numeric spellings into DECIMAL columns of decoded Livy table
+# shapes. Recurses through the outer statement response and MIME containers
+fabric_livy_restore_decimal_tokens <- function(value, lexical) {
+  if (!is.list(value) || !is.list(lexical)) {
+    return(value)
+  }
+
+  headers <- NULL
+  if (
+    is.list(value$schema) &&
+      identical(tolower(value$schema$type %||% ""), "struct")
+  ) {
+    headers <- value$schema$fields
+  } else if (is.list(value$headers)) {
+    headers <- value$headers
+  }
+  if (is.list(headers) && is.list(value$data) && is.list(lexical$data)) {
+    decimal_columns <- which(vapply(
+      headers,
+      function(header) {
+        is.list(header) &&
+          identical(fabric_livy_spark_type(header$type), "decimal")
+      },
+      logical(1)
+    ))
+    for (row_index in seq_along(value$data)) {
+      if (
+        !is.list(value$data[[row_index]]) ||
+          !is.list(lexical$data[[row_index]])
+      ) {
+        next
+      }
+      for (column_index in decimal_columns) {
+        if (column_index <= length(lexical$data[[row_index]])) {
+          value$data[[row_index]][column_index] <-
+            lexical$data[[row_index]][column_index]
+        }
+      }
+    }
+  }
+
+  value_names <- names(value)
+  lexical_names <- names(lexical)
+  if (!is.null(value_names) && !is.null(lexical_names)) {
+    for (name in intersect(value_names, lexical_names)) {
+      value[name] <- list(fabric_livy_restore_decimal_tokens(
+        value[[name]],
+        lexical[[name]]
+      ))
+    }
+  } else if (is.null(value_names) && is.null(lexical_names)) {
+    for (index in seq_len(min(length(value), length(lexical)))) {
+      value[index] <- list(fabric_livy_restore_decimal_tokens(
+        value[[index]],
+        lexical[[index]]
+      ))
+    }
+  }
+  value
+}
+
 # Decode Spark SQL's schema-and-data JSON `value`. Returns a typed tibble or
 # `NULL` when the value is not this output format
 fabric_livy_parse_sql_json <- function(value) {
   if (is.character(value) && length(value) == 1L) {
     value <- try(
-      jsonlite::fromJSON(
+      fabric_livy_decode_json(
         value,
         simplifyVector = FALSE,
         bigint_as_char = TRUE
@@ -1162,7 +1253,7 @@ fabric_livy_parse_table <- function(value) {
 
   if (is.character(value) && length(value) == 1L) {
     value <- try(
-      jsonlite::fromJSON(
+      fabric_livy_decode_json(
         value,
         simplifyVector = FALSE,
         bigint_as_char = TRUE

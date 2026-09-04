@@ -1006,6 +1006,50 @@ test_that("Livy raw JSON boundaries preserve Spark BIGINT values", {
   )
   parsed_sql <- fabric_livy_parse_sql_json(raw_sql)
   expect_identical(parsed_sql$id, "9007199254740993")
+
+  raw_decimal <- paste0(
+    '{"schema":{"type":"struct","fields":[',
+    '{"name":"amount","type":"decimal(38,15)","nullable":true}]},',
+    '"data":[[12345678901234567890.123456789012345],[null]]}'
+  )
+  parsed_decimal <- fabric_livy_parse_sql_json(raw_decimal)
+  expect_identical(
+    parsed_decimal$amount,
+    c("12345678901234567890.123456789012345", NA_character_)
+  )
+})
+
+test_that("Livy HTTP decoding preserves numeric DECIMAL tokens", {
+  body <- paste0(
+    '{"id":1,"state":"available","output":{"status":"ok","data":{',
+    '"application/json":{"schema":{"type":"struct","fields":[',
+    '{"name":"amount","type":"decimal(38,15)","nullable":false},',
+    '{"name":"ratio","type":"double","nullable":false}]},',
+    '"data":[[12345678901234567890.123456789012345,1.25]]}}}}'
+  )
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      httr2::response(
+        status_code = 200L,
+        url = req$url,
+        headers = list("content-type" = "application/json"),
+        body = charToRaw(body)
+      )
+    }
+  )
+
+  response <- fabric_livy_json(
+    "GET",
+    "https://api.fabric.test/v1/workspaces/w/livyApi/versions/2023-12-01/sessions/1/statements/2",
+    fabric_credential(token = "test-token")
+  )
+  parsed <- fabric_livy_parse_output_data(response$output$data)
+
+  expect_identical(
+    parsed$amount,
+    "12345678901234567890.123456789012345"
+  )
+  expect_identical(parsed$ratio, 1.25)
 })
 
 test_that("Livy table conversion follows the declared Spark schema", {
