@@ -561,6 +561,87 @@ test_that("Semantic-model and job methods delegate to public functions", {
   expect_s3_class(calls$job$token, "fabric_credential")
 })
 
+test_that("Semantic-model methods use the Power BI API base", {
+  requests <- list()
+  refresh_id <- "33333333-3333-4333-8333-333333333333"
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      requests[[length(requests) + 1L]] <<- req
+      method <- req$method %||% if (!is.null(req$body)) "POST" else "GET"
+      response <- if (grepl("/executeQueries$", req$url)) {
+        list(
+          status = 200L,
+          headers = list(`content-type` = "application/json"),
+          body = '{"results":[{"tables":[{"rows":[{"[x]":1}]}]}]}'
+        )
+      } else if (identical(method, "POST")) {
+        list(
+          status = 202L,
+          headers = list(RequestId = refresh_id),
+          body = ""
+        )
+      } else if (identical(method, "DELETE")) {
+        list(status = 202L, headers = list(), body = "")
+      } else if (grepl(paste0("/refreshes/", refresh_id, "$"), req$url)) {
+        list(
+          status = 200L,
+          headers = list(`content-type` = "application/json"),
+          body = paste0(
+            '{"requestId":"',
+            refresh_id,
+            '","status":"Completed"}'
+          )
+        )
+      } else {
+        list(
+          status = 200L,
+          headers = list(`content-type` = "application/json"),
+          body = paste0(
+            '{"value":[{"requestId":"',
+            refresh_id,
+            '","refreshType":"ViaEnhancedApi",',
+            '"status":"Completed"}]}'
+          )
+        )
+      }
+      httr2::new_response(
+        method = method,
+        url = req$url,
+        status_code = response$status,
+        headers = response$headers,
+        body = charToRaw(response$body),
+        request = req
+      )
+    }
+  )
+  model <- fabric_r6_record(
+    list(
+      id = "11111111-1111-4111-8111-111111111111",
+      workspaceId = "22222222-2222-4222-8222-222222222222",
+      displayName = "Sales Model",
+      type = "SemanticModel"
+    ),
+    legacy_class = c("fabric_item", "list"),
+    credential = fabric_credential(token = "discovery-token"),
+    api_base = "https://api.fabric.microsoft.com/v1"
+  )
+
+  expect_equal(model$dax_query("EVALUATE ROW(\"x\", 1)")[["[x]"]], 1L)
+  expect_s3_class(
+    model$refresh(principal_type = "service_principal"),
+    "fabric_pbi_refresh"
+  )
+  expect_s3_class(model$refresh_history(), "fabric_pbi_refresh_history")
+  expect_s3_class(model$refresh_status(refresh_id), "fabric_pbi_refresh_detail")
+  expect_true(model$refresh_cancel(refresh_id))
+
+  urls <- vapply(requests, `[[`, character(1), "url")
+  expect_true(all(startsWith(
+    urls,
+    "https://api.powerbi.com/v1.0/myorg/"
+  )))
+})
+
 test_that("Discovery factories return R6 by default with an explicit list mode", {
   record <- list(
     id = "11111111-1111-4111-8111-111111111111",

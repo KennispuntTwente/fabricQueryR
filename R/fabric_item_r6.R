@@ -149,7 +149,8 @@ FabricRecord <- R6::R6Class(
       args = list(),
       dots = list(),
       authenticated = TRUE,
-      output = NULL
+      output = NULL,
+      inherit_api_base = TRUE
     ) {
       .fabric_r6_invoke(
         fun = fun,
@@ -162,7 +163,7 @@ FabricRecord <- R6::R6Class(
         },
         authenticated = authenticated,
         output = output,
-        api_base = private$api_base
+        api_base = if (isTRUE(inherit_api_base)) private$api_base else NULL
       )
     }
   )
@@ -1229,7 +1230,8 @@ FabricSemanticModel <- R6::R6Class(
       private$invoke(
         fabric_pbi_dax_query,
         args = list(connstr = self, dax = dax),
-        dots = list(...)
+        dots = list(...),
+        inherit_api_base = FALSE
       )
     },
 
@@ -1240,7 +1242,8 @@ FabricSemanticModel <- R6::R6Class(
       private$invoke(
         fabric_pbi_refresh,
         args = list(connstr = self),
-        dots = list(...)
+        dots = list(...),
+        inherit_api_base = FALSE
       )
     },
 
@@ -1251,7 +1254,8 @@ FabricSemanticModel <- R6::R6Class(
       private$invoke(
         fabric_pbi_refresh_history,
         args = list(connstr = self),
-        dots = list(...)
+        dots = list(...),
+        inherit_api_base = FALSE
       )
     },
 
@@ -1270,7 +1274,8 @@ FabricSemanticModel <- R6::R6Class(
       private$invoke(
         fabric_pbi_refresh_status,
         args = args,
-        dots = list(...)
+        dots = list(...),
+        inherit_api_base = FALSE
       )
     },
 
@@ -1282,7 +1287,8 @@ FabricSemanticModel <- R6::R6Class(
       private$invoke(
         fabric_pbi_refresh_wait,
         args = list(refresh = refresh),
-        dots = list(...)
+        dots = list(...),
+        inherit_api_base = FALSE
       )
     },
 
@@ -1301,7 +1307,8 @@ FabricSemanticModel <- R6::R6Class(
       private$invoke(
         fabric_pbi_refresh_cancel,
         args = args,
-        dots = list(...)
+        dots = list(...),
+        inherit_api_base = FALSE
       )
     }
   )
