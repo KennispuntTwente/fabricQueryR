@@ -792,6 +792,25 @@ fabric_sql_validate_query_statement <- function(sql) {
   } else {
     character()
   }
+  select_positions <- which(select_tokens == "SELECT")
+  set_operators <- c("UNION", "INTERSECT", "EXCEPT")
+  valid_selects <- length(select_positions) > 0L
+  if (length(select_positions) > 1L) {
+    valid_selects <- all(vapply(
+      select_positions[-1L],
+      function(position) {
+        previous <- position - 1L
+        if (
+          previous > 0L &&
+            identical(select_tokens[[previous]], "ALL")
+        ) {
+          previous <- previous - 1L
+        }
+        previous > 0L && select_tokens[[previous]] %in% set_operators
+      },
+      logical(1)
+    ))
+  }
   # Semicolons are optional for most T-SQL statements, so checking only for a
   # second terminator does not establish that this is one statement. Reject
   # top-level tokens that can begin a second statement or turn the batch into a
@@ -842,7 +861,7 @@ fabric_sql_validate_query_statement <- function(sql) {
     "WHILE"
   )
   write_capable <- any(c("INTO", non_query_tokens) %in% select_tokens)
-  valid <- valid_start && !write_capable
+  valid <- valid_start && valid_selects && !write_capable
   if (!valid) {
     fabric_sql_statement_error()
   }
@@ -958,7 +977,11 @@ fabric_sql_top_level_tokens <- function(sql) {
     } else if (identical(char, ")")) {
       flush()
       depth <- max(0L, depth - 1L)
-    } else if (grepl("[A-Za-z_]", char)) {
+    } else if (
+      (!length(token) && grepl("^[\\p{L}_@#]$", char, perl = TRUE)) ||
+        (length(token) &&
+          grepl("^[\\p{L}\\p{N}_@$#]$", char, perl = TRUE))
+    ) {
       token <- c(token, char)
     } else {
       flush()

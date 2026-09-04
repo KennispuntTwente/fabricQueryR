@@ -807,6 +807,11 @@ test_that("fabric_sql_query accepts exactly one read-only SELECT", {
     "SELECT 1\nINSERT INTO dbo.t VALUES (1)",
     "SELECT 1\nEXEC dbo.proc",
     "SELECT 1\nCREATE TABLE dbo.t(value int)",
+    "SELECT 1 SELECT 2",
+    paste0(
+      "SELECT 1 ",
+      "WITH source AS (SELECT 2 AS value) SELECT value FROM source"
+    ),
     "WITH source AS (SELECT 1 AS value) SELECT value FROM source\nDROP TABLE dbo.t",
     "CREATE TABLE dbo.t(value int); SELECT 1",
     "EXEC dbo.proc; SELECT 1",
@@ -830,6 +835,30 @@ test_that("fabric_sql_query accepts exactly one read-only SELECT", {
   expect_silent(fabric_sql_validate_query_statement(
     "WITH source AS (SELECT 1 AS value) SELECT value FROM source"
   ))
+  valid_identifiers <- c(
+    "SELECT update1 FROM dbo.t",
+    "SELECT update$archive FROM dbo.t",
+    "SELECT #update1 FROM #updates2",
+    "SELECT @update1 AS current_value",
+    "SELECT café2 FROM dbo.t"
+  )
+  for (statement in valid_identifiers) {
+    expect_silent(fabric_sql_validate_query_statement(statement))
+  }
+  valid_set_queries <- c(
+    "SELECT 1 UNION SELECT 2",
+    "SELECT 1 UNION ALL SELECT 2 EXCEPT SELECT 3",
+    "SELECT 1 INTERSECT SELECT 1"
+  )
+  for (statement in valid_set_queries) {
+    expect_silent(fabric_sql_validate_query_statement(statement))
+  }
+  expect_identical(
+    fabric_sql_top_level_tokens(
+      "SELECT update1, update$archive, #update1, @update1, café2"
+    ),
+    c("SELECT", "UPDATE1", "UPDATE$ARCHIVE", "#UPDATE1", "@UPDATE1", "CAFÉ2")
+  )
   expect_silent(fabric_sql_validate_query_statement(
     paste0(
       "SELECT ';' AS terminator, 'INTO' AS keyword ",
