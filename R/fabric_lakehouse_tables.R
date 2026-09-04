@@ -349,10 +349,19 @@ fabric_lakehouse_read_table <- function(
   if (schema_supplied || is.null(storage_target)) {
     schema <- schema %||% table_schema %||% default_schema
   }
-  lakehouse_target <- if (!is.null(storage_target) && is.null(schema)) {
-    fabric_record_value(lakehouse_record, "id")
-  } else {
-    lakehouse
+  lakehouse_target <- lakehouse
+  if (
+    !is.null(storage_target) &&
+      is.null(schema) &&
+      !is.null(lakehouse_record)
+  ) {
+    lakehouse_target <- lakehouse_record
+    lakehouse_target$default_schema <- NULL
+    lakehouse_target$defaultSchema <- NULL
+    if (is.list(lakehouse_target$properties)) {
+      lakehouse_target$properties$default_schema <- NULL
+      lakehouse_target$properties$defaultSchema <- NULL
+    }
   }
 
   fabric_onelake_read_delta_table(

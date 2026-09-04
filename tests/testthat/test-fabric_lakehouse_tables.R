@@ -214,6 +214,11 @@ test_that("Lakehouse reader honors a schema-disabled table location", {
   item <- lakehouse_table_test_item(default_schema = "dbo")
   item$workspaceId <- "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
   item$id <- "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+  item$workspaceOneLakeDfsEndpoint <- paste0(
+    "https://",
+    item$workspaceId,
+    ".z12.dfs.fabric.microsoft.com"
+  )
   table <- tibble::tibble(
     name = "orders",
     schema = "dbo",
@@ -237,6 +242,56 @@ test_that("Lakehouse reader honors a schema-disabled table location", {
 
   expect_identical(captured$table_path, "orders")
   expect_null(captured$schema)
+  expect_identical(captured$lakehouse_name$id, item$id)
+  expect_null(captured$lakehouse_name$default_schema)
+  expect_identical(
+    onelake_record_dfs_endpoint(captured$lakehouse_name),
+    item$workspaceOneLakeDfsEndpoint
+  )
+})
+
+test_that("Lakehouse reader retains text targets for schema-disabled tables", {
+  calls <- list()
+  lakehouse_id <- "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+  workspace_id <- "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+  table <- tibble::tibble(
+    name = "orders",
+    schema = "dbo",
+    location = paste0(
+      "https://onelake.dfs.fabric.microsoft.com/",
+      workspace_id,
+      "/",
+      lakehouse_id,
+      "/Tables/orders"
+    )
+  )
+  local_mocked_bindings(
+    fabric_onelake_read_delta_table = function(...) {
+      calls[[length(calls) + 1L]] <<- list(...)
+      tibble::tibble(id = 1L)
+    }
+  )
+
+  fabric_lakehouse_read_table(
+    "Legacy.Lakehouse",
+    table,
+    workspace = "Workspace",
+    token = "storage-token"
+  )
+  fabric_lakehouse_read_table(
+    lakehouse_id,
+    table,
+    workspace = workspace_id,
+    token = "storage-token"
+  )
+
+  expect_identical(calls[[1L]]$lakehouse_name, "Legacy.Lakehouse")
+  expect_identical(calls[[2L]]$lakehouse_name, lakehouse_id)
+  expect_true(all(vapply(
+    calls,
+    function(call) is.null(call$schema),
+    logical(1)
+  )))
 })
 
 test_that("Lakehouse reader rejects ambiguous and non-Lakehouse targets", {
