@@ -145,7 +145,7 @@ reference:
       - print.fabric_graphql_rows
 
   - title: User Data Functions
-    desc: Invoke published Fabric business logic through trusted public URLs
+    desc: Experimental discovery and invocation of published Fabric functions
     contents:
       - fabric_function_invoke
 

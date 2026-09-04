@@ -22,6 +22,7 @@ Suggests:
     arrow (>= 9.0.0),
     DBI (>= 1.2.0),
     knitr,
+    lifecycle,
     odbc,
     purrr,
     rmarkdown,

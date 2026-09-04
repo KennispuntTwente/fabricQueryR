@@ -14,7 +14,6 @@
 \alias{fabric_data_pipelines}
 \alias{fabric_spark_job_definitions}
 \alias{fabric_environments}
-\alias{fabric_user_data_functions}
 \alias{fabric_graphql_apis}
 \title{Typed Microsoft Fabric item discovery}
 \usage{
@@ -41,8 +40,6 @@ fabric_data_pipelines(workspace, detail = TRUE, ...)
 fabric_spark_job_definitions(workspace, detail = TRUE, ...)
 
 fabric_environments(workspace, detail = TRUE, ...)
-
-fabric_user_data_functions(workspace, detail = FALSE, ...)
 
 fabric_graphql_apis(workspace, detail = FALSE, ...)
 }

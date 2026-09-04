@@ -1,8 +1,8 @@
 ---
-title: "Invoke Fabric user data functions"
+title: "Invoke Fabric user data functions (experimental)"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Invoke Fabric user data functions}
+  %\VignetteIndexEntry{Invoke Fabric user data functions (experimental)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,6 +15,23 @@ A Fabric *user data function* is reusable Python code that Fabric hosts and
 runs. It can accept inputs, perform a task, and return a result. With
 'fabricQueryR', an R session can call the published function and receive its
 structured response.
+
+## Lifecycle
+
+The package's User Data Function discovery and invocation APIs are
+experimental. Their validation, request construction, and response handling
+are covered by offline tests, and lightweight Core item discovery is exercised
+against Fabric. However, detailed User Data Function discovery and public
+function invocation are not exercised by the standard live integration lane.
+
+The persistent sandbox is provisioned with a service principal. Microsoft's
+User Data Function create, update-definition, detailed Get, and delete APIs
+currently support delegated users, but not service principals or managed
+identities. The sandbox therefore cannot provision, publish, fully inspect, and
+remove its own disposable public-function fixtures. The opt-in live invocation
+tests instead require URLs for functions that a user has published manually.
+Until repeatable end-to-end coverage is possible, treat these APIs and their
+returned service shapes as subject to change.
 
 This guide prepares a function for external use, makes one small call, and then
 introduces structured parameters and safe retries. Start with a simple function

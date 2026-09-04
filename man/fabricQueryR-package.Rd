@@ -50,8 +50,8 @@ to discover and read continuously replicated Delta tables
 \item On an API for GraphQL item, use \verb{$query()} (\code{\link[=fabric_graphql_query]{fabric_graphql_query()}}),
 \verb{$schema()} (\code{\link[=fabric_graphql_schema]{fabric_graphql_schema()}}), and \verb{$paginate()}
 (\code{\link[=fabric_graphql_paginate]{fabric_graphql_paginate()}})
-\item Use \code{\link[=fabric_function_invoke]{fabric_function_invoke()}} to call published business logic through a
-User Data Function's explicit public URL
+\item Use experimental \code{\link[=fabric_function_invoke]{fabric_function_invoke()}} to call published business
+logic through a User Data Function's explicit public URL
 \item On a runnable item, use \verb{$run()} (\code{\link[=fabric_job_run]{fabric_job_run()}}), \verb{$status()}
 (\code{\link[=fabric_job_status]{fabric_job_status()}}), \verb{$wait()} (\code{\link[=fabric_job_wait]{fabric_job_wait()}}), and \verb{$cancel()}
 (\code{\link[=fabric_job_cancel]{fabric_job_cancel()}})

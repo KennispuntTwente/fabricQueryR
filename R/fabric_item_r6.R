@@ -377,7 +377,11 @@ FabricWorkspace <- R6::R6Class(
       private$typed_items(fabric_environments, detail, list(...))
     },
 
-    #' @description Discover User Data Functions in this workspace.
+    #' @description `r lifecycle::badge("experimental")`
+    #'
+    #' Discover User Data Functions in this workspace. Core discovery is covered
+    #' by live tests, but the service-principal sandbox cannot provision and
+    #' fully inspect disposable User Data Function fixtures.
     #' @param detail Whether to retrieve workload details.
     #' @param ... Additional discovery arguments.
     #' @returns A list of `FabricItem` objects.

@@ -810,7 +810,39 @@ fabric_environments <- function(workspace, detail = TRUE, ...) {
   fabric_typed_item_list(workspace, "Environment", detail, ...)
 }
 
-#' @rdname fabric_typed_items
+#' Discover Fabric User Data Functions
+#'
+#' `r lifecycle::badge("experimental")`
+#'
+#' Finds User Data Function items in a workspace. The default `detail = FALSE`
+#' path uses Core item discovery and works with delegated users, service
+#' principals, and managed identities. Set `detail = TRUE` to call the
+#' workload-specific Get API, which currently supports delegated users only.
+#'
+#' This helper is experimental because the package's service-principal sandbox
+#' can exercise only lightweight Core discovery. Fabric's User Data Function
+#' create, update-definition, detailed Get, and delete APIs do not currently
+#' support service principals or managed identities, so the standard live lane
+#' cannot provision and fully inspect a disposable User Data Function fixture.
+#'
+#' @inheritParams fabric_items
+#' @param detail Whether to retrieve workload-specific details. Defaults to
+#'   `FALSE` so service-principal and managed-identity callers can use Core item
+#'   discovery.
+#' @param ... Authentication and API arguments forwarded to [fabric_items()].
+#'   Do not supply `type`; this helper fixes it to `"UserDataFunction"`.
+#' @return A list of [FabricItem] objects for matching User Data Function items.
+#' @references
+#' [List User Data Functions](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/list-user-data-functions)
+#'
+#' [Get User Data Function](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/get-user-data-function)
+#'
+#' [Create User Data Function](https://learn.microsoft.com/en-us/rest/api/fabric/userdatafunction/items/create-user-data-function)
+#' @examples
+#' \dontrun{
+#' workspace <- fabric_workspaces()[[1L]]
+#' functions <- fabric_user_data_functions(workspace)
+#' }
 #' @export
 fabric_user_data_functions <- function(workspace, detail = FALSE, ...) {
   fabric_typed_item_list(workspace, "UserDataFunction", detail, ...)

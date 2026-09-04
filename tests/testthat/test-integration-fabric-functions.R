@@ -1,10 +1,9 @@
 # Fabric integration coverage: invoking published user data functions
-# Live coverage is opt-in because Microsoft's current
-# item-management API does not support the service principal used to provision
-# the disposable CI sandbox. Point these variables at three published public
-# functions with the signatures exercised below and provide the normal Power BI
-# integration token. Local delegated runs can provision the fixture in a Fabric
-# workspace without weakening the package's standard integration environment
+# Live coverage is opt-in because Microsoft's UDF-specific create and
+# definition APIs do not support the service principal used by the persistent
+# sandbox. Point these variables at three manually published public functions
+# with the signatures exercised below and provide the normal Power BI
+# integration token. A delegated user can create and publish those fixtures.
 
 test_that("Fabric public functions return scalar and structured live outputs", {
   scalar_url <- fabric_test_optional_environment(

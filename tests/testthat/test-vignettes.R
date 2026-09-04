@@ -1143,6 +1143,27 @@ test_that("user-data-function docs distinguish delegated execution scopes", {
   expect_match(normalized, "item Execute permission", fixed = TRUE)
 })
 
+test_that("user-data-function docs explain their experimental lifecycle", {
+  path <- test_path(
+    "..",
+    "..",
+    "vignettes",
+    "user-data-functions.Rmd"
+  )
+  if (!file.exists(path)) {
+    skip("Package vignette source is not available in installed test runs")
+  }
+  source <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  normalized <- gsub("[[:space:]]+", " ", source)
+
+  expect_match(normalized, "APIs are experimental", fixed = TRUE)
+  expect_match(normalized, "covered by offline tests", fixed = TRUE)
+  expect_match(normalized, "standard live integration lane", fixed = TRUE)
+  expect_match(normalized, "service principal", fixed = TRUE)
+  expect_match(normalized, "not service principals", fixed = TRUE)
+  expect_match(normalized, "published manually", fixed = TRUE)
+})
+
 test_that("authentication docs define the custom-endpoint trust boundary", {
   path <- test_path("..", "..", "vignettes", "authentication.Rmd")
   if (!file.exists(path)) {

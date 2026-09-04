@@ -463,7 +463,11 @@ report$type
 \if{html}{\out{<a id="method-FabricWorkspace-user_data_functions"></a>}}
 \if{latex}{\out{\hypertarget{method-FabricWorkspace-user_data_functions}{}}}
 \subsection{\code{FabricWorkspace$user_data_functions()}}{
-  Discover User Data Functions in this workspace.
+  \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+
+Discover User Data Functions in this workspace. Core discovery is covered
+by live tests, but the service-principal sandbox cannot provision and
+fully inspect disposable User Data Function fixtures.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{FabricWorkspace$user_data_functions(detail = FALSE, ...)}

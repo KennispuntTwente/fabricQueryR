@@ -67,10 +67,22 @@ redacted and retains unknown future fields. Inspect \code{status} and \code{erro
 receiving a result does not by itself mean the function succeeded.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+}
+\details{
 Calls the public REST endpoint for one published Microsoft Fabric user data
 function and returns the service's synchronous execution result. Function
 definition, publication, and deployment are intentionally outside this
 helper's scope.
+
+This invocation API is experimental because its request and response handling
+is covered by offline tests, but it is not exercised by the package's
+standard live Fabric integration runs. Those runs use a service principal,
+while Fabric's User Data Function create, update-definition, and delete APIs
+currently support delegated user identities only. The sandbox therefore
+cannot provision and maintain the published public-function fixtures needed
+for repeatable end-to-end tests. Opt-in live tests can be run with URLs for
+functions that a user has published manually.
 }
 \section{Before you invoke}{
 

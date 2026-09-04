@@ -42,8 +42,8 @@
 #' - On an API for GraphQL item, use `$query()` ([fabric_graphql_query()]),
 #'   `$schema()` ([fabric_graphql_schema()]), and `$paginate()`
 #'   ([fabric_graphql_paginate()])
-#' - Use [fabric_function_invoke()] to call published business logic through a
-#'   User Data Function's explicit public URL
+#' - Use experimental [fabric_function_invoke()] to call published business
+#'   logic through a User Data Function's explicit public URL
 #' - On a runnable item, use `$run()` ([fabric_job_run()]), `$status()`
 #'   ([fabric_job_status()]), `$wait()` ([fabric_job_wait()]), and `$cancel()`
 #'   ([fabric_job_cancel()])
