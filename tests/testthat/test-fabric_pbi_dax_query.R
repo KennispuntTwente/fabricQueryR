@@ -372,6 +372,47 @@ test_that("DAX response parser preserves names, nulls, and empty tables", {
     )),
     tibble::tibble()
   )
+
+  all_null_rows <- pbi_parse_dax_response(list(
+    results = list(list(
+      tables = list(list(
+        rows = list(
+          list("[a]" = NULL),
+          list("[a]" = 1L),
+          list("[a]" = NULL)
+        )
+      ))
+    ))
+  ))
+  expect_equal(all_null_rows[["[a]"]], c(NA_integer_, 1L, NA_integer_))
+
+  all_null_column <- pbi_parse_dax_response(list(
+    results = list(list(
+      tables = list(list(
+        rows = list(
+          list("[a]" = NULL, "[b]" = 1L),
+          list("[a]" = NULL, "[b]" = 2L)
+        )
+      ))
+    ))
+  ))
+  expect_named(all_null_column, c("[a]", "[b]"))
+  expect_equal(all_null_column[["[a]"]], c(NA, NA))
+
+  sparse_rows <- pbi_parse_dax_response(list(
+    results = list(list(
+      tables = list(list(
+        rows = list(list(), list("[a]" = 1L), list())
+      ))
+    ))
+  ))
+  expect_equal(sparse_rows[["[a]"]], c(NA_integer_, 1L, NA_integer_))
+
+  empty_rows <- pbi_parse_dax_response(list(
+    results = list(list(tables = list(list(rows = list(list(), list())))))
+  ))
+  expect_equal(nrow(empty_rows), 2L)
+  expect_length(empty_rows, 0L)
 })
 
 test_that("DAX response parser rejects malformed JSON shapes", {

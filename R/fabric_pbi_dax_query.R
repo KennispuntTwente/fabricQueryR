@@ -1451,6 +1451,17 @@ pbi_parse_dax_response <- function(out) {
   # numeric values in the same column before binding so a valid mixed-size
   # integer column remains exact and does not fail dplyr's type negotiation
   rows <- pbi_normalize_dax_integer_columns(rows)
+  column_names <- unique(unlist(lapply(rows, names), use.names = FALSE))
+  if (!length(column_names)) {
+    return(tibble::tibble(.rows = length(rows)))
+  }
+  rows <- lapply(rows, function(row) {
+    values <- lapply(column_names, function(column_name) {
+      value <- row[[column_name]]
+      if (is.null(value)) NA else value
+    })
+    stats::setNames(values, column_names)
+  })
   dplyr::bind_rows(rows)
 }
 
