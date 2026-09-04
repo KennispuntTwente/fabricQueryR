@@ -282,10 +282,13 @@ fallback.
 
 Running and cancelling need an item execute permission. Checking or
 waiting also needs an item read permission, as does resolving a
-parameterized run's collection `Location`. 'fabricQueryR' reconciles
-notebook status information from Fabric before returning it and stops
-with a typed error if Fabric reports an unfamiliar state instead of
-waiting indefinitely
+parameterized run's collection `Location`. For a parameterized Notebook,
+'fabricQueryR' captures recent history before submission so a collection
+`Location` cannot be confused with an earlier run. Recovery stops with
+an accepted-but-unresolved error when multiple new runs make the
+identity ambiguous. 'fabricQueryR' reconciles notebook status
+information from Fabric before returning it and stops with a typed error
+if Fabric reports an unfamiliar state instead of waiting indefinitely
 
 ## References
 

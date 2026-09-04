@@ -111,13 +111,11 @@ fabric_kql_write_table(
 
   Stable idempotency keys passed to
   [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md).
-  Cannot be combined with `skip_batching = TRUE` when staging produces
-  multiple files.
+  Requires staging to produce exactly one file.
 
 - skip_batching:
 
-  Whether Kusto should ingest each staged file independently. Cannot be
-  combined with `ingest_if_not_exists` for a multi-file write.
+  Whether Kusto should bypass normal ingestion batching.
 
 - creation_time:
 

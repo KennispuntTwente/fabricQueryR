@@ -150,14 +150,11 @@ Azure Storage's single-request Put Blob limit.</p></dd>
 
 <dt id="arg-ingest-if-not-exists">ingest_if_not_exists<a class="anchor" aria-label="anchor" href="#arg-ingest-if-not-exists"></a></dt>
 <dd><p>Stable idempotency keys passed to
-<code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code>. Cannot be combined with <code>skip_batching = TRUE</code> when
-staging produces multiple files.</p></dd>
+<code><a href="fabric_kql_ingest.html">fabric_kql_ingest()</a></code>. Requires staging to produce exactly one file.</p></dd>
 
 
 <dt id="arg-skip-batching">skip_batching<a class="anchor" aria-label="anchor" href="#arg-skip-batching"></a></dt>
-<dd><p>Whether Kusto should ingest each staged file
-independently. Cannot be combined with <code>ingest_if_not_exists</code> for a
-multi-file write.</p></dd>
+<dd><p>Whether Kusto should bypass normal ingestion batching.</p></dd>
 
 
 <dt id="arg-creation-time">creation_time<a class="anchor" aria-label="anchor" href="#arg-creation-time"></a></dt>

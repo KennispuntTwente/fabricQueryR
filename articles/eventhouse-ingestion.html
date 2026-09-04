@@ -153,10 +153,12 @@ names a predefined CSV mapping:</p>
 <span><span class="va">ingestion</span><span class="op">$</span><span class="va">id</span></span>
 <span><span class="va">ingestion</span><span class="op">$</span><span class="va">sources</span><span class="op">$</span><span class="va">source_id</span></span></code></pre></div>
 <p>Use a stable <code>ingest_if_not_exists</code> key when the same
-logical batch may be submitted again. Queued ingestion is an advanced,
-at-least-once workflow: after an uncertain network result, inspect the
-tracked operation and target table before submitting the source again.
-See <code><a href="../reference/fabric_kql_ingest.html">?fabric_kql_ingest</a></code> for batching, source deletion, and
+source file may be submitted again. Idempotency keys require one source
+per call; submit multiple files separately with a distinct stable key
+for each file. Queued ingestion is an advanced, at-least-once workflow:
+after an uncertain network result, inspect the tracked operation and
+target table before submitting the source again. See
+<code><a href="../reference/fabric_kql_ingest.html">?fabric_kql_ingest</a></code> for batching, source deletion, and
 storage-authentication options.</p>
 </div>
 <div class="section level2">

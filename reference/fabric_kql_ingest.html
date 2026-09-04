@@ -150,8 +150,9 @@ JSON, Parquet, Avro, ORC, and W3CLOGFILE map case-sensitive field names</p></dd>
 
 
 <dt id="arg-ingest-if-not-exists">ingest_if_not_exists<a class="anchor" aria-label="anchor" href="#arg-ingest-if-not-exists"></a></dt>
-<dd><p>Stable keys used for idempotent ingestion. The
-service checks existing <code>ingest-by:</code> tags for these values</p></dd>
+<dd><p>Stable keys used for idempotent ingestion of one
+source. The service checks existing <code>ingest-by:</code> tags for these values.
+Cannot be combined with a multi-source request</p></dd>
 
 
 <dt id="arg-ignore-first-record">ignore_first_record<a class="anchor" aria-label="anchor" href="#arg-ignore-first-record"></a></dt>
@@ -281,12 +282,15 @@ an exactly-once guarantee</p>
 therefore not automatically replayed after throttling, network failure, or
 an ambiguous response. Retain the returned operation ID before starting
 unrelated work</p>
-<p>For idempotent batch designs, set <code>ingest_if_not_exists</code> to one or more
-stable keys. The function also attaches the corresponding <code>ingest-by:</code> tags
-unless they are already present. A later submission with a matching key is
-observable in detailed status instead of silently duplicating committed
-extents. Idempotency checks can race when the same key is queued concurrently,
-so serialize submissions that share a key</p>
+<p>For idempotent ingestion, submit one source per call and set
+<code>ingest_if_not_exists</code> to one or more stable keys for that source. The
+function also attaches the corresponding <code>ingest-by:</code> tags unless they are
+already present. A later submission with a matching key is observable in
+detailed status instead of silently duplicating a committed extent. The
+function rejects keys for multi-source requests because Kusto applies the
+shared properties to every source and ingests tagged sources independently.
+Idempotency checks can race when the same key is queued concurrently, so
+serialize submissions that share a key</p>
     </div>
     <div class="section level2">
     <h2 id="tracking-and-failures">Tracking and failures<a class="anchor" aria-label="anchor" href="#tracking-and-failures"></a></h2>

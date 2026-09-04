@@ -110,10 +110,12 @@ ingestion$id
 ingestion$sources$source_id
 ```
 
-Use a stable `ingest_if_not_exists` key when the same logical batch may
-be submitted again. Queued ingestion is an advanced, at-least-once
-workflow: after an uncertain network result, inspect the tracked
-operation and target table before submitting the source again. See
+Use a stable `ingest_if_not_exists` key when the same source file may be
+submitted again. Idempotency keys require one source per call; submit
+multiple files separately with a distinct stable key for each file.
+Queued ingestion is an advanced, at-least-once workflow: after an
+uncertain network result, inspect the tracked operation and target table
+before submitting the source again. See
 [`?fabric_kql_ingest`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md)
 for batching, source deletion, and storage-authentication options.
 
