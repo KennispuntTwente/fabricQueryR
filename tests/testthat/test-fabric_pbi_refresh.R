@@ -1011,6 +1011,75 @@ test_that("wait observes active attempts and returns completion", {
   expect_identical(index, 3L)
 })
 
+test_that("wait rejects a completion response received after its deadline", {
+  elapsed <- 0
+  seen_deadline <- NULL
+  started <- as.POSIXct("2026-08-13 08:00:00", tz = "UTC")
+  local_mocked_bindings(
+    .pbi_refresh_request = function(..., deadline = NULL) {
+      seen_deadline <<- deadline
+      elapsed <<- elapsed + 10
+      list(
+        status_code = 200L,
+        location = NULL,
+        request_id = NULL,
+        retry_after = NULL,
+        body = list(status = "Completed", extendedStatus = "Completed")
+      )
+    }
+  )
+
+  error <- expect_error(
+    fabric_pbi_refresh_wait(
+      pbi_refresh_test_handle(),
+      poll_interval = 0,
+      timeout = 1,
+      .sleep = function(seconds) {
+        elapsed <<- elapsed + seconds
+      },
+      .now = function() started + elapsed
+    ),
+    class = "fabric_pbi_refresh_wait_timeout"
+  )
+
+  expect_identical(seen_deadline, started + 1)
+  expect_equal(elapsed, 10 + .fabric_pbi_refresh_poll_floor)
+  expect_identical(error$last_status$state, "Completed")
+})
+
+test_that("wait rejects service retry delays beyond its deadline", {
+  calls <- 0L
+  now <- as.POSIXct("2026-08-13 08:00:00", tz = "UTC")
+  refresh <- pbi_refresh_test_handle()
+  refresh$api_base <- "https://api.powerbi.com/v1.0/myorg"
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    json_response(429L, headers = list("retry-after" = "30"))
+  })
+
+  error <- expect_error(
+    fabric_pbi_refresh_wait(
+      refresh,
+      poll_interval = 0,
+      timeout = 1,
+      .sleep = function(seconds) {
+        now <<- now + seconds
+      },
+      .now = function() now
+    ),
+    class = "fabric_pbi_refresh_wait_timeout"
+  )
+
+  expect_identical(calls, 1L)
+  expect_s3_class(error$parent, "fabric_http_deadline_error")
+  expect_equal(error$parent$retry_after, 30)
+  expect_equal(
+    error$parent$remaining,
+    1 - .fabric_pbi_refresh_poll_floor,
+    tolerance = 1e-6
+  )
+})
+
 test_that("wait sleeps only the unelapsed submission Retry-After", {
   requested <- 0L
   slept <- numeric()
@@ -1085,10 +1154,14 @@ test_that("wait raises distinct service terminal conditions", {
 
 test_that("client wait timeout is distinct and can cancel", {
   cancel_calls <- 0L
+  cancel_deadline <- NULL
   now <- as.POSIXct("2026-08-13 08:00:00", tz = "UTC")
+  started <- now
+  withr::local_options(fabricqueryr.wait.cleanup_timeout = 5)
   local_mocked_bindings(
-    .pbi_refresh_cancel_context = function(context) {
+    .pbi_refresh_cancel_context = function(context, deadline = NULL, ...) {
       cancel_calls <<- cancel_calls + 1L
+      cancel_deadline <<- deadline
       invisible(TRUE)
     }
   )
@@ -1107,6 +1180,7 @@ test_that("client wait timeout is distinct and can cancel", {
   )
   expect_identical(error$cancel_accepted, TRUE)
   expect_identical(cancel_calls, 1L)
+  expect_identical(cancel_deadline, started + 6)
 })
 
 test_that("wait rejects unknown future states without polling forever", {

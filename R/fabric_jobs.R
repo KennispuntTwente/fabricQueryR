@@ -862,8 +862,10 @@ fabric_job_wait <- function(
 
   # 2 Prepare the job context ----------------------------------------------------------------------
 
-  # Prepare the job context once for reuse in the remaining work
+  # Prepare one absolute deadline and job context for the remaining work
 
+  started <- .now()
+  deadline <- started + timeout
   context <- .fabric_job_context(
     job = job,
     tenant_id = tenant_id,
@@ -873,7 +875,6 @@ fabric_job_wait <- function(
     api_base = api_base,
     override_auth = override_auth
   )
-  started <- .now()
   last <- NULL
   next_poll_at <- job$next_poll_at
   if (
@@ -898,10 +899,47 @@ fabric_job_wait <- function(
   # another request
 
   progress <- .fabric_poll_progress("Fabric job", job$id)
+  abort_timeout <- function(parent = NULL) {
+    cancellation <- if (isTRUE(cancel_on_timeout)) {
+      .fabric_job_cancel_outcome(context, .sleep = .sleep, .now = .now)
+    } else {
+      list(accepted = NULL, error = NULL)
+    }
+    last_detail <- if (!is.null(last)) {
+      paste0(
+        " (last status: ",
+        last$status,
+        if (isFALSE(last$visible)) ", not visible in workload API" else "",
+        ")"
+      )
+    } else {
+      ""
+    }
+    .fabric_abort(
+      paste0(
+        sprintf(
+          "Timed out after %s seconds waiting for Fabric job %s",
+          format(timeout, trim = TRUE),
+          job$id
+        ),
+        last_detail
+      ),
+      class = c("fabric_job_timeout", "fabric_job_error"),
+      job = job,
+      last_status = last,
+      cancel_accepted = cancellation$accepted,
+      cancel_error = cancellation$error,
+      parent = parent
+    )
+  }
   repeat {
     # Caller cancellation gets a best-effort service cancellation as well
     if (!is.null(cancel) && isTRUE(cancel())) {
-      cancellation <- .fabric_job_cancel_outcome(context$job)
+      cancellation <- .fabric_job_cancel_outcome(
+        context,
+        .sleep = .sleep,
+        .now = .now
+      )
       .fabric_abort(
         "Fabric job polling was cancelled by the caller",
         class = c("fabric_job_cancelled_by_caller", "fabric_job_error"),
@@ -915,36 +953,7 @@ fabric_job_wait <- function(
     # Timeout errors preserve the last visible state and cancellation outcome
     elapsed <- as.numeric(difftime(.now(), started, units = "secs"))
     if (elapsed >= timeout) {
-      cancellation <- if (isTRUE(cancel_on_timeout)) {
-        .fabric_job_cancel_outcome(context$job)
-      } else {
-        list(accepted = NULL, error = NULL)
-      }
-      last_detail <- if (!is.null(last)) {
-        paste0(
-          " (last status: ",
-          last$status,
-          if (isFALSE(last$visible)) ", not visible in workload API" else "",
-          ")"
-        )
-      } else {
-        ""
-      }
-      .fabric_abort(
-        paste0(
-          sprintf(
-            "Timed out after %s seconds waiting for Fabric job %s",
-            format(timeout, trim = TRUE),
-            job$id
-          ),
-          last_detail
-        ),
-        class = c("fabric_job_timeout", "fabric_job_error"),
-        job = job,
-        last_status = last,
-        cancel_accepted = cancellation$accepted,
-        cancel_error = cancellation$error
-      )
+      abort_timeout()
     }
 
     delay <- max(
@@ -961,11 +970,30 @@ fabric_job_wait <- function(
       next
     }
 
-    last <- .fabric_job_get_status(
-      context,
-      allow_not_found = TRUE,
-      notebook_details = notebook_details
+    result <- tryCatch(
+      .fabric_job_get_status(
+        context,
+        allow_not_found = TRUE,
+        notebook_details = notebook_details,
+        deadline = deadline,
+        .sleep = .sleep,
+        .now = .now
+      ),
+      error = identity
     )
+    if (inherits(result, "error")) {
+      if (
+        inherits(result, "fabric_http_deadline_error") ||
+          .now() >= deadline
+      ) {
+        abort_timeout(parent = result)
+      }
+      rlang::cnd_signal(result)
+    }
+    last <- result
+    if (.now() >= deadline) {
+      abort_timeout()
+    }
     retry_after <- last$retry_after
     .fabric_poll_progress_update(progress, last$status)
     if (!last$status %in% .fabric_job_terminal_states) {
@@ -1033,6 +1061,18 @@ fabric_job_cancel <- function(
     use_workspace_endpoint = !api_base_supplied,
     override_auth = override_auth
   )
+
+  .fabric_job_cancel_context(context)
+}
+
+# Cancel a job from an already-resolved context. Returns TRUE invisibly when
+# Fabric accepted cancellation or the job is already terminal
+.fabric_job_cancel_context <- function(
+  context,
+  deadline = NULL,
+  .sleep = Sys.sleep,
+  .now = Sys.time
+) {
   url <- paste0(
     context$api_base,
     "/workspaces/",
@@ -1057,7 +1097,10 @@ fabric_job_cancel <- function(
       payload = NULL,
       idempotent = FALSE,
       parse_json = TRUE,
-      accepted_status = c(400L, 404L, 409L)
+      accepted_status = c(400L, 404L, 409L),
+      deadline = deadline,
+      .sleep = .sleep,
+      .now = .now
     ),
     error = identity
   )
@@ -1079,7 +1122,13 @@ fabric_job_cancel <- function(
     identical(tolower(error_code %||% ""), "jobalreadycompleted")
   if (ambiguous) {
     status <- tryCatch(
-      .fabric_job_get_status(context, allow_not_found = FALSE),
+      .fabric_job_get_status(
+        context,
+        allow_not_found = FALSE,
+        deadline = deadline,
+        .sleep = .sleep,
+        .now = .now
+      ),
       error = identity
     )
 
@@ -1142,10 +1191,25 @@ print.fabric_job_instance <- function(x, ...) {
 
 # Try to cancel `job` without replacing the caller's original error. Returns
 # acceptance and error fields used by cancellation and timeout conditions
-.fabric_job_cancel_outcome <- function(job) {
+.fabric_job_cancel_outcome <- function(
+  context,
+  .sleep = Sys.sleep,
+  .now = Sys.time
+) {
   tryCatch(
     {
-      fabric_job_cancel(job)
+      cleanup_timeout <- getOption("fabricqueryr.wait.cleanup_timeout", 30)
+      .fabric_job_scalar_number(
+        cleanup_timeout,
+        "wait cleanup timeout",
+        minimum = 0
+      )
+      .fabric_job_cancel_context(
+        context,
+        deadline = .now() + cleanup_timeout,
+        .sleep = .sleep,
+        .now = .now
+      )
       list(accepted = TRUE, error = NULL)
     },
     error = function(error) list(accepted = FALSE, error = error)
@@ -1161,7 +1225,10 @@ print.fabric_job_instance <- function(x, ...) {
   payload = NULL,
   idempotent = NULL,
   parse_json = TRUE,
-  accepted_status = integer()
+  accepted_status = integer(),
+  deadline = NULL,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 ) {
   # 1 Build the HTTP request -----------------------------------------------------------------------
 
@@ -1191,7 +1258,10 @@ print.fabric_job_instance <- function(x, ...) {
     credential = credential,
     audience = .fabric_audience$fabric,
     idempotent = idempotent,
-    accepted_status = accepted_status
+    accepted_status = accepted_status,
+    deadline = deadline,
+    .sleep = .sleep,
+    .now = .now
   )
 
   # 3 Return response details ----------------------------------------------------------------------
@@ -1554,7 +1624,10 @@ print.fabric_job_instance <- function(x, ...) {
 .fabric_job_get_status <- function(
   context,
   allow_not_found,
-  notebook_details = FALSE
+  notebook_details = FALSE,
+  deadline = NULL,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 ) {
   # 1 Read workload status -------------------------------------------------------------------------
 
@@ -1578,7 +1651,10 @@ print.fabric_job_instance <- function(x, ...) {
       404L
     } else {
       integer()
-    }
+    },
+    deadline = deadline,
+    .sleep = .sleep,
+    .now = .now
   )
 
   if (detailed_notebook && result$status_code %in% c(400L, 404L, 410L)) {
@@ -1587,7 +1663,10 @@ print.fabric_job_instance <- function(x, ...) {
       .fabric_job_core_status_url(context),
       context$credential,
       idempotent = TRUE,
-      accepted_status = if (isTRUE(allow_not_found)) 404L else integer()
+      accepted_status = if (isTRUE(allow_not_found)) 404L else integer(),
+      deadline = deadline,
+      .sleep = .sleep,
+      .now = .now
     )
   }
 
@@ -1641,7 +1720,10 @@ print.fabric_job_instance <- function(x, ...) {
       .fabric_job_core_status_url(context),
       context$credential,
       idempotent = TRUE,
-      accepted_status = 404L
+      accepted_status = 404L,
+      deadline = deadline,
+      .sleep = .sleep,
+      .now = .now
     )
 
     if (!identical(core_result$status_code, 404L)) {

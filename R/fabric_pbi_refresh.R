@@ -485,6 +485,8 @@ fabric_pbi_refresh_wait <- function(
     .fabric_abort("cancel must be a function or NULL")
   }
 
+  started <- .now()
+  deadline <- started + timeout
   override_auth <- !missing(tenant_id) ||
     !missing(client_id) ||
     !is.null(token) ||
@@ -498,7 +500,6 @@ fabric_pbi_refresh_wait <- function(
     api_base = api_base,
     override_auth = override_auth
   )
-  started <- .now()
   last <- NULL
   next_poll_at <- if (is.null(context$refresh$retry_after)) {
     NULL
@@ -527,9 +528,36 @@ fabric_pbi_refresh_wait <- function(
   # Client cancellation and timeout remain distinct from service cancellation and timeout states
 
   progress <- .fabric_poll_progress("Power BI refresh", context$id)
+  abort_timeout <- function(parent = NULL) {
+    outcome <- if (isTRUE(cancel_on_timeout)) {
+      .pbi_refresh_cancel_outcome(context, .sleep = .sleep, .now = .now)
+    } else {
+      list(accepted = NULL, error = NULL)
+    }
+    .fabric_abort(
+      sprintf(
+        "Timed out after %s seconds waiting for Power BI refresh %s",
+        format(timeout, trim = TRUE),
+        context$id
+      ),
+      class = c(
+        "fabric_pbi_refresh_wait_timeout",
+        "fabric_pbi_refresh_error"
+      ),
+      refresh = context$refresh,
+      last_status = last,
+      cancel_accepted = outcome$accepted,
+      cancel_error = outcome$error,
+      parent = parent
+    )
+  }
   repeat {
     if (!is.null(cancel) && isTRUE(cancel())) {
-      outcome <- .pbi_refresh_cancel_outcome(context)
+      outcome <- .pbi_refresh_cancel_outcome(
+        context,
+        .sleep = .sleep,
+        .now = .now
+      )
       .fabric_abort(
         "Power BI refresh polling was cancelled by the caller",
         class = c(
@@ -545,26 +573,7 @@ fabric_pbi_refresh_wait <- function(
 
     elapsed <- as.numeric(difftime(.now(), started, units = "secs"))
     if (elapsed >= timeout) {
-      outcome <- if (isTRUE(cancel_on_timeout)) {
-        .pbi_refresh_cancel_outcome(context)
-      } else {
-        list(accepted = NULL, error = NULL)
-      }
-      .fabric_abort(
-        sprintf(
-          "Timed out after %s seconds waiting for Power BI refresh %s",
-          format(timeout, trim = TRUE),
-          context$id
-        ),
-        class = c(
-          "fabric_pbi_refresh_wait_timeout",
-          "fabric_pbi_refresh_error"
-        ),
-        refresh = context$refresh,
-        last_status = last,
-        cancel_accepted = outcome$accepted,
-        cancel_error = outcome$error
-      )
+      abort_timeout()
     }
 
     delay <- max(
@@ -580,15 +589,36 @@ fabric_pbi_refresh_wait <- function(
       next
     }
 
-    last <- tryCatch(
-      .pbi_refresh_get_status(context),
-      fabric_pbi_refresh_not_found = function(cnd) {
-        if (!context$refresh$mode %in% c("standard", "unknown")) {
-          rlang::cnd_signal(cnd)
+    result <- tryCatch(
+      .pbi_refresh_get_status(
+        context,
+        deadline = deadline,
+        .sleep = .sleep,
+        .now = .now
+      ),
+      error = function(error) {
+        if (
+          inherits(error, "fabric_pbi_refresh_not_found") &&
+            context$refresh$mode %in% c("standard", "unknown")
+        ) {
+          return(NULL)
         }
-        NULL
+        error
       }
     )
+    if (inherits(result, "error")) {
+      if (
+        inherits(result, "fabric_http_deadline_error") ||
+          .now() >= deadline
+      ) {
+        abort_timeout(parent = result)
+      }
+      rlang::cnd_signal(result)
+    }
+    last <- result
+    if (.now() >= deadline) {
+      abort_timeout()
+    }
     if (is.null(last)) {
       retry_after <- NULL
       next
@@ -1080,7 +1110,10 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   credential,
   payload = NULL,
   idempotent = NULL,
-  accepted_status = 202L
+  accepted_status = 202L,
+  deadline = NULL,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 ) {
   request <- httr2::request(url) |>
     httr2::req_method(method)
@@ -1102,7 +1135,10 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     credential = credential,
     audience = .fabric_audience$power_bi,
     idempotent = idempotent,
-    accepted_status = accepted_status
+    accepted_status = accepted_status,
+    deadline = deadline,
+    .sleep = .sleep,
+    .now = .now
   )
   status <- httr2::resp_status(response)
   text <- tryCatch(
@@ -1165,7 +1201,10 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   api_base,
   target,
   credential,
-  top = NULL
+  top = NULL,
+  deadline = NULL,
+  .sleep = Sys.sleep,
+  .now = Sys.time
 ) {
   request <- httr2::request(.pbi_refresh_collection_url(api_base, target))
   if (!is.null(top)) {
@@ -1175,7 +1214,10 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     "GET",
     request$url,
     credential,
-    idempotent = TRUE
+    idempotent = TRUE,
+    deadline = deadline,
+    .sleep = .sleep,
+    .now = .now
   )
   if (!is.list(response)) {
     .pbi_refresh_protocol_abort(
@@ -1220,11 +1262,19 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 }
 
 # Find one raw refresh-history value for a resolved refresh context
-.pbi_refresh_history_value <- function(context) {
+.pbi_refresh_history_value <- function(
+  context,
+  deadline = NULL,
+  .sleep = Sys.sleep,
+  .now = Sys.time
+) {
   values <- .pbi_refresh_history_values(
     context$api_base,
     context$target,
-    context$credential
+    context$credential,
+    deadline = deadline,
+    .sleep = .sleep,
+    .now = .now
   )
   ids <- .pbi_refresh_history_ids(values)
   index <- match(tolower(context$id), tolower(ids))
@@ -1341,14 +1391,22 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 }
 
 # Read one status response and convert it to the public detail contract
-.pbi_refresh_get_status <- function(context) {
+.pbi_refresh_get_status <- function(
+  context,
+  deadline = NULL,
+  .sleep = Sys.sleep,
+  .now = Sys.time
+) {
   history_fallback <- context$refresh$mode %in% c("standard", "unknown")
   response <- tryCatch(
     .pbi_refresh_request(
       "GET",
       .pbi_refresh_item_url(context$api_base, context$target, context$id),
       context$credential,
-      idempotent = TRUE
+      idempotent = TRUE,
+      deadline = deadline,
+      .sleep = .sleep,
+      .now = .now
     ),
     fabric_http_error = function(cnd) {
       if (history_fallback && isTRUE(cnd$status %in% c(400L, 404L))) {
@@ -1366,7 +1424,12 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     ))
   }
 
-  value <- .pbi_refresh_history_value(context)
+  value <- .pbi_refresh_history_value(
+    context,
+    deadline = deadline,
+    .sleep = .sleep,
+    .now = .now
+  )
   refresh <- context$refresh
   if (identical(refresh$mode, "unknown")) {
     refresh$mode <- .pbi_refresh_history_mode(value)
@@ -1380,9 +1443,19 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 }
 
 # Send cancellation using an already-resolved refresh context
-.pbi_refresh_cancel_context <- function(context) {
+.pbi_refresh_cancel_context <- function(
+  context,
+  deadline = NULL,
+  .sleep = Sys.sleep,
+  .now = Sys.time
+) {
   if (identical(context$refresh$mode, "unknown")) {
-    value <- .pbi_refresh_history_value(context)
+    value <- .pbi_refresh_history_value(
+      context,
+      deadline = deadline,
+      .sleep = .sleep,
+      .now = .now
+    )
     context$refresh$mode <- .pbi_refresh_history_mode(value)
   }
   if (identical(context$refresh$mode, "standard")) {
@@ -1399,16 +1472,34 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     .pbi_refresh_item_url(context$api_base, context$target, context$id),
     context$credential,
     idempotent = FALSE,
-    accepted_status = c(202L, 404L)
+    accepted_status = c(202L, 404L),
+    deadline = deadline,
+    .sleep = .sleep,
+    .now = .now
   )
   invisible(TRUE)
 }
 
 # Attempt cancellation without replacing the waiter's original condition
-.pbi_refresh_cancel_outcome <- function(context) {
+.pbi_refresh_cancel_outcome <- function(
+  context,
+  .sleep = Sys.sleep,
+  .now = Sys.time
+) {
   tryCatch(
     {
-      .pbi_refresh_cancel_context(context)
+      cleanup_timeout <- getOption("fabricqueryr.wait.cleanup_timeout", 30)
+      .pbi_refresh_number(
+        cleanup_timeout,
+        "wait cleanup timeout",
+        minimum = 0
+      )
+      .pbi_refresh_cancel_context(
+        context,
+        deadline = .now() + cleanup_timeout,
+        .sleep = .sleep,
+        .now = .now
+      )
       list(accepted = TRUE, error = NULL)
     },
     error = function(error) list(accepted = FALSE, error = error)

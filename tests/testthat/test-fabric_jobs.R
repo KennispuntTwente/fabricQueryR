@@ -1376,6 +1376,51 @@ test_that("wait retains a positive polling floor", {
   expect_true(all(sleeps > 0))
 })
 
+test_that("wait rejects fallback status completed after its deadline", {
+  elapsed <- 0
+  deadlines <- list()
+  requests <- 0L
+  started <- as.POSIXct("2026-01-01", tz = "UTC")
+  local_mocked_bindings(
+    .fabric_job_request = function(..., deadline = NULL) {
+      requests <<- requests + 1L
+      deadlines[[requests]] <<- deadline
+      if (requests == 1L) {
+        return(list(status_code = 404L, retry_after = NULL, body = list()))
+      }
+      elapsed <<- elapsed + 100
+      list(
+        status_code = 200L,
+        retry_after = NULL,
+        body = list(
+          id = "job",
+          status = "Completed",
+          properties = list(exitValue = "done")
+        )
+      )
+    }
+  )
+
+  error <- expect_error(
+    fabric_job_wait(
+      job_test_handle(retry_after = NULL),
+      poll_interval = 0,
+      timeout = 1,
+      notebook_details = TRUE,
+      .sleep = function(seconds) {
+        elapsed <<- elapsed + seconds
+      },
+      .now = function() started + elapsed
+    ),
+    class = "fabric_job_timeout"
+  )
+
+  expect_identical(requests, 2L)
+  expect_true(all(vapply(deadlines, identical, logical(1), started + 1)))
+  expect_equal(elapsed, 100 + .fabric_job_poll_floor)
+  expect_identical(error$last_status$status, "Completed")
+})
+
 test_that("wait tolerates visibility delays until its timeout", {
   polls <- 0L
   elapsed <- 0
@@ -1514,10 +1559,14 @@ test_that("terminal errors can be returned for inspection", {
 test_that("timeout can request cancellation and retains last status", {
   elapsed <- 0
   calls <- character()
+  cancel_deadline <- NULL
+  started <- as.POSIXct("2026-01-01", tz = "UTC")
+  withr::local_options(fabricqueryr.wait.cleanup_timeout = 5)
   local_mocked_bindings(
-    .fabric_job_request = function(method, url, ...) {
+    .fabric_job_request = function(method, url, ..., deadline = NULL) {
       calls <<- c(calls, paste(method, url))
       if (method == "POST") {
+        cancel_deadline <<- deadline
         return(list(status_code = 202L))
       }
       list(
@@ -1538,7 +1587,7 @@ test_that("timeout can request cancellation and retains last status", {
         elapsed <<- elapsed + seconds
       },
       .now = function() {
-        as.POSIXct("2026-01-01", tz = "UTC") + elapsed
+        started + elapsed
       }
     ),
     classes = "error"
@@ -1549,11 +1598,12 @@ test_that("timeout can request cancellation and retains last status", {
   expect_match(condition$message, "last status: InProgress", fixed = TRUE)
   expect_true(condition$cancel_accepted)
   expect_null(condition$cancel_error)
+  expect_identical(cancel_deadline, started + 6)
 })
 
 test_that("wait conditions retain remote cancellation failures", {
   local_mocked_bindings(
-    fabric_job_cancel = function(...) {
+    .fabric_job_cancel_context = function(...) {
       rlang::abort(
         "Fabric rejected cancellation",
         class = "fabric_job_cancel_error"
