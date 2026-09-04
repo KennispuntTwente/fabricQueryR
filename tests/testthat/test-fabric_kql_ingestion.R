@@ -251,6 +251,46 @@ test_that("fabric_kql_ingest sends the documented tracked payload", {
   expect_equal(payload$timestamp, "2026-08-14T10:00:00.000000Z")
 })
 
+test_that("fabric_kql_ingest adds tags only when requested", {
+  requests <- list()
+  httr2::local_mocked_responses(function(req) {
+    requests[[length(requests) + 1L]] <<- req
+    kusto_ingestion_test_response(
+      list(ingestionOperationId = paste0("tag_operation_", length(requests))),
+      url = req$url
+    )
+  })
+  ingest <- function(...) {
+    fabric_kql_ingest(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      table = "Raw",
+      sources = "https://example.test/events.parquet",
+      database = "Telemetry",
+      format = "parquet",
+      token = "kusto-token",
+      ...
+    )
+  }
+
+  ingest()
+  ingest(tags = "environment:test")
+  ingest(ingest_if_not_exists = "events-2026-08-14")
+
+  properties <- lapply(requests, function(req) req$body$data$properties)
+  expect_false("tags" %in% names(properties[[1L]]))
+  expect_false("ingestIfNotExists" %in% names(properties[[1L]]))
+  expect_equal(as.character(properties[[2L]]$tags), "environment:test")
+  expect_false("ingestIfNotExists" %in% names(properties[[2L]]))
+  expect_equal(
+    as.character(properties[[3L]]$tags),
+    "ingest-by:events-2026-08-14"
+  )
+  expect_equal(
+    as.character(properties[[3L]]$ingestIfNotExists),
+    "events-2026-08-14"
+  )
+})
+
 test_that("fabric_kql_ingest omits a mapping reference for identity mapping", {
   captured <- NULL
   httr2::local_mocked_responses(function(req) {

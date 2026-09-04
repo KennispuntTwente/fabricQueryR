@@ -286,7 +286,11 @@ fabric_kql_ingest <- function(
       .format = TRUE
     )
   }
-  idempotency_tags <- paste0("ingest-by:", ingest_if_not_exists)
+  idempotency_tags <- if (length(ingest_if_not_exists)) {
+    paste0("ingest-by:", ingest_if_not_exists)
+  } else {
+    character()
+  }
   tags <- unique(c(tags, idempotency_tags))
   kusto_ingestion_flag(ignore_first_record, "ignore_first_record")
   kusto_ingestion_flag(skip_batching, "skip_batching")
