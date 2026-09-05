@@ -1349,6 +1349,60 @@ test_that("OneLake shortcuts complete a live create/read/delete lifecycle", {
   )
 })
 
+test_that("schema-enabled table shortcuts expose source Delta values", {
+  manifest <- fabric_test_manifest()
+  fabric_test_use_delta_runtime()
+  fixture <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token_provider()
+  item <- fabric_item(
+    manifest$workspace_id,
+    fixture$id,
+    type = "Lakehouse",
+    token = token
+  )
+  name <- paste0(
+    "fabricqueryr_table_shortcut_",
+    Sys.getpid(),
+    "_",
+    format(Sys.time(), "%Y%m%d%H%M%S")
+  )
+  fabric_onelake_shortcut_create(
+    item,
+    path = "Tables/dbo",
+    name = name,
+    target = item,
+    target_path = paste("Tables/dbo", fixture$tables$basic, sep = "/"),
+    token = token
+  )
+  on.exit(
+    fabric_onelake_shortcut_delete(
+      item,
+      "Tables/dbo",
+      name,
+      confirm = TRUE,
+      token = token
+    ),
+    add = TRUE
+  )
+  expected <- fabric_lakehouse_read_table(
+    item,
+    fixture$tables$basic,
+    schema = "dbo",
+    token = token,
+    verbose = FALSE
+  )
+  observed <- fabric_test_eventually(function() {
+    fabric_lakehouse_read_table(
+      item,
+      name,
+      schema = "dbo",
+      token = token,
+      verbose = FALSE
+    )
+  })
+  expect_equal(observed, expected)
+})
+
 test_that("OneLake bulk shortcuts complete live LROs", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
