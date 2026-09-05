@@ -97,6 +97,39 @@ test_that("GraphQL HTTP defaults include server-timeout overhead", {
   expect_identical(formals(fabric_graphql_paginate)$timeout, 110)
 })
 
+test_that("discovered GraphQL methods preserve the credential authentication mode", {
+  for (application in c(TRUE, FALSE)) {
+    audiences <- character()
+    credential <- fabric_credential(token = function(audience) {
+      audiences <<- c(audiences, audience)
+      "synthetic-token"
+    })
+    credential$client_credentials <- application
+    api <- r6_test_record("GraphQLApi", credential)
+    httr2::local_mocked_responses(function(req) {
+      graphql_test_response(
+        list(
+          data = list(
+            `__schema` = list(queryType = list(name = "Query")),
+            items = list()
+          )
+        ),
+        url = req$url
+      )
+    })
+    api$query("{ items { id } }")
+    api$schema()
+    api$paginate("{ items { id } }", next_cursor = function(...) NULL)
+    expect_identical(
+      audiences,
+      rep(
+        if (application) .fabric_audience$fabric else .fabric_audience$graphql,
+        3
+      )
+    )
+  }
+})
+
 test_that("fabric_graphql_schema runs standard introspection", {
   captured <- NULL
   httr2::local_mocked_responses(function(req) {

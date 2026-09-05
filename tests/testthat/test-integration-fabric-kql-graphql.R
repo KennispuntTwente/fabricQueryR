@@ -625,12 +625,14 @@ test_that("server-side KQL export writes readable Parquet artifacts to OneLake",
 test_that("fabric_graphql_query executes variables and preserves nulls", {
   manifest <- fabric_test_manifest()
   provisioned <- fabric_test_manifest_item(manifest, "TestGraphQL")
-  token <- fabric_test_token_provider()
+  auth <- fabric_test_azure_auth_config()
   api <- fabric_item(
     manifest$workspace_id,
     provisioned$id,
     type = "GraphQLApi",
-    token = token
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args
   )
   expect_equal(
     api$graphql_endpoint,
@@ -642,8 +644,7 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
   )
   root_field <- provisioned$root_field
 
-  result <- fabric_graphql_query(
-    api,
+  result <- api$query(
     query = paste(
       "query Filtered($category: String!) {",
       paste0("  ", root_field, "("),
@@ -658,9 +659,7 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
     ),
     variables = list(category = "A"),
     operation_name = "Filtered",
-    error_policy = "error",
-    token = token,
-    audience = "https://api.fabric.microsoft.com/.default"
+    error_policy = "error"
   )
 
   expect_s3_class(result, "fabric_graphql_result")

@@ -832,7 +832,12 @@ graphql_resolve_audience <- function(audience, token, auth_args) {
     return(graphql_required_string(audience, "audience"))
   }
 
-  if (is.null(token) && fabric_uses_client_credentials(auth_args)) {
+  application <- if (inherits(token, "fabric_credential")) {
+    isTRUE(token$client_credentials)
+  } else {
+    is.null(token) && fabric_uses_client_credentials(auth_args)
+  }
+  if (application) {
     .fabric_audience$fabric
   } else {
     .fabric_audience$graphql
