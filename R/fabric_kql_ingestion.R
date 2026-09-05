@@ -2733,7 +2733,10 @@ kusto_write_assert_identity_schema <- function(
     kusto_write_column_types(schema, columns, column_types),
     columns
   )
-  if (identical(actual, expected)) {
+  if (
+    setequal(names(actual), names(expected)) &&
+      identical(actual[names(expected)], expected)
+  ) {
     return(invisible(actual))
   }
   actual_text <- paste0(names(actual), ":", unname(actual), collapse = ", ")

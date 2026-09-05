@@ -376,7 +376,7 @@ test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
   frame_result <- fabric_kql_write_table(
     database,
     table = table,
-    data = frame,
+    data = frame[c("category", "amount", "name", "id")],
     ingest_if_not_exists = paste0("frame-", nonce),
     skip_batching = TRUE,
     timeout = 600,
@@ -387,6 +387,18 @@ test_that("R and lazy Arrow objects write through tracked Eventhouse staging", {
   expect_gt(frame_result$buffer_bytes, 0)
   expect_true(all(is.na(frame_result$ingestion$sources$raw_size)))
   expect_false(frame_result$staging_retained)
+  stored <- fabric_kql_query(
+    database,
+    query = paste(
+      "declare query_parameters(category_value:string);",
+      table,
+      "| where category == category_value | project id, name, category, amount",
+      "| order by id asc"
+    ),
+    parameters = list(category_value = frame_category),
+    token = token
+  )
+  expect_equal(as.data.frame(stored), frame, ignore_attr = TRUE)
 
   dataset_path <- tempfile("fabricqueryr-kql-dataset-")
   dir.create(dataset_path)

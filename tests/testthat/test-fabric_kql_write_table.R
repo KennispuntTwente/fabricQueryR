@@ -677,6 +677,17 @@ test_that("KQL identity writes validate the authoritative table schema", {
     arrow::schema(id = arrow::int32(), label = arrow::utf8()),
     c("id", "label")
   ))
+  expect_no_error(kusto_write_assert_identity_schema(
+    actual,
+    arrow::schema(label = arrow::utf8(), id = arrow::int32()),
+    c("label", "id")
+  ))
+  mismatch <- rlang::catch_cnd(kusto_write_assert_identity_schema(
+    actual,
+    arrow::schema(label = arrow::utf8(), id = arrow::utf8()),
+    c("label", "id")
+  ))
+  expect_s3_class(mismatch, "fabric_kql_schema_error")
 })
 
 test_that("KQL identity writes reject schema mismatches before staging", {
