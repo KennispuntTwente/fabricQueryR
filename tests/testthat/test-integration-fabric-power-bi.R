@@ -314,7 +314,11 @@ test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
     token = token
   )
   expect_s3_class(stream, "nanoarrow_array_stream")
-  streamed <- arrow::as_record_batch_reader(stream)$read_table()
+  resource <- attr(stream, "fabric_dax_resource")
+  reader <- arrow::as_record_batch_reader(stream)
+  streamed <- reader$read_table()
+  reader$Close()
+  expect_false(file.exists(resource$path))
   streamed <- suppressWarnings(as.data.frame(streamed))
   names(streamed) <- sub("^.*\\[([^]]+)\\]$", "\\1", names(streamed))
   expect_equal(nrow(streamed), 3L)

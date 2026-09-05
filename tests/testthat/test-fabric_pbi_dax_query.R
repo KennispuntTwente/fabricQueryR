@@ -1182,6 +1182,33 @@ test_that("Arrow DAX stream remains file-backed without collecting its table", {
   expect_s3_class(resource$readers[[1L]], "RecordBatchReader")
   reader <- arrow::as_record_batch_reader(stream)
   expect_equal(nrow(reader$read_table()), 1000L)
+  reader$Close()
+  expect_false(file.exists(resource$path))
+})
+
+test_that("Arrow DAX rowsets share file ownership until the last release", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  bytes <- lapply(1:2, function(value) {
+    output <- arrow::BufferOutputStream$create()
+    arrow::write_ipc_stream(data.frame(value = value), output)
+    output$finish()$data()
+  })
+  path <- withr::local_tempfile(fileext = ".arrows")
+  writeBin(do.call(c, bytes), path)
+  streams <- pbi_parse_dax_arrow_response(
+    path,
+    "arrow_stream",
+    cleanup_path = TRUE
+  )
+  resource <- attr(streams[[1L]], "fabric_dax_resource")
+  nanoarrow::nanoarrow_pointer_release(streams[[1L]])
+  expect_true(file.exists(path))
+  reader <- arrow::as_record_batch_reader(streams[[2L]])
+  expect_equal(as.data.frame(reader$read_table())$value, 2L)
+  reader$Close()
+  expect_false(file.exists(path))
+  expect_identical(resource$released, c(TRUE, TRUE))
 })
 
 test_that("Arrow DAX parser rejects error rowsets", {

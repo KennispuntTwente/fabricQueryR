@@ -1054,19 +1054,27 @@ pbi_parse_dax_arrow_response <- function(
     resource <- new.env(parent = emptyenv())
     resource$buffers <- vector("list", length(data_positions))
     resource$readers <- vector("list", length(data_positions))
+    resource$released <- rep(FALSE, length(data_positions))
     resource$path <- if (path_payload && isTRUE(cleanup_path)) payload else NULL
     reg.finalizer(
       resource,
       function(environment) {
-        for (stream_buffer in environment$buffers) {
-          try(stream_buffer$close(), silent = TRUE)
-        }
-
-        if (!is.null(environment$path)) {
-          unlink(environment$path, force = TRUE)
+        for (index in seq_along(environment$released)) {
+          pbi_release_dax_arrow_rowset(environment, index)
         }
       },
       onexit = TRUE
+    )
+    complete <- FALSE
+    on.exit(
+      {
+        if (!complete) {
+          for (index in seq_along(resource$released)) {
+            pbi_release_dax_arrow_rowset(resource, index)
+          }
+        }
+      },
+      add = TRUE
     )
     rowsets <- lapply(seq_along(data_positions), function(index) {
       stream_buffer <- if (path_payload) {
@@ -1074,14 +1082,18 @@ pbi_parse_dax_arrow_response <- function(
       } else {
         arrow::BufferReader$create(payload)
       }
+      resource$buffers[[index]] <- stream_buffer
       stream_buffer$seek(data_positions[[index]])
       stream_reader <- arrow::RecordBatchStreamReader$create(stream_buffer)
-      resource$buffers[[index]] <- stream_buffer
       resource$readers[[index]] <- stream_reader
       stream <- nanoarrow::as_nanoarrow_array_stream(stream_reader)
+      stream <- nanoarrow::array_stream_set_finalizer(stream, function() {
+        pbi_release_dax_arrow_rowset(resource, index)
+      })
       attr(stream, "fabric_dax_resource") <- resource
       stream
     })
+    complete <- TRUE
   } else {
     rowsets <- lapply(data_tables, function(table) {
       pbi_dax_arrow_tibble(table)
@@ -1097,6 +1109,21 @@ pbi_parse_dax_arrow_response <- function(
     attr(value, "execution_metrics") <- metrics
   }
   value
+}
+
+pbi_release_dax_arrow_rowset <- function(resource, index) {
+  if (resource$released[[index]]) {
+    return(invisible(NULL))
+  }
+  resource$released[[index]] <- TRUE
+  try(resource$readers[[index]]$Close(), silent = TRUE)
+  try(resource$buffers[[index]]$close(), silent = TRUE)
+  resource$readers[index] <- list(NULL)
+  resource$buffers[index] <- list(NULL)
+  if (all(resource$released) && !is.null(resource$path)) {
+    unlink(resource$path, force = TRUE)
+  }
+  invisible(NULL)
 }
 
 # Convert one Arrow DAX table without rounding fixed-precision decimals
