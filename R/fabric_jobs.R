@@ -1315,10 +1315,10 @@ print.fabric_job_instance <- function(x, ...) {
   value_names <- names(value)
   for (index in seq_along(value)) {
     child_field <- if (is.null(value_names)) NULL else value_names[[index]]
-    value[[index]] <- .fabric_job_preserve_json_arrays(
+    value[index] <- list(.fabric_job_preserve_json_arrays(
       value[[index]],
       field = child_field
-    )
+    ))
   }
   value
 }

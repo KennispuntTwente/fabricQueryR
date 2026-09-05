@@ -2132,3 +2132,23 @@ test_that("job status parsing rejects malformed service responses", {
   )
   expect_null(.fabric_job_error_code("not-an-object"))
 })
+test_that("job payloads preserve nested null positions", {
+  value <- list(
+    executionData = list(
+      first = NULL,
+      required = 1,
+      middle = NULL,
+      nested = list(NULL, 2, NULL),
+      last = NULL
+    )
+  )
+  expect_identical(.fabric_job_preserve_json_arrays(value), value)
+  expect_identical(
+    jsonlite::toJSON(
+      .fabric_job_preserve_json_arrays(value),
+      auto_unbox = TRUE,
+      null = "null"
+    ),
+    jsonlite::toJSON(value, auto_unbox = TRUE, null = "null")
+  )
+})
