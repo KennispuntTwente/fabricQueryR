@@ -519,7 +519,7 @@ jobs:
         env:
           FABRIC_TEST_AUTH_CLIENT_SECRET: ${{ secrets.FABRIC_TEST_AUTH_CLIENT_SECRET }}
           FABRIC_TEST_FILTER: ${{ matrix.filter }}
-        run: Rscript -e 'testthat::test_local(filter = Sys.getenv("FABRIC_TEST_FILTER"), stop_on_failure = TRUE)'
+        run: Rscript -e 'source("tools/fabric-sandbox/ci-integration.R"); run_fabric_ci_integration()'
 
   integration_preview:
     name: Test ${{ matrix.label }}
