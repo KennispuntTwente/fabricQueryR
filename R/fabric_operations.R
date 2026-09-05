@@ -287,13 +287,18 @@ fabric_operation_result <- function(
       .now = .now
     )
   } else {
-    .fabric_operation_read_state(
-      context$operation,
-      context$credential,
-      respect_retry_after = FALSE,
-      deadline = deadline,
-      .sleep = .sleep,
-      .now = .now
+    tryCatch(
+      .fabric_operation_read_state(
+        context$operation,
+        context$credential,
+        respect_retry_after = FALSE,
+        deadline = deadline,
+        .sleep = .sleep,
+        .now = .now
+      ),
+      fabric_http_deadline_error = function(error) {
+        .fabric_operation_abort_timeout(context$operation, NULL)
+      }
     )
   }
 
@@ -340,14 +345,19 @@ fabric_operation_result <- function(
     )
   }
 
-  response <- .httr2_perform(
-    httr2::request(state$operation$result_url),
-    credential = context$credential,
-    audience = .fabric_operation_audience(state$operation$result_url),
-    idempotent = TRUE,
-    deadline = deadline,
-    .sleep = .sleep,
-    .now = .now
+  response <- tryCatch(
+    .httr2_perform(
+      httr2::request(state$operation$result_url),
+      credential = context$credential,
+      audience = .fabric_operation_audience(state$operation$result_url),
+      idempotent = TRUE,
+      deadline = deadline,
+      .sleep = .sleep,
+      .now = .now
+    ),
+    fabric_http_deadline_error = function(error) {
+      .fabric_operation_abort_timeout(state$operation, state)
+    }
   )
   if (httr2::resp_status(response) != 200L) {
     .fabric_operation_abort_protocol(
@@ -530,13 +540,18 @@ fabric_operation_result <- function(
     if (.now() >= deadline) {
       .fabric_operation_abort_timeout(operation, last_state)
     }
-    state <- .fabric_operation_read_state(
-      operation,
-      context$credential,
-      respect_retry_after = TRUE,
-      deadline = deadline,
-      .sleep = .sleep,
-      .now = .now
+    state <- tryCatch(
+      .fabric_operation_read_state(
+        operation,
+        context$credential,
+        respect_retry_after = TRUE,
+        deadline = deadline,
+        .sleep = .sleep,
+        .now = .now
+      ),
+      fabric_http_deadline_error = function(error) {
+        .fabric_operation_abort_timeout(operation, last_state)
+      }
     )
     operation <- state$operation
     last_state <- state

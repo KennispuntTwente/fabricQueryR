@@ -842,3 +842,52 @@ test_that("non-waiting result retrieval ignores future polling hints", {
   expect_identical(requests, 1L)
   expect_identical(sleeps, 0L)
 })
+test_that("HTTP deadlines expose operation timeout recovery context", {
+  operation <- list(id = operation_test_id)
+  context <- list(
+    operation = operation,
+    credential = fabric_credential(token = "test")
+  )
+  local_mocked_bindings(.fabric_operation_read_state = function(...) {
+    rlang::abort("deadline", class = "fabric_http_deadline_error")
+  })
+  error <- tryCatch(
+    .fabric_operation_wait_context(
+      context,
+      poll_interval = 1,
+      deadline = Sys.time() + 30,
+      error_on_failure = TRUE,
+      .sleep = Sys.sleep,
+      .now = Sys.time
+    ),
+    error = identity
+  )
+  expect_s3_class(error, "fabric_operation_timeout")
+  expect_identical(error$operation, operation)
+  expect_null(error$operation_status)
+})
+test_that("operation status and result transport deadlines retain context", {
+  for (phase in c("status", "result")) {
+    local_mocked_bindings(.httr2_perform = function(req, ...) {
+      if (phase == "status" || grepl("/result$", req$url)) {
+        rlang::abort("deadline", class = "fabric_http_deadline_error")
+      }
+      operation_test_response(body = list(status = "Succeeded"), url = req$url)
+    })
+    error <- tryCatch(
+      fabric_operation_result(
+        operation_test_id,
+        wait = FALSE,
+        token = "test-token"
+      ),
+      error = identity
+    )
+    expect_s3_class(error, "fabric_operation_timeout")
+    expect_identical(error$operation$id, operation_test_id)
+    if (phase == "result") {
+      expect_identical(error$operation_status$status, "Succeeded")
+    } else {
+      expect_null(error$operation_status)
+    }
+  }
+})
