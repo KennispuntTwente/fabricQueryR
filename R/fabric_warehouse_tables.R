@@ -1023,9 +1023,9 @@ fabric_warehouse_write_table <- function(
   for (column in value) {
     .fabric_warehouse_identifier(column, "column")
   }
-  normalized <- tolower(enc2utf8(value))
+  normalized <- enc2utf8(value)
   if (anyDuplicated(normalized)) {
-    .fabric_abort("Column names must be unique ignoring case")
+    .fabric_abort("Column names must be unique")
   }
   invisible(value)
 }

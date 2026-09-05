@@ -356,7 +356,7 @@ test_that("Warehouse table reader validates before target resolution", {
 
   expect_error(read(schema = ""), "schema")
   expect_error(read(columns = character()), "columns must be NULL")
-  expect_error(read(columns = c("id", "ID")), "unique ignoring case")
+  expect_error(read(columns = c("id", "id")), "unique")
   for (limit in list(-1, 1.5, Inf, NA_real_, c(1, 2))) {
     expect_error(read(limit = limit), "limit must be NULL")
   }
@@ -974,8 +974,8 @@ test_that("Warehouse writer validates destinations before network I/O", {
   expect_error(invoke(overwrite_method = "replace"), "must be one of")
   expect_error(invoke(create_if_missing = NA), "TRUE or FALSE")
   expect_error(
-    invoke(data = data.frame(A = 1L, a = 2L, check.names = FALSE)),
-    "unique ignoring case"
+    invoke(data = data.frame(A = 1L, A = 2L, check.names = FALSE)),
+    "unique"
   )
   bad_stage <- warehouse_write_test_lakehouse()
   bad_stage$type <- "Warehouse"

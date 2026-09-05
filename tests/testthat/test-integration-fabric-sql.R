@@ -834,3 +834,56 @@ test_that("Warehouse writer loads through the live ADBC backend", {
   DBI::dbDisconnect(cleanup_connection)
   connected <- FALSE
 })
+test_that("Warehouse writes and projections preserve case-distinct columns", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  warehouse <- fabric_item(
+    manifest$workspace_id,
+    fabric_test_manifest_item(manifest, "TestWarehouse")$id,
+    type = "Warehouse",
+    token = token
+  )
+  lake <- fabric_item(
+    manifest$workspace_id,
+    fabric_test_manifest_item(manifest, "TestLakehouse")$id,
+    type = "Lakehouse",
+    token = token
+  )
+  table <- paste0("fabricqueryr_case_", Sys.getpid())
+  con <- fabric_sql_connect(warehouse, token = token, verbose = FALSE)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  on.exit(
+    try(
+      DBI::dbExecute(con, paste0("DROP TABLE IF EXISTS [dbo].[", table, "]")),
+      silent = TRUE
+    ),
+    add = TRUE,
+    after = FALSE
+  )
+  for (backend in fabric_test_sql_backends()) {
+    for (mode in c("append", "overwrite")) {
+      fabric_warehouse_write_table(
+        warehouse,
+        table,
+        data.frame(id = 1L, ID = 2L, check.names = FALSE),
+        create_if_missing = TRUE,
+        mode = mode,
+        backend = backend,
+        staging_lakehouse = lake,
+        token = token,
+        verbose = FALSE
+      )
+      rows <- fabric_warehouse_read_table(
+        warehouse,
+        table,
+        columns = c("id", "ID"),
+        backend = backend,
+        token = token,
+        verbose = FALSE
+      )
+      expect_identical(names(rows), c("id", "ID"))
+      expect_equal(unique(rows$id), 1L)
+      expect_equal(unique(rows$ID), 2L)
+    }
+  }
+})

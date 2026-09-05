@@ -9,10 +9,10 @@
 ---
 
     Code
-      fabric_sql_read_table("server", "orders", columns = c("id", "ID"), token = "token")
+      fabric_sql_read_table("server", "orders", columns = c("id", "id"), token = "token")
     Condition
       Error in `.fabric_sql_projection()`:
-      ! columns must be unique ignoring case
+      ! columns must be unique
 
 ---
 

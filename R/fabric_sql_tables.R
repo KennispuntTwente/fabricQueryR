@@ -477,9 +477,9 @@ fabric_sql_read_table <- function(
   for (column in columns) {
     .fabric_sql_name(column, "column")
   }
-  if (anyDuplicated(tolower(columns))) {
+  if (anyDuplicated(columns)) {
     .fabric_abort(
-      "columns must be unique ignoring case",
+      "columns must be unique",
       class = "fabric_sql_table_error"
     )
   }

@@ -214,7 +214,7 @@ test_that("SQL table helpers validate before executing queries", {
     fabric_sql_read_table(
       "server",
       "orders",
-      columns = c("id", "ID"),
+      columns = c("id", "id"),
       token = "token"
     )
   })
@@ -225,4 +225,8 @@ test_that("SQL table helpers validate before executing queries", {
     fabric_sql_tables("server", sql = "SELECT 1", token = "token")
   })
   expect_equal(calls, 0L)
+})
+test_that("SQL identifiers retain case-sensitive distinctions", {
+  expect_identical(.fabric_sql_projection(c("id", "ID")), c("id", "ID"))
+  expect_identical(.fabric_warehouse_column_names(c("id", "ID")), c("id", "ID"))
 })
