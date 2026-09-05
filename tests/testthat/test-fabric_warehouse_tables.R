@@ -989,3 +989,47 @@ test_that("Warehouse writer validates destinations before network I/O", {
   )
   expect_equal(calls, 0L)
 })
+test_that("Warehouse staging normalizes timestamp annotations without rounding", {
+  skip_if_not_installed("arrow")
+  columns <- lapply(c("s", "ms", "us"), function(unit) {
+    arrow::Array$create(c(0, 1, NA), type = arrow::int64())$cast(
+      arrow::timestamp(unit)
+    )
+  })
+  names(columns) <- c("seconds", "millis", "micros")
+  columns$zoned <- arrow::Array$create(c(0, 1, NA), type = arrow::int64())$cast(
+    arrow::timestamp("us", timezone = "Europe/Amsterdam")
+  )
+  table <- do.call(arrow::Table$create, columns)
+  prepared <- .fabric_warehouse_prepare_data(table)
+  path <- withr::local_tempfile(fileext = ".parquet")
+  .fabric_parquet_write_stream(
+    prepared,
+    path,
+    "snappy",
+    "test",
+    "fabric_arrow_error"
+  )
+  decoded <- arrow::read_parquet(path, as_data_frame = FALSE)
+  for (index in seq_along(columns)) {
+    expect_identical(
+      decoded$schema$fields[[index]]$type$ToString(),
+      "timestamp[us, tz=UTC]"
+    )
+    expected <- c(0, c(1000000, 1000, 1, 1)[[index]], NA)
+    expect_equal(
+      as.numeric(decoded$column(index - 1L)$cast(arrow::int64())$as_vector()),
+      expected
+    )
+  }
+  nanos <- arrow::Table$create(
+    value = arrow::Array$create(1, type = arrow::int64())$cast(arrow::timestamp(
+      "ns"
+    ))
+  )
+  expect_error(
+    .fabric_warehouse_prepare_data(nanos),
+    "nanosecond",
+    class = "fabric_warehouse_arrow_error"
+  )
+})

@@ -339,6 +339,11 @@ fabric_warehouse_read_table <- function(
 #' @param table Destination table name.
 #' @param data A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
 #'   RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.
+#'   Timestamp columns are staged at microsecond resolution in UTC, so Fabric
+#'   infers `datetime2`. Timezone-free timestamps retain their wall-clock values
+#'   and are interpreted as UTC; timezone-aware timestamps retain their instant.
+#'   Nanosecond timestamps are rejected before upload: explicitly cast them to
+#'   microseconds first, choosing how to handle any sub-microsecond precision.
 #' @param staging_lakehouse A Lakehouse object returned by
 #'   [fabric_lakehouses()] or [fabric_item()], or its name or GUID. Fabric does
 #'   not support a Warehouse item as the OneLake source of `COPY INTO`, so a
@@ -998,7 +1003,7 @@ fabric_warehouse_write_table <- function(
 }
 
 .fabric_warehouse_prepare_data <- function(data) {
-  tryCatch(
+  prepared <- tryCatch(
     .fabric_parquet_prepare_data(
       data,
       caller = "fabric_warehouse_write_table()"
@@ -1014,6 +1019,58 @@ fabric_warehouse_write_table <- function(
       )
     }
   )
+  fields <- prepared$schema$fields
+  timestamps <- vapply(
+    fields,
+    function(field) {
+      inherits(field$type, "Timestamp")
+    },
+    logical(1)
+  )
+  if (!any(timestamps)) {
+    return(prepared)
+  }
+  for (field in fields[timestamps]) {
+    if (field$type$unit() == arrow::TimeUnit$NANO) {
+      .fabric_abort(
+        paste0(
+          "Warehouse timestamp column `",
+          field$name,
+          "` uses unsupported nanosecond precision. ",
+          "Explicitly cast it to a microsecond timestamp before writing."
+        ),
+        class = c("fabric_warehouse_arrow_error", "fabric_warehouse_error")
+      )
+    }
+  }
+  fields[timestamps] <- lapply(fields[timestamps], function(field) {
+    arguments <- list(
+      name = field$name,
+      type = arrow::timestamp("us", timezone = "UTC"),
+      nullable = field$nullable
+    )
+    if (length(field$metadata)) {
+      arguments$metadata <- field$metadata
+    }
+    do.call(arrow::field, arguments)
+  })
+  schema <- do.call(arrow::schema, fields)
+  prepared$schema <- schema$WithMetadata(prepared$schema$metadata)
+  prepared$reader <- .fabric_warehouse_timestamp_reader(
+    prepared$reader,
+    prepared$schema
+  )
+  prepared
+}
+
+# Cast one batch at a time so Dataset and stream inputs stay lazy.
+.fabric_warehouse_timestamp_reader <- function(reader, schema) {
+  force(reader)
+  force(schema)
+  list(read_next_batch = function() {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) NULL else batch$cast(schema)
+  })
 }
 
 .fabric_warehouse_column_names <- function(value) {

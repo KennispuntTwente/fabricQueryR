@@ -41,7 +41,12 @@ fabric_warehouse_write_table(
 \item{table}{Destination table name.}
 
 \item{data}{A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
-RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.}
+RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.
+Timestamp columns are staged at microsecond resolution in UTC, so Fabric
+infers \code{datetime2}. Timezone-free timestamps retain their wall-clock values
+and are interpreted as UTC; timezone-aware timestamps retain their instant.
+Nanosecond timestamps are rejected before upload: explicitly cast them to
+microseconds first, choosing how to handle any sub-microsecond precision.}
 
 \item{staging_lakehouse}{A Lakehouse object returned by
 \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} or \code{\link[=fabric_item]{fabric_item()}}, or its name or GUID. Fabric does

@@ -928,3 +928,58 @@ test_that("Warehouse writes and projections preserve case-distinct columns", {
     }
   }
 })
+test_that("Warehouse CTAS and COPY preserve timezone-free timestamps as datetime2", {
+  manifest <- fabric_test_manifest()
+  fabric_test_require_package("arrow")
+  token <- fabric_test_token_provider()
+  warehouse <- fabric_item(
+    manifest$workspace_id,
+    fabric_test_manifest_item(manifest, "TestWarehouse")$id,
+    type = "Warehouse",
+    token = token
+  )
+  lake <- fabric_item(
+    manifest$workspace_id,
+    fabric_test_manifest_item(manifest, "TestLakehouse")$id,
+    type = "Lakehouse",
+    token = token
+  )
+  con <- fabric_sql_connect(warehouse, token = token, verbose = FALSE)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  table <- paste0("fabricqueryr_timestamp_", Sys.getpid())
+  sql <- paste0("[dbo].[", table, "]")
+  on.exit(
+    DBI::dbExecute(con, paste("DROP TABLE IF EXISTS", sql)),
+    add = TRUE,
+    after = FALSE
+  )
+  ticks <- arrow::Array$create(c("1788613200123456", NA))$cast(arrow::int64())
+  data <- arrow::Table$create(value = ticks$cast(arrow::timestamp("us")))
+  for (backend in fabric_test_sql_backends()) {
+    written <- fabric_warehouse_write_table(
+      warehouse,
+      table,
+      data,
+      staging_lakehouse = lake,
+      create_if_missing = TRUE,
+      backend = backend,
+      token = token,
+      verbose = FALSE
+    )
+    expect_equal(written$rows, 2)
+    rows <- DBI::dbGetQuery(
+      con,
+      paste0("SELECT CONVERT(varchar(40), value, 126) AS value FROM ", sql)
+    )
+    expect_true(all(grepl("123456$", rows$value[!is.na(rows$value)])))
+  }
+  types <- DBI::dbGetQuery(
+    con,
+    paste0(
+      "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '",
+      table,
+      "'"
+    )
+  )
+  expect_identical(types[[1L]], "datetime2")
+})
