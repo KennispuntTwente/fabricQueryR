@@ -107,6 +107,29 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
   }
 })
 
+test_that("SQL backends bind factor labels consistently", {
+  manifest <- fabric_test_manifest()
+  fixture <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  token <- fabric_test_token_provider()
+  target <- fabric_item(
+    manifest$workspace_id,
+    fixture$id,
+    type = "Lakehouse",
+    token = token
+  )
+  for (backend in fabric_test_sql_backends()) {
+    value <- fabric_sql_query(
+      target,
+      "SELECT CAST(? AS varchar(20)) AS value",
+      params = list(factor("alpha", levels = c("other", "alpha"))),
+      backend = backend,
+      token = token,
+      verbose = FALSE
+    )
+    expect_identical(value$value, "alpha", info = backend)
+  }
+})
+
 test_that("ADBC default connections accept ordinary large BIGINT values", {
   fabric_test_require_package("adbi")
   manifest <- fabric_test_manifest()

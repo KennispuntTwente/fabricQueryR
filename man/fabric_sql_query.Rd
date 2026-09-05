@@ -46,7 +46,8 @@ Lakehouse SQL analytics endpoint is read-only and does not support
 
 \item{params}{Optional list of values for \verb{?} placeholders in \code{sql}. Values
 are sent separately from the SQL text, which is safer and easier to quote
-correctly than building a query with \code{paste()}}
+correctly than building a query with \code{paste()}. Factors are bound as their
+character labels on both backends.}
 
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
 \code{"arrow_stream"} to avoid data-frame conversion and retain Arrow-native

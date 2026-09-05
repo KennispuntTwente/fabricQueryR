@@ -1047,6 +1047,25 @@ test_that("ADBC Arrow binding preserves SQL Server placeholder names", {
   expect_identical(bound[["@p1"]], I(42L))
 })
 
+test_that("SQL factor parameters preserve labels and nulls for both backends", {
+  params <- list(
+    value = factor(c("alpha", NA), levels = c("other", "alpha")),
+    id = 1:2
+  )
+  expected <- list(value = c("alpha", NA_character_), id = 1:2)
+  expect_identical(.fabric_sql_normalize_params(params), expected)
+  expect_null(.fabric_sql_normalize_params(NULL))
+  bound <- NULL
+  local_mocked_bindings(
+    dbBind = function(result, params) bound <<- params,
+    .package = "DBI"
+  )
+  .fabric_sql_db_bind(structure(list(), class = "OdbcResult"), params)
+  expect_identical(bound, expected)
+  .fabric_sql_db_bind(structure(list(), class = "AdbiResult"), params)
+  expect_identical(as.character(bound$value), expected$value)
+})
+
 test_that("SQL connection adapters construct ODBC and ADBC connections", {
   skip_if_not_installed("odbc")
   skip_if_not_installed("adbi")

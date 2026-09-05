@@ -508,7 +508,8 @@ fabric_sql_connect <- function(
 #'   `INSERT`, `UPDATE`, or `DELETE`
 #' @param params Optional list of values for `?` placeholders in `sql`. Values
 #'   are sent separately from the SQL text, which is safer and easier to quote
-#'   correctly than building a query with `paste()`
+#'   correctly than building a query with `paste()`. Factors are bound as their
+#'   character labels on both backends.
 #' @param result Return a `"tibble"` for ordinary R analysis, or a single-use
 #'   `"arrow_stream"` to avoid data-frame conversion and retain Arrow-native
 #'   batches. The 'adbi' driver may fetch the complete result before returning
@@ -646,6 +647,7 @@ fabric_sql_query <- function(
     token = token,
     auth_args = auth_args
   )
+  params <- .fabric_sql_normalize_params(params)
   adbc_params <- identical(backend, "adbc") && !is.null(params)
   query_sql <- if (adbc_params) {
     fabric_sql_adbc_parameter_sql(sql, params)
@@ -2013,6 +2015,7 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
 # Bind named `params` to a DBI `result`. Returns the DBI binding result and keeps
 # ADBC parameter behavior behind a test seam
 .fabric_sql_db_bind <- function(result, params) {
+  params <- .fabric_sql_normalize_params(params)
   if (
     inherits(result, c("AdbiResult", "AdbiResultArrow")) &&
       is.list(params) &&
@@ -2025,6 +2028,15 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
 
 # Convert named scalar `params` into a one-row data frame. Returns the binding
 # shape required by the ADBC DBI backend
+.fabric_sql_normalize_params <- function(params) {
+  if (!is.null(params)) {
+    params[] <- lapply(params, function(value) {
+      if (is.factor(value)) as.character(value) else value
+    })
+  }
+  params
+}
+
 .fabric_sql_adbc_bind_frame <- function(params) {
   # adbi converts lists with syntactic name repair, changing @p1 to X.p1
   # Supplying a data frame with exact names keeps it aligned with the driver
