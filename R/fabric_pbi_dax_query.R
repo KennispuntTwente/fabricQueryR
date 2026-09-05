@@ -1123,6 +1123,16 @@ pbi_dax_arrow_tibble <- function(table) {
     if (identical(fields[[index]]$type$name, "dense_union")) {
       return(pbi_dax_arrow_dense_union(column))
     }
+    type <- fields[[index]]$type
+    if (inherits(type, "DictionaryType")) {
+      type <- type$value_type
+    }
+    if (identical(type$name, "int64")) {
+      exact <- column$cast(arrow::utf8())$as_vector()
+      if (any(exact == "-9223372036854775808", na.rm = TRUE)) {
+        return(exact)
+      }
+    }
     column$as_vector()
   })
   names(columns) <- vapply(fields, `[[`, character(1), "name")

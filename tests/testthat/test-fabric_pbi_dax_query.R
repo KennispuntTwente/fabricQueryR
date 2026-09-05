@@ -1371,3 +1371,19 @@ test_that("Power BI API bases accept explicit custom HTTPS origins", {
     )
   }
 })
+test_that("ordinary Arrow int64 columns preserve the minimum and null", {
+  skip_if_not_installed("arrow")
+  exact <- c("-9223372036854775808", "9223372036854775807", NA_character_)
+  array <- arrow::as_arrow_array(exact)$cast(arrow::int64())
+  for (column in list(
+    array,
+    arrow::call_function("dictionary_encode", array)
+  )) {
+    table <- arrow::Table$create(value = column)
+    path <- tempfile(fileext = ".arrow")
+    withr::defer(unlink(path))
+    arrow::write_ipc_stream(table, path)
+    decoded <- arrow::read_ipc_stream(path, as_data_frame = FALSE)
+    expect_identical(pbi_dax_arrow_tibble(decoded)$value, exact)
+  }
+})
