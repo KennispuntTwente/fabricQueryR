@@ -255,7 +255,7 @@ fabric_job_run <- function(
   }
 
   recovery_baseline <- if (
-    identical(route$route, "notebook") && !is.null(payload)
+    route$route %in% c("notebook", "core") && !is.null(payload)
   ) {
     tryCatch(
       .httr2_collection(

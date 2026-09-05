@@ -2152,3 +2152,49 @@ test_that("job payloads preserve nested null positions", {
     jsonlite::toJSON(value, auto_unbox = TRUE, null = "null")
   )
 })
+test_that("Core parameter jobs recover accepted collection locations once", {
+  history_calls <- 0L
+  submissions <- 0L
+  now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      submissions <<- submissions + 1L
+      list(
+        status_code = 202L,
+        location = paste0(
+          "https://api.fabric.test/v1/workspaces/workspace/items/item/",
+          "jobs/instances?jobType=Execute"
+        ),
+        retry_after = 0,
+        body = list()
+      )
+    },
+    .httr2_collection = function(...) {
+      history_calls <<- history_calls + 1L
+      if (history_calls == 1L) {
+        return(list())
+      }
+      list(list(
+        id = "33333333-3333-3333-3333-333333333333",
+        itemId = "11111111-1111-1111-1111-111111111111",
+        jobType = "Execute",
+        invokeType = "Manual",
+        startTimeUtc = "2026-08-30T12:00:00Z"
+      ))
+    }
+  )
+  job <- fabric_job_run(
+    job_test_item("Dataflow"),
+    job_type = "Execute",
+    parameters = list(label = "unit"),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1",
+    .sleep = function(seconds) {
+      now <<- now + seconds
+    },
+    .now = function() now
+  )
+  expect_identical(job$id, "33333333-3333-3333-3333-333333333333")
+  expect_identical(submissions, 1L)
+  expect_gte(history_calls, 2L)
+})
