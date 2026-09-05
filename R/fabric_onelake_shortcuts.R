@@ -15,9 +15,10 @@
 #'   starts. Fabric still returns shortcuts below that path exhaustively.
 #' @param path Parent `Files` or `Tables` path where the shortcut exists or will
 #'   be created. Local checks validate path syntax, while Fabric applies
-#'   item- and workload-specific placement rules. In a Lakehouse `Tables`
-#'   section, use `Tables` because Fabric permits shortcuts only at that top
-#'   level.
+#'   item- and workload-specific placement rules. For a table shortcut in a
+#'   Lakehouse without schemas, use `Tables`. In a schema-enabled Lakehouse,
+#'   use a schema path such as `Tables/dbo`. A schema shortcut instead lives
+#'   under `Tables` and targets a folder containing multiple Delta tables.
 #' @param name Shortcut name.
 #' @param target A discovered Fabric item, its name or GUID, or a raw named
 #'   shortcut target list. A raw target must contain exactly one documented
@@ -55,6 +56,13 @@
 #' Other source- and destination-specific restrictions are intentionally left
 #' to Fabric so that newly supported connection types and rules remain usable.
 #'
+#' For example, a table shortcut named `orders` uses `path = "Tables"` in a
+#' Lakehouse without schemas, or `path = "Tables/dbo"` in a Lakehouse with
+#' schemas; its `target_path` identifies one Delta table. A schema shortcut
+#' named `sales` uses `path = "Tables"` and a target such as `Tables/sales`
+#' containing multiple Delta tables. File shortcuts use `Files` or a folder
+#' beneath it and do not register tables.
+#'
 #' @return `fabric_onelake_shortcuts()` returns a tibble with one row per
 #'   shortcut. `fabric_onelake_shortcut_get()` and
 #'   `fabric_onelake_shortcut_create()` return the same one-row shape.
@@ -91,6 +99,8 @@
 #' [OneLake shortcuts REST API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
 #'
 #' [OneLake shortcut placement and limitations](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts)
+#'
+#' [Create table and schema shortcuts](https://learn.microsoft.com/en-us/fabric/onelake/create-onelake-shortcut)
 #'
 #' [OneLake shortcut security and path permissions](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security)
 #'

@@ -126,9 +126,10 @@ different Fabric cloud or a test service}
 
 \item{path}{Parent \code{Files} or \code{Tables} path where the shortcut exists or will
 be created. Local checks validate path syntax, while Fabric applies
-item- and workload-specific placement rules. In a Lakehouse \code{Tables}
-section, use \code{Tables} because Fabric permits shortcuts only at that top
-level.}
+item- and workload-specific placement rules. For a table shortcut in a
+Lakehouse without schemas, use \code{Tables}. In a schema-enabled Lakehouse,
+use a schema path such as \code{Tables/dbo}. A schema shortcut instead lives
+under \code{Tables} and targets a folder containing multiple Delta tables.}
 
 \item{name}{Shortcut name.}
 
@@ -186,6 +187,13 @@ Shortcut names, parent paths, and OneLake target paths follow Fabric's
 current shortcut limits: \verb{\%}, \code{+}, and non-ASCII characters are rejected.
 Other source- and destination-specific restrictions are intentionally left
 to Fabric so that newly supported connection types and rules remain usable.
+
+For example, a table shortcut named \code{orders} uses \code{path = "Tables"} in a
+Lakehouse without schemas, or \code{path = "Tables/dbo"} in a Lakehouse with
+schemas; its \code{target_path} identifies one Delta table. A schema shortcut
+named \code{sales} uses \code{path = "Tables"} and a target such as \code{Tables/sales}
+containing multiple Delta tables. File shortcuts use \code{Files} or a folder
+beneath it and do not register tables.
 
 Listing follows Fabric continuation links and tokens until every shortcut
 below \code{parent_path} is returned. Unknown target details and transform fields
@@ -253,6 +261,8 @@ fabric_onelake_shortcut_delete(
 \href{https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/}{OneLake shortcuts REST API}
 
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts}{OneLake shortcut placement and limitations}
+
+\href{https://learn.microsoft.com/en-us/fabric/onelake/create-onelake-shortcut}{Create table and schema shortcuts}
 
 \href{https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security}{OneLake shortcut security and path permissions}
 
