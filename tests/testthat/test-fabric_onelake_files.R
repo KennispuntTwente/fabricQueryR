@@ -1974,3 +1974,31 @@ test_that("encoded managed-table URIs are rejected before mutation transport", {
     )
   }
 })
+test_that("OneLake Parquet and IPC tibbles preserve exact numeric boundaries", {
+  skip_if_not_installed("arrow")
+  table <- arrow::read_ipc_stream(
+    test_path("fixtures", "exact-numerics.arrow"),
+    as_data_frame = FALSE
+  )
+  path <- withr::local_tempfile()
+  local_mocked_bindings(fabric_onelake_download = function(..., dest) {
+    file.copy(path, dest, overwrite = TRUE)
+    invisible(dest)
+  })
+  for (format in c("parquet", "arrow")) {
+    if (format == "parquet") {
+      arrow::write_parquet(table, path)
+    } else {
+      arrow::write_ipc_stream(table, path)
+    }
+    value <- fabric_onelake_read_file(
+      "workspace",
+      "lakehouse.Lakehouse",
+      paste0("Files/exact.", format),
+      token = "test"
+    )
+    expect_identical(value$amount, c("12345678901234567890.1234", NA))
+    expect_identical(value$i32, c(-2147483648, NA))
+    expect_identical(value$i64, c("-9223372036854775808", NA))
+  }
+})

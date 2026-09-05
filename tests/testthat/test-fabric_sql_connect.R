@@ -785,7 +785,8 @@ test_that("fabric_sql_query passes bound parameters unchanged", {
       con,
       sql,
       params = NULL,
-      result = "tibble"
+      result = "tibble",
+      numeric_policy = "exact"
     ) {
       captured <<- list(
         con = con,
@@ -963,7 +964,8 @@ test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
       con,
       sql,
       params = NULL,
-      result = "tibble"
+      result = "tibble",
+      numeric_policy = "exact"
     ) {
       query_args <<- list(
         con = con,
@@ -1366,7 +1368,8 @@ test_that("ODBC bound Arrow queries own their result until release", {
     connection,
     "SELECT CAST(? AS int) AS value",
     params = params,
-    result = "arrow_stream"
+    result = "arrow_stream",
+    numeric_policy = "driver"
   )
 
   expect_s3_class(result, "nanoarrow_array_stream")
@@ -1421,7 +1424,8 @@ test_that("unbound Arrow queries use an owned DBI result", {
   result <- .fabric_sql_db_get_query(
     connection,
     "SELECT 1 AS value",
-    result = "arrow_stream"
+    result = "arrow_stream",
+    numeric_policy = "driver"
   )
 
   expect_s3_class(result, "nanoarrow_array_stream")
@@ -1527,7 +1531,8 @@ test_that("SQL query retries require idempotency and use fresh connections", {
       con,
       sql,
       params = NULL,
-      result = "tibble"
+      result = "tibble",
+      numeric_policy = "exact"
     ) {
       queries <<- queries + 1L
       if (queries == 1L) {
@@ -1797,4 +1802,51 @@ test_that("conflicting SQL credentials are redacted in condition metadata", {
       FALSE
     )
   }
+})
+test_that("ODBC exact queries reject unsafe types before fetching and clear results", {
+  connection <- structure(list(), class = "OdbcConnection")
+  result <- structure(list(), class = "test_result")
+  cleared <- 0L
+  local_mocked_bindings(
+    .fabric_sql_db_send_query = function(...) result,
+    .fabric_sql_db_fetch = function(...) stop("must not fetch"),
+    .fabric_sql_db_clear_result = function(...) cleared <<- cleared + 1L
+  )
+  local_mocked_bindings(
+    dbColumnInfo = function(...) data.frame(name = "v", type = type),
+    .package = "DBI"
+  )
+  for (type in c(2L, 3L, 4L, -5L)) {
+    for (shape in c("tibble", "arrow_stream")) {
+      expect_error(
+        .fabric_sql_db_get_query(connection, "SELECT v FROM t", result = shape),
+        "Cast these columns to varchar",
+        class = "fabric_sql_precision_error"
+      )
+    }
+  }
+  expect_identical(cleared, 8L)
+})
+
+test_that("ADBC exact tibbles release their native stream and result", {
+  skip_if_not_installed("arrow")
+  con <- structure(list(), class = "AdbiConnection")
+  table <- arrow::Table$create(
+    value = arrow::Array$create("-9223372036854775808")$cast(arrow::int64())
+  )
+  stream <- nanoarrow::as_nanoarrow_array_stream(table)
+  events <- character()
+  stream <- nanoarrow::array_stream_set_finalizer(stream, function() {
+    events <<- c(events, "release")
+  })
+  local_mocked_bindings(
+    .fabric_sql_db_send_query = function(...) list(),
+    .fabric_sql_db_fetch = function(...) stream,
+    .fabric_sql_db_clear_result = function(...) events <<- c(events, "clear")
+  )
+  expect_identical(
+    .fabric_sql_db_get_query(con, "SELECT v FROM t")$value,
+    "-9223372036854775808"
+  )
+  expect_identical(events, c("release", "clear"))
 })

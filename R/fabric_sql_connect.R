@@ -511,12 +511,24 @@ fabric_sql_connect <- function(
 #'   correctly than building a query with `paste()`. Factors are bound as their
 #'   character labels on both backends.
 #' @param result Return a `"tibble"` for ordinary R analysis, or a single-use
-#'   `"arrow_stream"` to avoid data-frame conversion and retain Arrow-native
-#'   batches. The 'adbi' driver may fetch the complete result before returning
+#'   `"arrow_stream"`. ADBC streams retain native Arrow types. ODBC streams are
+#'   converted from R data frames and cannot recover values lost by the driver.
+#'   The 'adbi' driver may fetch the complete result before returning
 #'   the stream, so this option does not guarantee bounded-memory retrieval.
 #'   An Arrow stream owns its DBI result and connection until the stream is
 #'   released; consume it promptly or release it explicitly with
 #'   [nanoarrow::nanoarrow_pointer_release()]
+#' @param numeric_policy `"exact"` (default) preserves ADBC decimals as
+#'   character and BIGINT as `bit64::integer64`, using character for columns
+#'   containing the minimum BIGINT. INT columns containing `-2147483648` use
+#'   exact doubles. Nested lists retain character decimals and 64-bit integers,
+#'   and double 32-bit integers. ODBC rejects DECIMAL, NUMERIC, INT and BIGINT
+#'   columns before fetching: its conversion can round or truncate values
+#'   or turn valid integer boundaries into missing values. Cast these columns
+#'   to `varchar` in SQL or use ADBC. `"driver"` explicitly accepts the backend's
+#'   conversions, including possible rounding and missing values, for either
+#'   output format. This policy applies to this query helper; direct DBI calls
+#'   on [fabric_sql_connect()] use the selected driver's conversion settings.
 #' @param idempotent Logical. Set to `TRUE` only if running the entire statement
 #'   a second time has no unwanted effect (usually a plain `SELECT`). This
 #'   permits a retry when it is unclear whether Fabric executed the first
@@ -588,6 +600,7 @@ fabric_sql_query <- function(
   max_tries = 3L,
   retry_delay = 5,
   idempotent = FALSE,
+  numeric_policy = c("exact", "driver"),
   ...
 ) {
   # 1 Validate query options -----------------------------------------------------------------------
@@ -603,6 +616,7 @@ fabric_sql_query <- function(
   token <- resolved$token
   result <- match.arg(result)
   backend <- match.arg(backend)
+  numeric_policy <- match.arg(numeric_policy)
   fabric_sql_scalar(sql, "sql")
   fabric_sql_validate_query_statement(sql)
   if (!is.null(params) && !is.list(params)) {
@@ -717,7 +731,8 @@ fabric_sql_query <- function(
           con,
           query_sql,
           params = query_params,
-          result = result
+          result = result,
+          numeric_policy = numeric_policy
         )
         preserve_stream <- identical(result, "arrow_stream")
         list(
@@ -1940,9 +1955,46 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
   con,
   sql,
   params = NULL,
-  result = c("tibble", "arrow_stream")
+  result = c("tibble", "arrow_stream"),
+  numeric_policy = c("exact", "driver")
 ) {
   result <- match.arg(result)
+  numeric_policy <- match.arg(numeric_policy)
+  exact <- identical(numeric_policy, "exact")
+  native <- inherits(con, "AdbiConnection")
+  if (exact && native && identical(result, "tibble")) {
+    query_result <- .fabric_sql_db_send_query(
+      con,
+      sql,
+      "arrow_stream",
+      immediate = is.null(params)
+    )
+    on.exit(.fabric_sql_db_clear_result(query_result), add = TRUE)
+    if (!is.null(params)) {
+      .fabric_sql_db_bind(query_result, params)
+    }
+    stream <- .fabric_sql_db_fetch(query_result, "arrow_stream")
+    on.exit(
+      nanoarrow::nanoarrow_pointer_release(stream),
+      add = TRUE,
+      after = FALSE
+    )
+    return(.fabric_arrow_exact_tibble(stream))
+  }
+  if (exact && inherits(con, "OdbcConnection") && identical(result, "tibble")) {
+    query_result <- .fabric_sql_db_send_query(
+      con,
+      sql,
+      result,
+      immediate = is.null(params)
+    )
+    on.exit(.fabric_sql_db_clear_result(query_result), add = TRUE)
+    if (!is.null(params)) {
+      .fabric_sql_db_bind(query_result, params)
+    }
+    .fabric_sql_validate_odbc_numeric(query_result)
+    return(.fabric_sql_db_fetch(query_result, result))
+  }
   if (identical(result, "arrow_stream")) {
     query_result <- .fabric_sql_db_send_query(
       con,
@@ -1960,8 +2012,16 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
     if (!is.null(params)) {
       .fabric_sql_db_bind(query_result, params)
     }
+    if (exact && inherits(con, "OdbcConnection")) {
+      .fabric_sql_validate_odbc_numeric(query_result)
+    }
     stream <- .fabric_sql_db_fetch(query_result, result)
     stream <- .fabric_sql_own_arrow_stream(stream, query_result, con)
+    attr(stream, "fabric_sql_stream_source") <- if (native) {
+      "adbc_native"
+    } else {
+      "odbc_converted"
+    }
     stream_owned <- TRUE
     return(stream)
   }
@@ -1976,6 +2036,26 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
     return(.fabric_sql_db_fetch(query_result, result))
   }
   DBI::dbGetQuery(con, sql, params = params)
+}
+
+.fabric_sql_validate_odbc_numeric <- function(result) {
+  if (inherits(result, "DBIResultArrowDefault")) {
+    result <- result@result
+  }
+  columns <- DBI::dbColumnInfo(result)
+  unsafe <- columns$type %in% c(2L, 3L, 4L, -5L)
+  if (any(unsafe)) {
+    .fabric_abort(
+      paste0(
+        "ODBC cannot guarantee lossless DECIMAL, NUMERIC, INT or BIGINT conversion for: ",
+        paste(columns$name[unsafe], collapse = ", "),
+        ". Cast these columns to varchar in SQL, use backend = 'adbc', ",
+        "or explicitly accept driver conversion with numeric_policy = 'driver'."
+      ),
+      class = c("fabric_sql_precision_error", "fabric_sql_execution_error")
+    )
+  }
+  invisible(NULL)
 }
 
 # Bind a lazy Arrow stream to the DBI result and connection that produce it.

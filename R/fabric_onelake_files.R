@@ -197,6 +197,11 @@ NULL
 #'   `"arrow"` from the path extension.
 #' @param result Return a `"tibble"` or a disk-backed, single-use
 #'   `"arrow_stream"`.
+#'   Tibbles preserve decimals as character strings. Signed 64-bit integers use
+#'   `bit64::integer64`, or character if the column contains the minimum signed
+#'   value (reserved for missing values by bit64). Int32 columns containing
+#'   `-2147483648` use exact R doubles. Nested lists retain character 64-bit
+#'   integers and decimals, and double 32-bit integers.
 #' @param overwrite Whether an existing OneLake file may be replaced.
 #' @param if_match Optional destination ETag for conditional replacement.
 #' @param compression Parquet compression codec passed to Arrow.
@@ -313,14 +318,14 @@ fabric_onelake_read_file <- function(
     value <- tryCatch(
       switch(
         format,
-        parquet = arrow::read_parquet(local_path, as_data_frame = TRUE),
+        parquet = arrow::read_parquet(local_path, as_data_frame = FALSE),
         csv = arrow::read_csv_arrow(
           local_path,
-          as_data_frame = TRUE,
+          as_data_frame = FALSE,
           col_names = col_names,
           na = na
         ),
-        arrow = arrow::read_ipc_stream(local_path, as_data_frame = TRUE)
+        arrow = arrow::read_ipc_stream(local_path, as_data_frame = FALSE)
       ),
       error = function(error) {
         .fabric_abort(
@@ -330,7 +335,13 @@ fabric_onelake_read_file <- function(
         )
       }
     )
-    return(tibble::as_tibble(value))
+    stream <- nanoarrow::as_nanoarrow_array_stream(value)
+    on.exit(
+      nanoarrow::nanoarrow_pointer_release(stream),
+      add = TRUE,
+      after = FALSE
+    )
+    return(.fabric_arrow_exact_tibble(stream))
   }
 
   stream <- .fabric_onelake_object_stream(local_path, format, col_names, na)

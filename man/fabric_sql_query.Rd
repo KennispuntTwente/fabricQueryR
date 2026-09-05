@@ -29,6 +29,7 @@ fabric_sql_query(
   max_tries = 3L,
   retry_delay = 5,
   idempotent = FALSE,
+  numeric_policy = c("exact", "driver"),
   ...
 )
 }
@@ -50,8 +51,9 @@ correctly than building a query with \code{paste()}. Factors are bound as their
 character labels on both backends.}
 
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
-\code{"arrow_stream"} to avoid data-frame conversion and retain Arrow-native
-batches. The 'adbi' driver may fetch the complete result before returning
+\code{"arrow_stream"}. ADBC streams retain native Arrow types. ODBC streams are
+converted from R data frames and cannot recover values lost by the driver.
+The 'adbi' driver may fetch the complete result before returning
 the stream, so this option does not guarantee bounded-memory retrieval.
 An Arrow stream owns its DBI result and connection until the stream is
 released; consume it promptly or release it explicitly with
@@ -115,6 +117,18 @@ wait progressively longer, up to 60 seconds}
 a second time has no unwanted effect (usually a plain \code{SELECT}). This
 permits a retry when it is unclear whether Fabric executed the first
 attempt}
+
+\item{numeric_policy}{\code{"exact"} (default) preserves ADBC decimals as
+character and BIGINT as \code{bit64::integer64}, using character for columns
+containing the minimum BIGINT. INT columns containing \code{-2147483648} use
+exact doubles. Nested lists retain character decimals and 64-bit integers,
+and double 32-bit integers. ODBC rejects DECIMAL, NUMERIC, INT and BIGINT
+columns before fetching: its conversion can round or truncate values
+or turn valid integer boundaries into missing values. Cast these columns
+to \code{varchar} in SQL or use ADBC. \code{"driver"} explicitly accepts the backend's
+conversions, including possible rounding and missing values, for either
+output format. This policy applies to this query helper; direct DBI calls
+on \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} use the selected driver's conversion settings.}
 
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}. The former
 named \code{access_token} argument is consumed here as a deprecated alias for

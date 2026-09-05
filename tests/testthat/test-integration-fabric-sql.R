@@ -34,6 +34,7 @@ test_that("fabric_sql_query acquires a live SQL token through AzureAuth", {
   auth <- fabric_test_azure_auth_config()
 
   result <- fabric_sql_query(
+    numeric_policy = "driver",
     server = lakehouse$sql_endpoint,
     database = lakehouse$display_name,
     sql = "SELECT CAST(1 AS int) AS authenticated",
@@ -119,6 +120,7 @@ test_that("SQL backends bind factor labels consistently", {
   )
   for (backend in fabric_test_sql_backends()) {
     value <- fabric_sql_query(
+      numeric_policy = "driver",
       target,
       "SELECT CAST(? AS varchar(20)) AS value",
       params = list(factor("alpha", levels = c("other", "alpha"))),
@@ -158,6 +160,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
 
   for (backend in backends) {
     result <- fabric_sql_query(
+      numeric_policy = "driver",
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,
       sql = paste(
@@ -178,6 +181,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
     expect_equal(as.numeric(result$amount_sum), 30.5, info = backend)
 
     nested_comment <- fabric_sql_query(
+      numeric_policy = "driver",
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,
       sql = paste0(
@@ -191,6 +195,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
     expect_equal(as.numeric(nested_comment$value), 42, info = backend)
 
     empty <- fabric_sql_query(
+      numeric_policy = "driver",
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,
       sql = paste(
@@ -208,6 +213,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
 
     metacharacters <- "Robert'); DROP TABLE dbo.fabricqueryr_basic;--"
     bound <- fabric_sql_query(
+      numeric_policy = "driver",
       server = paste0(
         "Server=tcp:",
         lakehouse$sql_endpoint,
@@ -238,6 +244,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
     expect_true(is.na(bound$null_value), info = backend)
 
     still_present <- fabric_sql_query(
+      numeric_policy = "driver",
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,
       sql = "SELECT COUNT(*) AS row_count FROM dbo.fabricqueryr_basic",
@@ -248,6 +255,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
     expect_equal(as.numeric(still_present$row_count), 3, info = backend)
 
     stream <- fabric_sql_query(
+      numeric_policy = "driver",
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,
       sql = paste(
@@ -266,6 +274,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
     expect_equal(streamed$name, c("alpha", "beta", "gamma"), info = backend)
 
     bound_stream <- fabric_sql_query(
+      numeric_policy = "driver",
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,
       sql = "SELECT CAST(? AS int) AS bound_value",
@@ -282,6 +291,7 @@ test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
     expect_equal(bound_result$bound_value, 42L, info = backend)
 
     arrow_stream <- fabric_sql_query(
+      numeric_policy = "driver",
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,
       sql = paste(
@@ -365,6 +375,7 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
     expect_true(length(table$columns[[1L]]) > 0L, info = name)
 
     rows <- fabric_sql_read_table(
+      numeric_policy = "driver",
       target,
       table,
       columns = c("id", "name", "amount"),
@@ -406,6 +417,7 @@ test_that("generic SQL helpers discover and read every seeded SQL surface", {
       )
 
       view_rows <- fabric_sql_read_table(
+        numeric_policy = "driver",
         target,
         view,
         columns = c("id", "name", "amount"),
@@ -489,6 +501,7 @@ test_that("fabric_warehouse_tables discovers seeded Warehouse metadata", {
   )
 
   rows <- fabric_warehouse_read_table(
+    numeric_policy = "driver",
     target,
     discovered,
     columns = c("id", "name"),
@@ -515,6 +528,7 @@ test_that("fabric_warehouse_read_table returns projected rows and streams", {
 
   for (backend in fabric_test_sql_backends()) {
     rows <- fabric_warehouse_read_table(
+      numeric_policy = "driver",
       target,
       provisioned$tables$types,
       columns = c("id", "name", "amount"),
@@ -531,6 +545,7 @@ test_that("fabric_warehouse_read_table returns projected rows and streams", {
     expect_equal(as.numeric(rows$amount), c(10.5, 20, NA), info = backend)
 
     stream <- fabric_warehouse_read_table(
+      numeric_policy = "driver",
       target,
       provisioned$tables$types,
       columns = c("id", "name"),
@@ -576,6 +591,7 @@ test_that("provisioned Warehouse snapshot is discoverable and connectable", {
 
   for (backend in fabric_test_sql_backends()) {
     result <- fabric_sql_query(
+      numeric_policy = "driver",
       target,
       "SELECT DB_NAME() AS database_name",
       backend = backend,
@@ -915,6 +931,7 @@ test_that("Warehouse writes and projections preserve case-distinct columns", {
         verbose = FALSE
       )
       rows <- fabric_warehouse_read_table(
+        numeric_policy = "driver",
         warehouse,
         table,
         columns = c("id", "ID"),
@@ -982,4 +999,61 @@ test_that("Warehouse CTAS and COPY preserve timezone-free timestamps as datetime
     )
   )
   expect_identical(types[[1L]], "datetime2")
+})
+test_that("SQL exact reads preserve numeric boundaries or reject unsafe ODBC conversion", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  warehouse <- fabric_item(
+    manifest$workspace_id,
+    fabric_test_manifest_item(manifest, "TestWarehouse")$id,
+    type = "Warehouse",
+    token = token
+  )
+  sql <- paste(
+    "SELECT CAST('12345678901234567890.1234' AS decimal(24,4)) AS amount,",
+    "CAST('-2147483648' AS int) AS i32,",
+    "CAST('-9223372036854775808' AS bigint) AS i64,",
+    "CAST('2147483648' AS bigint) AS large"
+  )
+  for (backend in fabric_test_sql_backends()) {
+    for (shape in c("tibble", "arrow_stream")) {
+      result <- tryCatch(
+        fabric_sql_query(
+          warehouse,
+          sql,
+          backend = backend,
+          result = shape,
+          token = token,
+          verbose = FALSE
+        ),
+        error = identity
+      )
+      if (backend == "odbc") {
+        expect_s3_class(result, "fabric_sql_execution_error")
+        expect_s3_class(result$parent, "fabric_sql_precision_error")
+        next
+      }
+      if (shape == "arrow_stream") {
+        expect_identical(
+          attr(result, "fabric_sql_stream_source"),
+          "adbc_native"
+        )
+        stream <- result
+        result <- .fabric_arrow_exact_tibble(stream)
+        nanoarrow::nanoarrow_pointer_release(stream)
+      }
+      expect_identical(result$amount, "12345678901234567890.1234")
+      expect_identical(result$i32, -2147483648)
+      expect_identical(result$i64, "-9223372036854775808")
+      expect_identical(as.character(result$large), "2147483648")
+    }
+    cast <- fabric_sql_query(
+      warehouse,
+      "SELECT CAST(CAST('-9223372036854775808' AS bigint) AS varchar(20)) AS v",
+      backend = backend,
+      token = token,
+      verbose = FALSE
+    )
+    expect_identical(cast$v, "-9223372036854775808")
+  }
 })

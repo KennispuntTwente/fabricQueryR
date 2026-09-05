@@ -250,6 +250,7 @@ test_that("Lakehouse tables list and load CSV and Parquet end to end", {
   # metadata, so retry only the read-only verification query
   sql_rows <- fabric_test_eventually(function() {
     value <- fabric_sql_query(
+      numeric_policy = "driver",
       server = lakehouse$sql_endpoint,
       database = lakehouse$display_name,
       sql = paste0(
@@ -428,6 +429,7 @@ test_that("mirrored database discovery and table helpers work end to end", {
     row
   })
   sql_rows <- fabric_sql_read_table(
+    numeric_policy = "driver",
     target,
     sql_table,
     columns = c("id", "name", "amount"),

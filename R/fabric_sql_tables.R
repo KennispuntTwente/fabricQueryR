@@ -322,18 +322,20 @@ fabric_sql_read_table <- function(
 }
 
 .fabric_sql_columns_sql <- function(object_type, schema) {
+  # These bounded catalog integers fit exactly in float(53), including every
+  # SQL INT value, and avoid ODBC's reserved R integer NA representation.
   paste0(
     "SELECT c.TABLE_SCHEMA AS schema_name, ",
     "c.TABLE_NAME AS object_name, ",
     "c.COLUMN_NAME AS column_name, ",
-    "c.ORDINAL_POSITION AS ordinal_position, ",
+    "CAST(c.ORDINAL_POSITION AS float) AS ordinal_position, ",
     "c.COLUMN_DEFAULT AS column_default, ",
     "c.IS_NULLABLE AS is_nullable, ",
     "c.DATA_TYPE AS data_type, ",
-    "c.CHARACTER_MAXIMUM_LENGTH AS character_maximum_length, ",
-    "c.NUMERIC_PRECISION AS numeric_precision, ",
-    "c.NUMERIC_SCALE AS numeric_scale, ",
-    "c.DATETIME_PRECISION AS datetime_precision, ",
+    "CAST(c.CHARACTER_MAXIMUM_LENGTH AS float) AS character_maximum_length, ",
+    "CAST(c.NUMERIC_PRECISION AS float) AS numeric_precision, ",
+    "CAST(c.NUMERIC_SCALE AS float) AS numeric_scale, ",
+    "CAST(c.DATETIME_PRECISION AS float) AS datetime_precision, ",
     "c.COLLATION_NAME AS collation_name ",
     "FROM INFORMATION_SCHEMA.COLUMNS AS c ",
     "INNER JOIN INFORMATION_SCHEMA.TABLES AS t ",

@@ -44,8 +44,9 @@ supply its schema when this argument is omitted.}
 \item{limit}{Optional non-negative maximum number of rows to return.}
 
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
-\code{"arrow_stream"} to avoid data-frame conversion and retain Arrow-native
-batches. The 'adbi' driver may fetch the complete result before returning
+\code{"arrow_stream"}. ADBC streams retain native Arrow types. ODBC streams are
+converted from R data frames and cannot recover values lost by the driver.
+The 'adbi' driver may fetch the complete result before returning
 the stream, so this option does not guarantee bounded-memory retrieval.
 An Arrow stream owns its DBI result and connection until the stream is
 released; consume it promptly or release it explicitly with
