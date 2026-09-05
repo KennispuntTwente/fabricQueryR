@@ -51,6 +51,22 @@ test_that("fabric_kql_query returns typed seeded Eventhouse data", {
   expect_equal(result$metadata[[1L]]$source, "sandbox")
   expect_equal(result$metadata[[1L]]$rank, 1L)
 
+  exact_longs <- fabric_kql_query(
+    database$query_service_uri,
+    query = "print a=long(10000000000), b=long(10000000001), c=long(1000000000000001), d=long(-1000000000000001)",
+    database = database$database_name,
+    token = token
+  )
+  expect_identical(
+    vapply(exact_longs, as.character, character(1)),
+    c(
+      a = "10000000000",
+      b = "10000000001",
+      c = "1000000000000001",
+      d = "-1000000000000001"
+    )
+  )
+
   exact_decimal <- fabric_kql_query(
     database$query_service_uri,
     query = paste0(

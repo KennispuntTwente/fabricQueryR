@@ -1072,3 +1072,21 @@ test_that("dynamic cells retain their decoded JSON types", {
   )
   expect_identical(kusto_convert_column(values, "dynamic"), values)
 })
+test_that("Kusto long JSON numbers retain exact integer formatting", {
+  values <- jsonlite::fromJSON(
+    "[10000000000,10000000001,1000000000000001,-1000000000000001,9007199254740991,null]",
+    simplifyVector = FALSE,
+    bigint_as_char = TRUE
+  )
+  expect_identical(
+    as.character(kusto_integer_column(values, "long")),
+    c(
+      "10000000000",
+      "10000000001",
+      "1000000000000001",
+      "-1000000000000001",
+      "9007199254740991",
+      NA_character_
+    )
+  )
+})

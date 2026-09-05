@@ -1529,7 +1529,21 @@ kusto_numeric_column <- function(values) {
 # Convert Kusto integer `values` for `type`. Returns integer/integer64 values,
 # or character when R's missing-value sentinel would hide a boundary value
 kusto_integer_column <- function(values, type) {
-  text <- kusto_character_column(values)
+  text <- vapply(
+    values,
+    function(value) {
+      if (is.null(value)) {
+        NA_character_
+      } else if (
+        is.numeric(value) && is.finite(value) && value == trunc(value)
+      ) {
+        sprintf("%.0f", value)
+      } else {
+        as.character(value)
+      }
+    },
+    character(1)
+  )
   minimum <- if (identical(type, "int")) {
     "-2147483648"
   } else {
