@@ -201,7 +201,10 @@ NULL
 #' @param if_match Optional destination ETag for conditional replacement.
 #' @param compression Parquet compression codec passed to Arrow.
 #' @param include_header Whether a written CSV includes column names.
-#' @param na Text used for missing values in a written CSV.
+#' @param na Text used for missing values in a written CSV, or character values
+#'   interpreted as missing when reading CSV.
+#' @param col_names Whether a CSV has a header, or a character vector of column
+#'   names. Use `FALSE` for files written with `include_header = FALSE`.
 #' @param create_parents Whether missing parent directories are created.
 #' @param item_type Optional Fabric item type used to resolve a named item.
 #' @param tenant_id Entra tenant ID. Defaults to
@@ -264,7 +267,9 @@ fabric_onelake_read_file <- function(
   ),
   token = NULL,
   auth_args = list(),
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  col_names = TRUE,
+  na = c("", "NA")
 ) {
   dfs_base_supplied <- !missing(dfs_base)
   format_path <- if (
@@ -309,7 +314,12 @@ fabric_onelake_read_file <- function(
       switch(
         format,
         parquet = arrow::read_parquet(local_path, as_data_frame = TRUE),
-        csv = arrow::read_csv_arrow(local_path, as_data_frame = TRUE),
+        csv = arrow::read_csv_arrow(
+          local_path,
+          as_data_frame = TRUE,
+          col_names = col_names,
+          na = na
+        ),
         arrow = arrow::read_ipc_stream(local_path, as_data_frame = TRUE)
       ),
       error = function(error) {
@@ -323,7 +333,7 @@ fabric_onelake_read_file <- function(
     return(tibble::as_tibble(value))
   }
 
-  stream <- .fabric_onelake_object_stream(local_path, format)
+  stream <- .fabric_onelake_object_stream(local_path, format, col_names, na)
   keep_local <- TRUE
   stream
 }
@@ -2101,7 +2111,12 @@ onelake_commit_new_download <- function(temporary, dest) {
 }
 
 # Open a downloaded object file as a lazy Arrow stream and own its local file
-.fabric_onelake_object_stream <- function(path, format) {
+.fabric_onelake_object_stream <- function(
+  path,
+  format,
+  col_names = TRUE,
+  na = c("", "NA")
+) {
   owner <- NULL
   reader <- NULL
   input <- NULL
@@ -2118,7 +2133,7 @@ onelake_commit_new_download <- function(temporary, dest) {
         owner <- arrow::open_dataset(path, format = "parquet")
         reader <- arrow::as_record_batch_reader(owner)
       } else if (identical(format, "csv")) {
-        owner <- arrow::open_csv_dataset(path)
+        owner <- arrow::open_csv_dataset(path, col_names = col_names, na = na)
         reader <- arrow::as_record_batch_reader(owner)
       } else {
         input <- arrow::mmap_open(path)

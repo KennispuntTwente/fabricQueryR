@@ -1922,6 +1922,35 @@ test_that("OneLake distinguishes literal percent filenames from URI escapes", {
   expect_identical(target$path, "Files/a%2Fb.txt")
   expect_match(onelake_path_url(target), "/Files/a%252Fb.txt$", fixed = FALSE)
 })
+test_that("CSV reads preserve headerless rows and custom missing values", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  local_mocked_bindings(fabric_onelake_download = function(dest, ...) {
+    arrow::write_csv_arrow(
+      data.frame(id = c(1L, NA_integer_, 3L)),
+      dest,
+      include_header = FALSE,
+      na = "MISSING"
+    )
+  })
+  for (result in c("tibble", "arrow_stream")) {
+    value <- fabric_onelake_read_file(
+      "ws",
+      "lh.Lakehouse",
+      "Files/test.csv",
+      result = result,
+      col_names = "id",
+      na = "MISSING",
+      token = "synthetic"
+    )
+    if (result == "arrow_stream") {
+      reader <- arrow::as_record_batch_reader(value)
+      value <- as.data.frame(reader)
+      reader$Close()
+    }
+    expect_equal(value$id, c(1L, NA_integer_, 3L))
+  }
+})
 test_that("encoded managed-table URIs are rejected before mutation transport", {
   uri <- paste0(
     "https://onelake.dfs.fabric.microsoft.com/",

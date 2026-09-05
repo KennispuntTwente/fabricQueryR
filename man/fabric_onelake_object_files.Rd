@@ -18,7 +18,9 @@ fabric_onelake_read_file(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  col_names = TRUE,
+  na = c("", "NA")
 )
 
 fabric_onelake_write_file(
@@ -75,6 +77,12 @@ complete OneLake HTTPS/ABFSS path.}
 \item{dfs_base}{OneLake DFS service address. A private or regional endpoint
 on a discovered object is preferred when this argument is omitted.}
 
+\item{col_names}{Whether a CSV has a header, or a character vector of column
+names. Use \code{FALSE} for files written with \code{include_header = FALSE}.}
+
+\item{na}{Text used for missing values in a written CSV, or character values
+interpreted as missing when reading CSV.}
+
 \item{data}{A data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
 Dataset/Scanner/query, RecordBatchReader, or Arrow-compatible array stream.}
 
@@ -85,8 +93,6 @@ Dataset/Scanner/query, RecordBatchReader, or Arrow-compatible array stream.}
 \item{compression}{Parquet compression codec passed to Arrow.}
 
 \item{include_header}{Whether a written CSV includes column names.}
-
-\item{na}{Text used for missing values in a written CSV.}
 
 \item{create_parents}{Whether missing parent directories are created.}
 
