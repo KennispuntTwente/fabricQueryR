@@ -165,6 +165,16 @@ execution and cleanup fail, a <code>fabric_livy_execution_cleanup_error</code> r
 the execution error and safe cleanup diagnostics</p>
     </div>
     <div class="section level2">
+    <h2 id="tabular-column-names">Tabular column names<a class="anchor" aria-label="anchor" href="#tabular-column-names"></a></h2>
+
+
+<p>Duplicate SQL aliases and joined column names are repaired with
+<code>make.unique(names, sep = "...")</code>: for example, <code>id, id</code> becomes
+<code>id, id...1</code>. Every column retains its positional values. The <code>spark_schema</code>
+attribute keeps the original header names and types, and the result retains
+the original response.</p>
+    </div>
+    <div class="section level2">
     <h2 id="before-you-run-code">Before you run code<a class="anchor" aria-label="anchor" href="#before-you-run-code"></a></h2>
 
 

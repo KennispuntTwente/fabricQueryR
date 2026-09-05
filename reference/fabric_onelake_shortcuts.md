@@ -146,9 +146,11 @@ fabric_onelake_shortcut_delete(
 
   Parent `Files` or `Tables` path where the shortcut exists or will be
   created. Local checks validate path syntax, while Fabric applies item-
-  and workload-specific placement rules. In a Lakehouse `Tables`
-  section, use `Tables` because Fabric permits shortcuts only at that
-  top level.
+  and workload-specific placement rules. For a table shortcut in a
+  Lakehouse without schemas, use `Tables`. In a schema-enabled
+  Lakehouse, use a schema path such as `Tables/dbo`. A schema shortcut
+  instead lives under `Tables` and targets a folder containing multiple
+  Delta tables.
 
 - name:
 
@@ -220,6 +222,13 @@ rejected. Other source- and destination-specific restrictions are
 intentionally left to Fabric so that newly supported connection types
 and rules remain usable.
 
+For example, a table shortcut named `orders` uses `path = "Tables"` in a
+Lakehouse without schemas, or `path = "Tables/dbo"` in a Lakehouse with
+schemas; its `target_path` identifies one Delta table. A schema shortcut
+named `sales` uses `path = "Tables"` and a target such as `Tables/sales`
+containing multiple Delta tables. File shortcuts use `Files` or a folder
+beneath it and do not register tables.
+
 Listing follows Fabric continuation links and tokens until every
 shortcut below `parent_path` is returned. Unknown target details and
 transform fields are preserved in list columns for forward
@@ -257,6 +266,9 @@ API](https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/)
 
 [OneLake shortcut placement and
 limitations](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts)
+
+[Create table and schema
+shortcuts](https://learn.microsoft.com/en-us/fabric/onelake/create-onelake-shortcut)
 
 [OneLake shortcut security and path
 permissions](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security)

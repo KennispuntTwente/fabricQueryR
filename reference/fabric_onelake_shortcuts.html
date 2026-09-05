@@ -189,9 +189,10 @@ different Fabric cloud or a test service</p></dd>
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
 <dd><p>Parent <code>Files</code> or <code>Tables</code> path where the shortcut exists or will
 be created. Local checks validate path syntax, while Fabric applies
-item- and workload-specific placement rules. In a Lakehouse <code>Tables</code>
-section, use <code>Tables</code> because Fabric permits shortcuts only at that top
-level.</p></dd>
+item- and workload-specific placement rules. For a table shortcut in a
+Lakehouse without schemas, use <code>Tables</code>. In a schema-enabled Lakehouse,
+use a schema path such as <code>Tables/dbo</code>. A schema shortcut instead lives
+under <code>Tables</code> and targets a folder containing multiple Delta tables.</p></dd>
 
 
 <dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
@@ -262,6 +263,12 @@ handle for either immediate or asynchronous completion.</p>
 current shortcut limits: <code>%</code>, <code>+</code>, and non-ASCII characters are rejected.
 Other source- and destination-specific restrictions are intentionally left
 to Fabric so that newly supported connection types and rules remain usable.</p>
+<p>For example, a table shortcut named <code>orders</code> uses <code>path = "Tables"</code> in a
+Lakehouse without schemas, or <code>path = "Tables/dbo"</code> in a Lakehouse with
+schemas; its <code>target_path</code> identifies one Delta table. A schema shortcut
+named <code>sales</code> uses <code>path = "Tables"</code> and a target such as <code>Tables/sales</code>
+containing multiple Delta tables. File shortcuts use <code>Files</code> or a folder
+beneath it and do not register tables.</p>
 <p>Listing follows Fabric continuation links and tokens until every shortcut
 below <code>parent_path</code> is returned. Unknown target details and transform fields
 are preserved in list columns for forward compatibility.</p>
@@ -289,6 +296,7 @@ item Write or destination-path OneLake ReadWrite permission.</p>
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/" class="external-link">OneLake shortcuts REST API</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts" class="external-link">OneLake shortcut placement and limitations</a></p>
+<p><a href="https://learn.microsoft.com/en-us/fabric/onelake/create-onelake-shortcut" class="external-link">Create table and schema shortcuts</a></p>
 <p><a href="https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcut-security" class="external-link">OneLake shortcut security and path permissions</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/creates-shortcuts-in-bulk" class="external-link">Create shortcuts in bulk</a></p>
 <p><a href="https://learn.microsoft.com/en-us/rest/api/fabric/core/onelake-shortcuts/reset-shortcut-cache" class="external-link">Reset shortcut cache</a></p>

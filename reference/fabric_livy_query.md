@@ -127,6 +127,14 @@ statement is still returned when session cleanup fails, with a
 both execution and cleanup fail, a `fabric_livy_execution_cleanup_error`
 retains the execution error and safe cleanup diagnostics
 
+## Tabular column names
+
+Duplicate SQL aliases and joined column names are repaired with
+`make.unique(names, sep = "...")`: for example, `id, id` becomes
+`id, id...1`. Every column retains its positional values. The
+`spark_schema` attribute keeps the original header names and types, and
+the result retains the original response.
+
 ## Before you run code
 
 Fabric needs a workspace on supported capacity, a Lakehouse, and the

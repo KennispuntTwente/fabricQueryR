@@ -89,7 +89,8 @@ listing every table in every schema.</p>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
 <span>  table_api_base <span class="op">=</span> <span class="va">.fabric_onelake_table_base</span>,</span>
-<span>  storage_token <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  storage_token <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  enrich_fabric <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_warehouse_table</span><span class="op">(</span></span>
@@ -173,6 +174,14 @@ returned by <code><a href="fabric_typed_items.html">fabric_warehouses()</a></cod
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>
 <dd><p>Schema containing <code>table</code>. Defaults to the Lakehouse default
 schema when available, otherwise <code>"dbo"</code>.</p></dd>
+
+
+<dt id="arg-enrich-fabric">enrich_fabric<a class="anchor" aria-label="anchor" href="#arg-enrich-fabric"></a></dt>
+<dd><p>For <code>fabric_lakehouse_table()</code>, also list the Fabric
+table inventory to enrich the result. Defaults to <code>FALSE</code>, so a complete
+discovered item needs only a Storage token. Setting <code>TRUE</code> requires both
+Fabric and Storage audiences; use an audience-aware provider or supply
+<code>token</code> and <code>storage_token</code> separately.</p></dd>
 
 </dl></div>
     <div class="section level2">

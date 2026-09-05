@@ -48,7 +48,8 @@ fabric_lakehouse_table(
   auth_args = list(),
   api_base = .fabric_api_base,
   table_api_base = .fabric_onelake_table_base,
-  storage_token = NULL
+  storage_token = NULL,
+  enrich_fabric = FALSE
 )
 
 fabric_warehouse_table(
@@ -131,6 +132,14 @@ fabric_warehouse_table(
 
   Schema containing `table`. Defaults to the Lakehouse default schema
   when available, otherwise `"dbo"`.
+
+- enrich_fabric:
+
+  For `fabric_lakehouse_table()`, also list the Fabric table inventory
+  to enrich the result. Defaults to `FALSE`, so a complete discovered
+  item needs only a Storage token. Setting `TRUE` requires both Fabric
+  and Storage audiences; use an audience-aware provider or supply
+  `token` and `storage_token` separately.
 
 ## Value
 
