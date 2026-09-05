@@ -309,22 +309,35 @@ fabric_onelake_table_exists <- function(
   if (!is.null(table)) {
     query$schema_name <- schema
   }
-  records <- .fabric_onelake_table_pages(
-    paste0(
-      context$protocol_base,
-      "/",
-      onelake_encode_path(context$workspace_id, context$item_id),
-      "/api/2.1/unity-catalog/",
-      collection
+  records <- tryCatch(
+    .fabric_onelake_table_pages(
+      paste0(
+        context$protocol_base,
+        "/",
+        onelake_encode_path(context$workspace_id, context$item_id),
+        "/api/2.1/unity-catalog/",
+        collection
+      ),
+      field = collection,
+      query = query,
+      credential = context$credential,
+      page_size = NULL,
+      error_class = c(
+        "fabric_onelake_table_protocol_error",
+        "fabric_onelake_error"
+      )
     ),
-    field = collection,
-    query = query,
-    credential = context$credential,
-    page_size = NULL,
-    error_class = c(
-      "fabric_onelake_table_protocol_error",
-      "fabric_onelake_error"
-    )
+    error = function(error) {
+      if (
+        !is.null(table) &&
+          identical(error$status, 404L) &&
+          identical(error$error_code, "PathNotFound") &&
+          !.fabric_onelake_delta_exists(context, schema)
+      ) {
+        return(list())
+      }
+      .fabric_rethrow(error)
+    }
   )
   names <- vapply(
     records,

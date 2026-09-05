@@ -6,6 +6,18 @@ test_that("OneLake table metadata APIs report existence", {
   target <- fabric_test_lakehouse_table_target(manifest, lakehouse)
   token <- fabric_test_token_provider()
   missing <- paste0("fabricqueryr_missing_", Sys.getpid())
+  for (protocol in c("delta", "iceberg")) {
+    expect_identical(
+      fabric_onelake_table_exists(
+        target,
+        missing,
+        schema = missing,
+        protocol = protocol,
+        token = token
+      ),
+      FALSE
+    )
+  }
 
   expect_true(fabric_onelake_schema_exists(
     target,

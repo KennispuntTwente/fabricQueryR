@@ -216,3 +216,31 @@ test_that("existence checks reject unsafe protocol routing", {
   }
   expect_equal(calls, 1L)
 })
+test_that("Delta table existence distinguishes missing schemas from service errors", {
+  for (code in c("PathNotFound", "ItemNotFound", "Forbidden")) {
+    httr2::local_mocked_responses(function(req) {
+      if (grepl("/schemas", req$url, fixed = TRUE)) {
+        return(exists_test_response(req, body = list(schemas = list())))
+      }
+      exists_test_response(
+        req,
+        status = if (code == "Forbidden") 403L else 404L,
+        body = list(errorCode = code, message = "missing")
+      )
+    })
+    result <- tryCatch(
+      fabric_onelake_table_exists(
+        exists_test_item(),
+        "missing",
+        schema = "missing",
+        token = "storage-token"
+      ),
+      error = identity
+    )
+    if (code == "PathNotFound") {
+      expect_identical(result, FALSE)
+    } else {
+      expect_s3_class(result, "fabric_http_error")
+    }
+  }
+})
