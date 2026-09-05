@@ -353,6 +353,42 @@ test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
   )
 })
 
+test_that("live Arrow DAX preserves multiple rowsets and exact scalar encodings", {
+  fabric_test_require_package("arrow")
+  fabric_test_require_package("nanoarrow")
+  manifest <- fabric_test_manifest()
+  model <- fabric_test_manifest_item(manifest, "TestArrowSemanticModel")
+  query <- function(dax) {
+    fabric_pbi_dax_query(
+      workspace_id = manifest$workspace_id,
+      dataset_id = model$id,
+      dax = dax,
+      api = "arrow",
+      token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+    )
+  }
+  rowsets <- query('EVALUATE ROW("n", 1) EVALUATE ROW("s", "two")')
+  expect_s3_class(rowsets, "fabric_pbi_dax_rowsets")
+  expect_length(rowsets, 2L)
+  expect_identical(rowsets[[1L]][[1L]], 1L)
+  expect_identical(rowsets[[2L]][[1L]], "two")
+  exact <- query(paste0(
+    'EVALUATE ROW("currency", CONVERT("123456789012345.6789", CURRENCY), ',
+    '"max", CONVERT("9223372036854775807", INTEGER), ',
+    '"min", CONVERT("-9223372036854775808", INTEGER))'
+  ))
+  expect_identical(exact[[1L]], "123456789012345.6789")
+  expect_identical(as.character(exact[[2L]]), "9223372036854775807")
+  expect_identical(exact[[3L]], "-9223372036854775808")
+  variant <- query(paste0(
+    'EVALUATE SELECTCOLUMNS(GENERATESERIES(1, 2), ',
+    '"mixed", IF([Value] = 1, 42, "two"))'
+  ))
+  expect_s3_class(variant[[1L]][[1L]], "fabric_pbi_variant")
+  expect_identical(as.character(variant[[1L]][[1L]]$value), "42")
+  expect_identical(variant[[1L]][[2L]]$value, "two")
+})
+
 test_that("delegated DAX queries can target My Workspace", {
   fabric_test_delegated_auth_config()
   dataset_id <- fabric_test_required_environment(

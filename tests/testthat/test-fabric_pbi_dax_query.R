@@ -844,6 +844,35 @@ test_that("Arrow DAX tibbles preserve decimal values exactly", {
   expect_s3_class(streamed$schema$fields[[1L]]$type, "Decimal128Type")
 })
 
+test_that("Arrow DAX decodes dictionary-encoded Variant chunks and null indices", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  values <- pbi_test_dense_union(
+    c(0L, 1L),
+    c(0L, 0L),
+    list(integer = 42L, string = "two"),
+    list(integer = nanoarrow::na_int32(), string = nanoarrow::na_string()),
+    c(0L, 1L)
+  )
+  encoded <- arrow::DictionaryArray$create(
+    arrow::Array$create(c(1L, 0L, NA_integer_, 1L)),
+    values
+  )
+  column <- arrow::chunked_array(encoded$Slice(0L, 2L), encoded$Slice(2L, 2L))
+  table <- arrow::Table$create(variant = column)
+  path <- withr::local_tempfile(fileext = ".arrows")
+  arrow::write_ipc_stream(table, path)
+  result <- pbi_parse_dax_arrow_response(path)
+  expect_identical(
+    vapply(result$variant, `[[`, character(1), "type"),
+    c("string", "integer", "integer", "string")
+  )
+  expect_identical(
+    lapply(result$variant, `[[`, "value"),
+    list("two", 42L, NA_integer_, "two")
+  )
+})
+
 test_that("Arrow DAX Variant covers every documented scalar branch exactly", {
   skip_if_not_installed("arrow")
   skip_if_not_installed("nanoarrow")

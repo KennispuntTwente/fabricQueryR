@@ -1345,6 +1345,30 @@ pbi_decode_dax_arrow_dictionaries <- function(table) {
   if (!any(dictionary)) {
     return(table)
   }
+  for (index in which(dictionary)) {
+    field <- fields[[index]]
+    if (!identical(field$type$value_type$name, "dense_union")) {
+      next
+    }
+    chunks <- lapply(table$column(index - 1L)$chunks, function(chunk) {
+      arrow::call_function("take", chunk$dictionary(), chunk$indices())
+    })
+    column <- do.call(
+      arrow::chunked_array,
+      c(chunks, list(type = field$type$value_type))
+    )
+    fields[[index]] <- arrow::field(
+      field$name,
+      field$type$value_type,
+      nullable = field$nullable,
+      metadata = field$metadata
+    )
+    table <- table$SetColumn(index - 1L, fields[[index]], column)
+    dictionary[[index]] <- FALSE
+  }
+  if (!any(dictionary)) {
+    return(table)
+  }
   fields[dictionary] <- lapply(fields[dictionary], function(field) {
     arrow::field(
       field$name,
