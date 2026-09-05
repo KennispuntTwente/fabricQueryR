@@ -1036,6 +1036,23 @@ test_that("Livy raw JSON boundaries preserve Spark BIGINT values", {
   }
 })
 
+test_that("Livy JSON numbers preserve exact BIGINT and DOUBLE values", {
+  parsed <- fabric_livy_parse_table(paste0(
+    '{"headers":[{"name":"id","type":"long"},',
+    '{"name":"ratio","type":"double"}],',
+    '"data":[[1000000000000001,1.2345678901234567],',
+    '[-1000000000000001,-1.2345678901234567],[null,null]]}'
+  ))
+  expect_identical(
+    parsed$id,
+    c("1000000000000001", "-1000000000000001", NA_character_)
+  )
+  expect_identical(
+    parsed$ratio,
+    c(1.2345678901234567, -1.2345678901234567, NA_real_)
+  )
+})
+
 test_that("Livy HTTP decoding preserves numeric DECIMAL tokens", {
   body <- paste0(
     '{"id":1,"state":"available","output":{"status":"ok","data":{',

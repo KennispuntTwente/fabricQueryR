@@ -1381,7 +1381,23 @@ fabric_livy_convert_column <- function(values, type) {
 
   # Convert scalar values to stable R vectors while preserving missing values
 
-  if (kind %in% c("string", "char", "varchar", "decimal", "bigint", "long")) {
+  if (kind %in% c("bigint", "long")) {
+    return(vapply(
+      values,
+      function(value) {
+        if (is.null(value)) {
+          NA_character_
+        } else if (is.numeric(value)) {
+          sprintf("%.0f", value)
+        } else {
+          as.character(value)
+        }
+      },
+      character(1)
+    ))
+  }
+
+  if (kind %in% c("string", "char", "varchar", "decimal")) {
     return(fabric_livy_atomic_text(values))
   }
 
@@ -1417,7 +1433,13 @@ fabric_livy_convert_column <- function(values, type) {
 
   if (kind %in% c("float", "double")) {
     text <- fabric_livy_atomic_text(values)
-    out <- suppressWarnings(as.numeric(text))
+    out <- suppressWarnings(vapply(
+      values,
+      function(value) {
+        if (is.null(value)) NA_real_ else as.numeric(value)
+      },
+      double(1)
+    ))
     if (any(!is.na(text) & is.na(out) & !is.nan(out))) {
       fabric_livy_invalid_type(kind)
     }

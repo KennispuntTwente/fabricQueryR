@@ -139,6 +139,18 @@ test_that("FabricLivySession shares state and preserves statement failures", {
     sql_null$output$data[["application/json"]]$data[[1L]][[2L]]
   )
 
+  exact_numbers <- session$run(
+    paste(
+      "SELECT CAST(1000000000000001 AS BIGINT) AS id,",
+      "CAST(1.2345678901234567 AS DOUBLE) AS ratio"
+    ),
+    kind = "sql",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_identical(exact_numbers$output$parsed$id, "1000000000000001")
+  expect_identical(exact_numbers$output$parsed$ratio, 1.2345678901234567)
+
   scala <- session$run(
     "println(\"FABRICQUERYR_SCALA_OK\")",
     kind = "spark",
