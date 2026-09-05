@@ -2368,6 +2368,22 @@ test_that("Livy restores decimal leaves in arrays maps and structs", {
   expect_identical(parsed$m, list(list(x = decimal, missing = NULL), NULL))
   expect_identical(parsed$s, list(list(nested = list(decimal, NULL)), NULL))
 })
+test_that("invalid Livy code cannot allocate a session", {
+  requests <- 0L
+  local_mocked_bindings(.httr2_perform = function(...) {
+    requests <<- requests + 1L
+    stop("unexpected HTTP")
+  })
+  for (code in list(NULL, "", NA_character_, 1, c("a", "b"))) {
+    error <- rlang::catch_cnd(fabric_livy_query(
+      "https://api.fabric.test/v1/workspaces/w/items/i/livyApi/versions/2023-12-01",
+      code = code,
+      token = "test-token"
+    ))
+    expect_match(conditionMessage(error), "code", fixed = TRUE)
+  }
+  expect_identical(requests, 0L)
+})
 test_that("Livy restores decimal tokens in Fabric struct envelopes", {
   raw <- paste0(
     '{"schema":{"type":"struct","fields":[{"name":"s","type":',

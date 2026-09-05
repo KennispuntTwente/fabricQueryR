@@ -126,6 +126,7 @@ fabric_livy_query <- function(
   # Check the request before starting a Spark session, which can take time
 
   kind <- match.arg(kind)
+  fabric_livy_check_string(code, "code")
   fabric_livy_check_flag(verbose, "verbose")
   fabric_livy_check_number(poll_interval, "poll_interval")
   fabric_livy_check_number(timeout, "timeout")
