@@ -1091,6 +1091,7 @@ fabric_sql_adbc_driver_version <- function(connection) {
     methods::slot(connection, "connection"),
     101L
   )
+  on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
   info <- nanoarrow::convert_array_stream(stream)
   version <- fabric_sql_adbc_info_string(info)
   if (is.null(version)) {

@@ -615,6 +615,31 @@ test_that("SQL connections configure the ADBC MSSQL driver with a safe URI", {
   expect_false("attributes" %in% names(captured))
 })
 
+test_that("ADBC version metadata streams are released on success and failure", {
+  skip_if_not_installed("adbi")
+  skip_if_not_installed("adbcdrivermanager")
+  connection <- methods::new("AdbiConnection")
+  for (valid in c(TRUE, FALSE)) {
+    stream <- nanoarrow::as_nanoarrow_array_stream(data.frame(
+      string_value = if (valid) "1.5.0" else ""
+    ))
+    local_mocked_bindings(
+      adbc_connection_get_info = function(...) stream,
+      .package = "adbcdrivermanager"
+    )
+    outcome <- tryCatch(
+      fabric_sql_adbc_driver_version(connection),
+      error = identity
+    )
+    if (valid) {
+      expect_identical(outcome, "1.5.0")
+    } else {
+      expect_s3_class(outcome, "error")
+    }
+    expect_identical(nanoarrow::nanoarrow_pointer_is_valid(stream), FALSE)
+  }
+})
+
 test_that("missing ADBC drivers fail before authentication with install guidance", {
   acquired <- FALSE
   missing_driver <- "fabricqueryr_missing_mssql_driver"

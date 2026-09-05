@@ -96,14 +96,11 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
       info = backend
     )
 
-    disconnected <- if (identical(backend, "adbc")) {
-      DBI::dbDisconnect(con, force = TRUE)
-    } else {
-      DBI::dbDisconnect(con)
-    }
+    disconnected <- NULL
+    expect_silent(disconnected <- DBI::dbDisconnect(con))
     expect_true(isTRUE(disconnected), info = backend)
-    # ADBC Driver Foundry 1.x can keep reporting released handles as valid
-    # The driver's successful disconnect return is its reliable lifecycle signal
+    # ADBC Driver Foundry 1.x can keep reporting released handles as valid.
+    # Require a quiet successful disconnect instead of masking child leaks.
     if (!identical(backend, "adbc")) {
       expect_false(DBI::dbIsValid(con), info = backend)
     }
