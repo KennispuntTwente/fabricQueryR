@@ -158,19 +158,15 @@ tables <- fabric_lakehouse_tables(lakehouse)
 table <- tables[1L, ]
 
 # Read the discovered table into a tibble
-rows <- fabric_onelake_read_delta_table(
-  table_path = table$name[[1L]],
-  workspace_name = workspace,
-  lakehouse_name = lakehouse,
-  schema = table$schema[[1L]]
+rows <- fabric_lakehouse_read_table(
+  lakehouse = lakehouse,
+  table = table
 )
 
 # Stream the same table when it may not fit in R memory
-stream <- fabric_onelake_read_delta_table(
-  table_path = table$name[[1L]],
-  workspace_name = workspace,
-  lakehouse_name = lakehouse,
-  schema = table$schema[[1L]],
+stream <- fabric_lakehouse_read_table(
+  lakehouse = lakehouse,
+  table = table,
   result = "arrow_stream"
 )
 reader <- arrow::as_record_batch_reader(stream)
