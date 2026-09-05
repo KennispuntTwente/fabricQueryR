@@ -1100,7 +1100,7 @@ fabric_livy_parse_json <- function(value) {
   }
   obj <- try(
     jsonlite::fromJSON(
-      jsonlite::toJSON(value, auto_unbox = TRUE, null = "null"),
+      jsonlite::toJSON(value, auto_unbox = TRUE, null = "null", digits = NA),
       simplifyVector = TRUE,
       bigint_as_char = TRUE
     ),

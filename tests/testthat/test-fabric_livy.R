@@ -2300,3 +2300,11 @@ test_that("session wait continues through an Uncertain intermediate result", {
   expect_length(responses, 0L)
   session$close()
 })
+test_that("generic Livy JSON preserves fractional and tiny numbers", {
+  value <- list(
+    value = 1.23456789012345,
+    tiny = 0.0000123456789,
+    nested = list(value = 1.23456789012345)
+  )
+  expect_equal(fabric_livy_parse_json(value), value, tolerance = 1e-15)
+})
