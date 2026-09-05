@@ -461,6 +461,10 @@ FabricLivySession <- R6::R6Class(
         fabric_livy_check_string(source_id, "source_id")
       }
 
+      state <- tolower(self$state %||% "")
+      if (state != "idle" && !state %in% .fabric_livy_session_terminal_states) {
+        self$status()
+      }
       if (!identical(tolower(self$state %||% ""), "idle")) {
         .fabric_abort(
           "The Livy session is not ready; call session$wait() first"

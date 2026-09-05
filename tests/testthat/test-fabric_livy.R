@@ -362,7 +362,13 @@ test_that("regular session runs multiple statements and closes", {
         session_gets <<- session_gets + 1L
         return(list(
           id = "session-1",
-          state = if (session_gets == 1L) "starting" else "idle"
+          state = if (session_gets == 1L) {
+            "starting"
+          } else if (session_gets == 3L) {
+            "busy"
+          } else {
+            "idle"
+          }
         ))
       }
       if (method == "POST" && grepl("/statements$", url)) {
@@ -435,12 +441,14 @@ test_that("regular session runs multiple statements and closes", {
   expect_equal(calls[[1L]]$payload$tags$owner, "unit-test")
 
   session$wait(timeout = 1, poll_interval = 0)
-  first <- session$run(
+  statement <- session$submit(
     "print('first')",
-    kind = "pyspark",
-    timeout = 1,
-    poll_interval = 0
+    kind = "pyspark"
   )
+  session$status()
+  expect_identical(session$state, "busy")
+  statement$wait(timeout = 1, poll_interval = 0)
+  first <- statement$result()
   second <- session$run(
     "print('second')",
     kind = "pyspark",

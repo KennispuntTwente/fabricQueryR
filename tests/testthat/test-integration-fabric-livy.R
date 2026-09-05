@@ -81,13 +81,19 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   on.exit(try(session$close(), silent = TRUE), add = TRUE)
   session$wait(timeout = 900, poll_interval = 5)
 
-  assignment <- session$run(
-    "fabricqueryr_shared_value = 40",
-    kind = "pyspark",
-    timeout = 300,
-    poll_interval = 2
+  pending <- session$submit(
+    "import time; time.sleep(10); fabricqueryr_shared_value = 40",
+    kind = "pyspark"
   )
+  fabric_test_eventually(
+    function() session$status(),
+    ready = function(value) identical(value$state, "busy")
+  )
+  pending$wait(timeout = 300, poll_interval = 2)
+  assignment <- pending$result()
   expect_equal(assignment$output$status, "ok")
+  again <- session$run("print(fabricqueryr_shared_value)", kind = "pyspark")
+  expect_match(paste(again$output$parsed, collapse = "\n"), "40")
 
   if (fabric_test_is_delegated_auth(auth)) {
     discovered <- fabric_test_eventually(
