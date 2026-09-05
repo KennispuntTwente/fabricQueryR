@@ -258,7 +258,9 @@ fabric_function_invoke <- function(
           class = "fabric_function_response_too_large",
           response_bytes = NA_real_,
           max_response_bytes = max_response_bytes,
-          parent = error
+          parent = error,
+          call = NULL,
+          .trace = FALSE
         )
       }
       rlang::cnd_signal(error)
@@ -274,32 +276,7 @@ fabric_function_invoke <- function(
 # Detect libcurl's size-limit failure through httr2's condition chain. Returns
 # one logical without depending on the localized human-readable error message
 function_is_response_too_large_error <- function(error) {
-  current <- error
-  for (depth in seq_len(20L)) {
-    if (!inherits(current, "condition")) {
-      return(FALSE)
-    }
-    if (inherits(current, "curl_error_filesize_exceeded")) {
-      return(TRUE)
-    }
-    if (inherits(current, "curl_error")) {
-      codes <- unlist(
-        current[intersect(names(current), c("code", "curl_code"))],
-        recursive = TRUE,
-        use.names = FALSE
-      )
-      codes <- suppressWarnings(as.integer(codes))
-      if (any(codes == 63L, na.rm = TRUE)) {
-        return(TRUE)
-      }
-    }
-    parent <- current$parent
-    if (is.null(parent) || identical(parent, current)) {
-      return(FALSE)
-    }
-    current <- parent
-  }
-  FALSE
+  identical(.httr2_curl_error_code(error), 63L)
 }
 
 # Validate a copied public function URL and its credential boundary. Returns a

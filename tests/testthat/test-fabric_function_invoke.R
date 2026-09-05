@@ -380,13 +380,15 @@ test_that("function response size is bounded during transport", {
   transport_error <- rlang::error_cnd(
     class = "httr2_failure",
     message = "La requete HTTP a echoue",
-    parent = curl_error
+    parent = curl_error,
+    request = list(authorization = "synthetic-private-request-token")
   )
   local_mocked_bindings(
-    .httr2_perform = function(req, ...) {
+    req_perform = function(req, ...) {
       request <<- req
       rlang::cnd_signal(transport_error)
-    }
+    },
+    .package = "httr2"
   )
 
   error <- expect_error(
@@ -400,6 +402,16 @@ test_that("function response size is bounded during transport", {
   expect_identical(request$options$maxfilesize_large, 1024)
   expect_true(is.na(error$response_bytes))
   expect_identical(error$max_response_bytes, 1024)
+  expect_identical(error$parent$curl_code, 63L)
+  expect_null(error$parent$parent)
+  expect_identical(
+    grepl(
+      "synthetic-private-request-token",
+      rawToChar(serialize(error, NULL, ascii = TRUE)),
+      fixed = TRUE
+    ),
+    FALSE
+  )
 })
 
 test_that("response size classification uses curl metadata, not messages", {

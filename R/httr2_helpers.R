@@ -34,9 +34,38 @@
   "shared[_. -]*access[_. -]*signature|sas[_. -]*token)"
 )
 
+# Extract only a numeric curl classification from the bounded condition chain.
+.httr2_curl_error_code <- function(error) {
+  current <- error
+  for (depth in seq_len(20L)) {
+    if (!inherits(current, "condition")) {
+      return(NULL)
+    }
+    if (inherits(current, "curl_error_filesize_exceeded")) {
+      return(63L)
+    }
+    if (inherits(current, c("curl_error", "fabric_http_transport_error"))) {
+      for (code in list(current$code, current$curl_code)) {
+        if (
+          is.numeric(code) &&
+            length(code) == 1L &&
+            !is.na(code) &&
+            is.finite(code) &&
+            code > 0 &&
+            code <= 10000 &&
+            code == floor(code)
+        ) {
+          return(as.integer(code))
+        }
+      }
+    }
+    current <- current$parent
+  }
+  NULL
+}
+
 # Convert a transport failure into a credential-free condition. The original
-# httr2/curl condition is deliberately not retained because it may own the
-# complete authenticated request, including SAS URLs and JSON request bodies.
+# httr2/curl condition may own authenticated requests and must not be retained.
 .httr2_transport_error <- function(error) {
   message <- tryCatch(
     conditionMessage(error),
@@ -46,7 +75,8 @@
     list(
       message = .httr2_redact(message),
       call = NULL,
-      transport_class = class(error)
+      transport_class = class(error),
+      curl_code = .httr2_curl_error_code(error)
     ),
     class = c(
       "fabric_http_transport_error",
@@ -62,6 +92,7 @@
     error$message,
     class = setdiff(class(error), c("error", "condition")),
     transport_class = error$transport_class,
+    curl_code = error$curl_code,
     call = NULL,
     .trace = FALSE
   )
