@@ -1430,3 +1430,69 @@ test_that("R and Arrow validation happens before authentication", {
     class = "fabric_kql_write_error"
   )
 })
+test_that("Storage multipart sources renew all SAS credentials after the last upload", {
+  skip_if_not_installed("arrow")
+  for (change_container in c(FALSE, TRUE)) {
+    now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
+    calls <- 0L
+    submitted <- NULL
+    uploads <- character()
+    local_mocked_bindings(
+      kusto_write_table_schema = function(...) character(),
+      kusto_write_assert_identity_schema = function(...) invisible(NULL),
+      kusto_ingestion_configuration = function(...) {
+        calls <<- calls + 1L
+        config <- kql_write_test_configuration(
+          storage_containers = paste0(
+            "https://account.blob.core.windows.net/",
+            if (change_container && calls >= 3L) "new" else "ingest",
+            "?sp=rwd&sig=",
+            calls
+          ),
+          preferred_upload_method = "Storage"
+        )
+        config$retrieved_at <- now
+        config$refresh_interval <- 5
+        config
+      },
+      kusto_storage_upload = function(url, source) {
+        uploads <<- c(uploads, url)
+        now <<- now + 6
+      },
+      fabric_kql_ingest = function(...) {
+        submitted <<- list(...)
+        kql_write_test_ingestion()
+      },
+      fabric_kql_ingestion_status = function(...) kql_write_test_status()
+    )
+    result <- tryCatch(
+      fabric_kql_write_table(
+        "https://ingest-cluster.kusto.fabric.microsoft.com",
+        "Raw",
+        data.frame(id = 1:2),
+        database = "Telemetry",
+        token = "test-token",
+        max_rows_per_file = 1,
+        cleanup = FALSE,
+        .now = function() now
+      ),
+      error = identity
+    )
+    expect_length(uploads, 2L)
+    if (change_container) {
+      expect_s3_class(result, "fabric_kql_upload_error")
+      expect_null(submitted)
+      expect_identical(result$staging_retained, TRUE)
+    } else {
+      expect_equal(calls, 4L)
+      expect_identical(
+        grepl("sig=4", submitted$sources, fixed = TRUE),
+        c(TRUE, TRUE)
+      )
+      expect_identical(
+        sub("[?].*", "", submitted$sources),
+        sub("[?].*", "", uploads)
+      )
+    }
+  }
+})

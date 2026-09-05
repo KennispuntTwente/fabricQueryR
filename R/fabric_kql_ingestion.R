@@ -2276,6 +2276,56 @@ fabric_kql_write_table <- function(
 
   # 5 Submit once, then wait using retry-safe status requests ------------------------------------
 
+  if (identical(staging$method, "Storage")) {
+    source_paths <- tryCatch(
+      {
+        if (kusto_ingestion_refresh_due(configuration, .now())) {
+          configuration <- kusto_ingestion_configuration(
+            target,
+            credential,
+            timeout = min(timeout, 60),
+            .now = .now
+          )
+          kusto_write_validate_configuration(serialized, configuration)
+        }
+        vapply(
+          seq_along(staging_paths),
+          function(index) {
+            for (container in configuration$storage_containers) {
+              container <- kusto_storage_validate_container(container)
+              path <- kusto_storage_blob_url(
+                container,
+                relative_paths[[index]],
+                include_credentials = FALSE
+              )
+              if (identical(path, staging_paths[[index]])) {
+                return(kusto_storage_blob_url(
+                  container,
+                  relative_paths[[index]]
+                ))
+              }
+            }
+            .fabric_abort(
+              "Refreshed credentials do not cover an uploaded Storage blob"
+            )
+          },
+          character(1),
+          USE.NAMES = FALSE
+        )
+      },
+      error = function(error) {
+        .fabric_abort(
+          "Could not renew access to every staged Storage blob; staging was retained",
+          class = c("fabric_kql_upload_error", "fabric_kql_write_error"),
+          staging_path = staging_path,
+          staging_paths = staging_paths,
+          staging_retained = TRUE,
+          parent = error
+        )
+      }
+    )
+  }
+
   source_ids <- character()
   for (index in seq_along(staging_paths)) {
     source_ids[[index]] <- kusto_ingestion_source_id(source_ids)

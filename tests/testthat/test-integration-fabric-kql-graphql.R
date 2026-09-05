@@ -889,3 +889,55 @@ test_that("live KQL dynamic JSON-looking strings retain their types", {
   expect_identical(value$a[[1L]], "[1,2]")
   expect_type(value$actual[[1L]], "list")
 })
+test_that("Storage multipart writes refresh every source before ingestion", {
+  manifest <- fabric_test_manifest()
+  fabric_test_require_package("arrow")
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  token <- fabric_test_token_provider()
+  target <- kusto_resolve_target(database)
+  credential <- fabric_credential(token = token)
+  table <- paste0("fabricqueryr_storage_", Sys.getpid())
+  on.exit(
+    try(
+      kusto_export_management(
+        target,
+        paste(".drop table", table, "ifexists"),
+        credential,
+        deadline = Sys.time() + 60,
+        idempotent = TRUE,
+        operation = "StorageTestCleanup"
+      ),
+      silent = TRUE
+    ),
+    add = TRUE
+  )
+  original_configuration <- kusto_ingestion_configuration
+  configuration_calls <- 0L
+  local_mocked_bindings(kusto_ingestion_configuration = function(...) {
+    config <- original_configuration(...)
+    configuration_calls <<- configuration_calls + 1L
+    expect_gt(length(config$storage_containers), 0L)
+    config$preferred_upload_method <- "Storage"
+    config$lake_folders <- character()
+    config$refresh_interval <- 0.01
+    config
+  })
+  written <- fabric_kql_write_table(
+    database,
+    table,
+    data.frame(id = 1:2),
+    create_if_missing = TRUE,
+    max_rows_per_file = 1,
+    skip_batching = TRUE,
+    timeout = 600,
+    token = token
+  )
+  expect_identical(written$status$state, "Succeeded")
+  expect_equal(written$file_count, 2L)
+  expect_gt(configuration_calls, 2L)
+  expect_identical(written$staging_retained, FALSE)
+  expect_identical(
+    any(grepl("onelake", written$staging_paths, fixed = TRUE)),
+    FALSE
+  )
+})
