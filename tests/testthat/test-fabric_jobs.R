@@ -2211,3 +2211,53 @@ test_that("Core parameter jobs recover accepted collection locations once", {
   expect_identical(submissions, 1L)
   expect_gte(history_calls, 2L)
 })
+test_that("job recovery budgets start after the initial Retry-After wait", {
+  for (retry_after in c(60, 90)) {
+    now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
+    started <- now
+    calls <- 0L
+    local_mocked_bindings(
+      .fabric_job_request = function(...) {
+        list(
+          status_code = 202L,
+          location = "/jobs/instances?jobType=RunNotebook",
+          retry_after = retry_after,
+          body = list(),
+          request_id = "55555555-5555-5555-5555-555555555555"
+        )
+      },
+      .httr2_collection = function(
+        ...,
+        deadline = NULL,
+        .now = NULL,
+        .sleep = NULL
+      ) {
+        calls <<- calls + 1L
+        if (calls == 1L) {
+          return(list())
+        }
+        expect_equal(deadline, started + retry_after + 60)
+        expect_identical(.now(), now)
+        if (calls == 2L) {
+          return(list())
+        }
+        list(list(
+          id = "33333333-3333-3333-3333-333333333333",
+          rootActivityId = "55555555-5555-5555-5555-555555555555",
+          jobType = "RunNotebook",
+          startTimeUtc = "2026-08-30T12:00:00Z"
+        ))
+      }
+    )
+    job <- fabric_job_run(
+      job_test_item(),
+      parameters = list(label = "unit"),
+      token = "test-token",
+      api_base = "https://api.fabric.test/v1",
+      .sleep = function(seconds) now <<- now + seconds,
+      .now = function() now
+    )
+    expect_identical(job$id, "33333333-3333-3333-3333-333333333333")
+    expect_equal(now, started + retry_after + 1)
+  }
+})

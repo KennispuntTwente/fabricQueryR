@@ -385,7 +385,8 @@
   value_key = "value",
   offset_pagination = FALSE,
   page_size = 5000L,
-  max_pages = 10000L
+  max_pages = 10000L,
+  ...
 ) {
   # 1 Prepare pagination state ---------------------------------------------------------------------
 
@@ -427,7 +428,8 @@
       req,
       simplifyVector = FALSE,
       credential = credential,
-      audience = audience
+      audience = audience,
+      ...
     )
     if (!is.list(page) || is.null(names(page))) {
       .httr2_collection_abort(

@@ -462,13 +462,16 @@ fabric_job_run <- function(
   if (is.finite(delay) && delay > 0) {
     .sleep(delay)
   }
-  deadline <- submitted_at + max(recovery_timeout, retry_after)
+  deadline <- .now() + recovery_timeout
   repeat {
     records <- tryCatch(
       .httr2_collection(
         history_url,
         credential = credential,
-        audience = .fabric_audience$fabric
+        audience = .fabric_audience$fabric,
+        deadline = deadline,
+        .now = .now,
+        .sleep = .sleep
       ),
       error = function(error) {
         .fabric_job_recovery_abort(
