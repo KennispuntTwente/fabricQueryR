@@ -123,8 +123,8 @@
           .fabric_abort("Arrow returned an invalid record-batch row count")
         }
         if (batch_rows > 0) {
-          writer$WriteBatch(
-            batch,
+          writer$WriteTable(
+            arrow::Table$create(batch),
             chunk_size = as.integer(min(batch_rows, 1024^2))
           )
         }
@@ -311,7 +311,10 @@
             next
           }
           piece <- batch$Slice(as.numeric(offset), as.numeric(take))
-          writer$WriteBatch(piece, chunk_size = as.integer(take))
+          writer$WriteTable(
+            arrow::Table$create(piece),
+            chunk_size = as.integer(take)
+          )
           piece_bytes <- as.numeric(piece$nbytes())
           if (
             length(piece_bytes) != 1L ||
