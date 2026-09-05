@@ -96,8 +96,9 @@ execution HTTP request. This is distinct from the Arrow API's server-side
 \value{
 A tibble for one result table. Multiple Arrow result tables are
 returned as a \code{fabric_pbi_dax_rowsets} list of tibbles or Arrow streams
-Power BI column names are preserved. Result tables with no rows have no
-column metadata and therefore return a zero-row, zero-column tibble.
+Power BI column names are preserved. JSON result tables with no rows have
+no column metadata and return a zero-row, zero-column tibble. Arrow results
+preserve the column schema even when there are no rows.
 Missing results and service-reported errors or truncation raise an error.
 Arrow results respect \code{arrow_options$resultSetRowCountLimit}; the service
 default is 1,000,000 rows. Intentional row limits do not raise an error.
