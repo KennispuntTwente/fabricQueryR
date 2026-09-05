@@ -119,6 +119,15 @@ fabric_test_manifest_path <- function(
 }
 
 fabric_test_manifest <- function() {
+  if (
+    !fabric_test_required() &&
+      !tolower(Sys.getenv("FABRIC_INTEGRATION_ENABLED")) %in%
+        c("1", "true", "yes")
+  ) {
+    testthat::skip(
+      "Live Fabric integration is disabled; set FABRIC_INTEGRATION_ENABLED=true to opt in"
+    )
+  }
   path <- fabric_test_manifest_path()
   fabric_test_skip_or_fail(
     !file.exists(path),

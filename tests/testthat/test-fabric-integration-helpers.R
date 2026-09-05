@@ -1,3 +1,23 @@
+test_that("offline integration ignores an incidental scoped manifest", {
+  manifest <- withr::local_tempfile(fileext = ".json")
+  jsonlite::write_json(
+    list(items = list(JobFixtures = list(id = "job"))),
+    manifest
+  )
+  withr::local_envvar(c(
+    FABRIC_TEST_MANIFEST = manifest,
+    FABRIC_INTEGRATION_REQUIRED = "false",
+    FABRIC_INTEGRATION_ENABLED = "false"
+  ))
+  result <- tryCatch(fabric_test_manifest(), skip = identity)
+  expect_s3_class(result, "skip")
+  expect_match(
+    conditionMessage(result),
+    "integration is disabled",
+    fixed = TRUE
+  )
+})
+
 test_that("eventual integration checks retain successful candidates", {
   attempt <- 0L
   result <- fabric_test_eventually(
