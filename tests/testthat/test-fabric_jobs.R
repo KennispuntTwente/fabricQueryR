@@ -377,6 +377,7 @@ test_that("parameterized jobs recover collection Location instance IDs", {
   now <- as.POSIXct("2026-08-30 12:00:00", tz = "UTC")
   local_mocked_bindings(
     .fabric_job_request = function(...) {
+      now <<- now + 20
       list(
         status_code = 202L,
         location = paste0(
@@ -623,8 +624,11 @@ test_that("job POST requests carry an explicit zero-length body", {
 })
 
 test_that("job submissions accept successful responses without bodies", {
+  submitted_at <- as.POSIXct("2026-09-05 12:00:00", tz = "UTC")
+  now <- submitted_at
   local_mocked_bindings(
     .httr2_perform = function(req, ...) {
+      now <<- now + 20
       httr2::response(
         status_code = 202L,
         headers = list(
@@ -641,12 +645,15 @@ test_that("job submissions accept successful responses without bodies", {
   job <- fabric_job_run(
     job_test_item(),
     token = "test-token",
-    api_base = "https://api.fabric.test/v1"
+    api_base = "https://api.fabric.test/v1",
+    .now = function() now
   )
 
   expect_s3_class(job, "fabric_job")
   expect_identical(job$id, "33333333-3333-3333-3333-333333333333")
   expect_identical(job$retry_after, 60)
+  expect_identical(job$submitted_at, submitted_at)
+  expect_identical(job$next_poll_at, now + 60)
 })
 
 test_that("job POST requests preserve one-element schema arrays", {

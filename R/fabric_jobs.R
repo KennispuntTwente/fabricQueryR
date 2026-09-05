@@ -284,6 +284,7 @@ fabric_job_run <- function(
     payload = payload,
     idempotent = FALSE
   )
+  response_received_at <- .now()
   location <- result$location
   instance_id <- .fabric_job_submitted_instance_id(
     result,
@@ -294,6 +295,7 @@ fabric_job_run <- function(
     submitted_at,
     recovery_baseline = recovery_baseline,
     retry_after = result$retry_after,
+    response_received_at = response_received_at,
     .sleep = .sleep,
     .now = .now
   )
@@ -304,9 +306,9 @@ fabric_job_run <- function(
   # handle and do not have to reconstruct authentication or routing details
 
   next_poll_at <- if (is.null(result$retry_after)) {
-    submitted_at
+    response_received_at
   } else {
-    submitted_at + result$retry_after
+    response_received_at + result$retry_after
   }
   credential_reference <- .fabric_job_credential_reference(credential)
   structure(
@@ -339,6 +341,7 @@ fabric_job_run <- function(
   submitted_at,
   recovery_baseline = NULL,
   retry_after = NULL,
+  response_received_at = submitted_at,
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -457,7 +460,7 @@ fabric_job_run <- function(
       "Job recovery timeout and poll interval options must be positive numbers"
     )
   }
-  not_before <- submitted_at + retry_after
+  not_before <- response_received_at + retry_after
   delay <- as.numeric(difftime(not_before, .now(), units = "secs"))
   if (is.finite(delay) && delay > 0) {
     .sleep(delay)
