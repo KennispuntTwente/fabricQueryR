@@ -88,7 +88,8 @@
 #' @param lakehouse_name Lakehouse name, ID, or discovery object. Compatible
 #'   Warehouse and mirrored database items are also accepted
 #' @param schema Schema containing the table, or `NULL`. Warehouses and mirrored
-#'   databases default to `"dbo"` when discovery provides no default
+#'   databases default to `"dbo"` when discovery provides no default. Use `""`
+#'   for a physical table directly below `Tables/` without a schema directory
 #' @param item_type `"Lakehouse"`, `"Warehouse"`, `"MirroredDatabase"`, or
 #'   `NULL`. Usually inferred; specify it only when using an item name without a
 #'   type suffix
@@ -517,6 +518,9 @@ fabric_delta_resolve_public_target <- function(
     suffix = " or record"
   )
 
+  if (identical(schema, "")) {
+    schema <- NULL
+  }
   if (!is.null(schema)) {
     fabric_delta_validate_non_empty(schema, "schema")
     if (grepl("[/\\\\]", schema)) {

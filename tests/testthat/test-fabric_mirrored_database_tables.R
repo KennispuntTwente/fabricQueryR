@@ -170,5 +170,14 @@ test_that("legacy mirrored tables honor their schema-less storage location", {
   )
 
   expect_identical(captured$table_path, "sales_orders")
-  expect_null(captured$schema)
+  expect_identical(captured$schema, "")
+  target <- fabric_delta_resolve_public_target(
+    captured$table_path,
+    captured$workspace_name,
+    captured$lakehouse_name,
+    captured$schema,
+    captured$dfs_base,
+    captured$item_type
+  )
+  expect_identical(target$target$path, "Tables/sales_orders")
 })

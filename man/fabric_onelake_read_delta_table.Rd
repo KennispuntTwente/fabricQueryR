@@ -33,7 +33,8 @@ fabric_onelake_read_delta_table(
 Warehouse and mirrored database items are also accepted}
 
 \item{schema}{Schema containing the table, or \code{NULL}. Warehouses and mirrored
-databases default to \code{"dbo"} when discovery provides no default}
+databases default to \code{"dbo"} when discovery provides no default. Use \code{""}
+for a physical table directly below \verb{Tables/} without a schema directory}
 
 \item{item_type}{\code{"Lakehouse"}, \code{"Warehouse"}, \code{"MirroredDatabase"}, or
 \code{NULL}. Usually inferred; specify it only when using an item name without a

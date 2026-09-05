@@ -241,7 +241,11 @@ fabric_mirrored_database_read_table <- function(
     table_path = table_target$table,
     workspace_name = context$workspace_id,
     lakehouse_name = item_target,
-    schema = table_target$schema,
+    schema = if (!schema_supplied && !is.null(storage_target)) {
+      table_target$schema %||% ""
+    } else {
+      table_target$schema
+    },
     item_type = "MirroredDatabase",
     tenant_id = tenant_id,
     client_id = client_id,
