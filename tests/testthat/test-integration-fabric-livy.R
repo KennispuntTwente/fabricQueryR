@@ -373,6 +373,26 @@ test_that("high-concurrency Livy sessions isolate their REPLs", {
   expect_true(nzchar(session_b$session_id))
   expect_true(nzchar(session_a$repl_id))
   expect_true(nzchar(session_b$repl_id))
+  expect_identical(session_a$session_id, session_b$session_id)
+  first <- session_a$submit(
+    "import time; time.sleep(30); print('first')",
+    kind = "pyspark"
+  )
+  second <- session_b$submit(
+    "import time; time.sleep(30); print('second')",
+    kind = "pyspark"
+  )
+  states <- fabric_test_eventually(
+    function() c(first$status()$state, second$status()$state),
+    ready = function(value) length(value) == 2L && all(value == "running"),
+    attempts = 20L,
+    delay = 1
+  )
+  expect_identical(states, c("running", "running"))
+  first$wait(timeout = 120, poll_interval = 2)
+  second$wait(timeout = 120, poll_interval = 2)
+  expect_identical(first$result()$output$status, "ok")
+  expect_identical(second$result()$output$status, "ok")
 
   assigned <- session_a$run(
     "fabricqueryr_hc_secret = 'session-a-only'",
