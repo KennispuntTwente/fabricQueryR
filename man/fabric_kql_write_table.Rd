@@ -57,10 +57,12 @@ default.}
 \item{staging_root}{Relative directory created below the selected lake
 folder for package staging.}
 
-\item{cleanup}{Remove the unique staging directory after confirmed success.}
+\item{cleanup}{Remove OneLake staging after confirmed success, or authorize
+Kusto to delete Storage blobs after download.}
 
 \item{keep_staging_on_failure}{Retain staging after a confirmed terminal
-Kusto failure. Ambiguous failures are always retained.}
+Kusto failure. The client never deletes staging after ambiguous failures;
+Storage may already have deleted downloaded blobs when \code{cleanup = TRUE}.}
 
 \item{compression}{Parquet compression supported by \code{\link[arrow:write_parquet]{arrow::write_parquet()}}.}
 
@@ -194,13 +196,14 @@ an expired authorization.
 
 \section{Failure and cleanup safety}{
 
-A successful tracked ingestion is cleaned up by default. Kusto removes blobs
-uploaded to its service-owned Storage container; OneLake staging is removed
-after the tracked success is confirmed. A submission error, polling timeout,
-or other ambiguous result always retains staging because Kusto may still be
-reading it. A confirmed terminal ingestion failure retains staging by default
-and can remove it with
-\code{keep_staging_on_failure = FALSE}. The retained full OneLake path is carried
+A successful tracked ingestion is cleaned up by default. Kusto removes
+service-owned Storage blobs after download; the client removes OneLake
+staging after confirmed success. Ambiguous results retain OneLake staging.
+With Storage and \code{cleanup = TRUE}, an ambiguous or failed batch reports
+\code{staging_retained = NA}: some or all blobs may already have been deleted.
+Set \code{cleanup = FALSE} to retain Storage sources for recovery.
+After a confirmed terminal failure, the client leaves remaining staging
+alone unless \code{keep_staging_on_failure = FALSE}. The full staging path is carried
 by \code{fabric_kql_write_error} conditions.
 A transport failure during OneLake's final atomic rename can also leave the
 unique destination present; upload errors report \code{staging_retained = NA} and

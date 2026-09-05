@@ -1792,13 +1792,14 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' an expired authorization.
 #'
 #' @section Failure and cleanup safety:
-#' A successful tracked ingestion is cleaned up by default. Kusto removes blobs
-#' uploaded to its service-owned Storage container; OneLake staging is removed
-#' after the tracked success is confirmed. A submission error, polling timeout,
-#' or other ambiguous result always retains staging because Kusto may still be
-#' reading it. A confirmed terminal ingestion failure retains staging by default
-#' and can remove it with
-#' `keep_staging_on_failure = FALSE`. The retained full OneLake path is carried
+#' A successful tracked ingestion is cleaned up by default. Kusto removes
+#' service-owned Storage blobs after download; the client removes OneLake
+#' staging after confirmed success. Ambiguous results retain OneLake staging.
+#' With Storage and `cleanup = TRUE`, an ambiguous or failed batch reports
+#' `staging_retained = NA`: some or all blobs may already have been deleted.
+#' Set `cleanup = FALSE` to retain Storage sources for recovery.
+#' After a confirmed terminal failure, the client leaves remaining staging
+#' alone unless `keep_staging_on_failure = FALSE`. The full staging path is carried
 #' by `fabric_kql_write_error` conditions.
 #' A transport failure during OneLake's final atomic rename can also leave the
 #' unique destination present; upload errors report `staging_retained = NA` and
@@ -1816,9 +1817,11 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'   default.
 #' @param staging_root Relative directory created below the selected lake
 #'   folder for package staging.
-#' @param cleanup Remove the unique staging directory after confirmed success.
+#' @param cleanup Remove OneLake staging after confirmed success, or authorize
+#'   Kusto to delete Storage blobs after download.
 #' @param keep_staging_on_failure Retain staging after a confirmed terminal
-#'   Kusto failure. Ambiguous failures are always retained.
+#'   Kusto failure. The client never deletes staging after ambiguous failures;
+#'   Storage may already have deleted downloaded blobs when `cleanup = TRUE`.
 #' @param compression Parquet compression supported by [arrow::write_parquet()].
 #' @param target_file_size Soft maximum bytes per staged Parquet file. The
 #'   service's advertised total-size and blob-count limits are still enforced.
@@ -2332,6 +2335,8 @@ fabric_kql_write_table <- function(
   }
   write_started <- .now()
   write_deadline <- write_started + timeout
+  server_cleanup <- identical(staging$method, "Storage") && isTRUE(cleanup)
+  retained_after_submission <- if (server_cleanup) NA else TRUE
   submission_timeout <- kusto_write_remaining_timeout(
     write_deadline,
     timeout,
@@ -2356,8 +2361,7 @@ fabric_kql_write_table <- function(
       ingest_if_not_exists = ingest_if_not_exists,
       skip_batching = skip_batching,
       creation_time = creation_time,
-      delete_after_download = identical(staging$method, "Storage") &&
-        isTRUE(cleanup),
+      delete_after_download = server_cleanup,
       timeout = submission_timeout,
       token = credential,
       .deadline = write_deadline,
@@ -2369,6 +2373,7 @@ fabric_kql_write_table <- function(
           staging_path,
           parent = error,
           ambiguous = TRUE,
+          staging_retained = retained_after_submission,
           message = paste0(
             "Kusto submission exceeded the write deadline without returning ",
             "a tracking handle; staging was retained because ingestion may ",
@@ -2379,6 +2384,7 @@ fabric_kql_write_table <- function(
       kusto_write_ambiguous_error(
         error,
         staging_path,
+        staging_retained = retained_after_submission,
         message = paste0(
           "Kusto submission did not return a tracking handle; staging was ",
           "retained because ingestion may still have been accepted"
@@ -2391,7 +2397,8 @@ fabric_kql_write_table <- function(
     timeout,
     .now,
     staging_path,
-    ingestion = ingestion
+    ingestion = ingestion,
+    staging_retained = retained_after_submission
   )
   status <- tryCatch(
     fabric_kql_ingestion_status(
@@ -2414,6 +2421,7 @@ fabric_kql_write_table <- function(
           ingestion = ingestion,
           parent = error,
           ambiguous = TRUE,
+          staging_retained = retained_after_submission,
           message = paste0(
             "The KQL write deadline expired before a terminal ingestion ",
             "result was confirmed; staging was retained because the ",
@@ -2425,6 +2433,7 @@ fabric_kql_write_table <- function(
         error,
         staging_path,
         ingestion = ingestion,
+        staging_retained = retained_after_submission,
         message = paste0(
           "Could not confirm the terminal Kusto ingestion result; staging ",
           "was retained because the operation may still be running"
@@ -2436,9 +2445,9 @@ fabric_kql_write_table <- function(
   # 6 Apply cleanup only after the tracked outcome is unambiguous --------------------------------
 
   succeeded <- identical(status$state, "Succeeded") && isTRUE(status$complete)
-  staging_retained <- TRUE
+  staging_retained <- retained_after_submission
   if (succeeded && isTRUE(cleanup)) {
-    staging_retained <- if (identical(staging$method, "Storage")) {
+    staging_retained <- if (server_cleanup) {
       FALSE
     } else {
       !kusto_remove_staging(
@@ -2458,12 +2467,13 @@ fabric_kql_write_table <- function(
       )
     }
   } else if (!succeeded && !isTRUE(keep_staging_on_failure)) {
-    staging_retained <- !kusto_remove_staging(
+    removed <- kusto_remove_staging(
       staging$method,
       storage_targets,
       source_paths,
       storage_credential
     )
+    staging_retained <- if (removed) FALSE else retained_after_submission
   }
   result <- kusto_write_result(
     target,
@@ -2484,7 +2494,9 @@ fabric_kql_write_table <- function(
     .fabric_abort(
       paste0(
         "Kusto could not ingest the staged R/Arrow data. ",
-        if (staging_retained) {
+        if (is.na(staging_retained)) {
+          "Storage staging disposition is unknown; downloaded sources may have been removed."
+        } else if (staging_retained) {
           paste0("Staging was retained at '", staging_path, "'.")
         } else {
           "The staging directory was removed."
@@ -2517,7 +2529,13 @@ print.fabric_kql_write_result <- function(x, ...) {
       state = x$status$state,
       rows = x$rows,
       files = x$file_count,
-      staging = if (x$staging_retained) "retained" else "removed"
+      staging = if (is.na(x$staging_retained)) {
+        "unknown"
+      } else if (x$staging_retained) {
+        "retained"
+      } else {
+        "removed"
+      }
     )
   )
   invisible(x)
@@ -3480,13 +3498,17 @@ kusto_write_ambiguous_error <- function(
   error,
   staging_path,
   ingestion = NULL,
-  message
+  message,
+  staging_retained = TRUE
 ) {
+  if (is.na(staging_retained)) {
+    message <- "Could not confirm the Kusto ingestion outcome; Storage staging disposition is unknown because downloaded sources may have been removed"
+  }
   .fabric_abort(
     message,
     class = c("fabric_kql_write_ambiguous", "fabric_kql_write_error"),
     staging_path = staging_path,
-    staging_retained = TRUE,
+    staging_retained = staging_retained,
     ingestion = ingestion,
     parent = error
   )
@@ -3498,7 +3520,8 @@ kusto_write_remaining_timeout <- function(
   timeout,
   .now,
   staging_path,
-  ingestion = NULL
+  ingestion = NULL,
+  staging_retained = TRUE
 ) {
   remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
   if (is.finite(remaining) && remaining > 0) {
@@ -3517,6 +3540,7 @@ kusto_write_remaining_timeout <- function(
     staging_path,
     ingestion = ingestion,
     ambiguous = TRUE,
+    staging_retained = staging_retained,
     message = paste0(
       "The KQL write deadline expired after ingestion was submitted; staging ",
       "was retained because the operation may still be running"
@@ -3530,8 +3554,12 @@ kusto_write_timeout_error <- function(
   ingestion = NULL,
   parent = NULL,
   ambiguous = FALSE,
-  message
+  message,
+  staging_retained = TRUE
 ) {
+  if (is.na(staging_retained)) {
+    message <- "The KQL write deadline expired before its outcome was confirmed; Storage staging disposition is unknown because downloaded sources may have been removed"
+  }
   classes <- c("fabric_kql_write_timeout", "fabric_kql_write_error")
   if (isTRUE(ambiguous)) {
     classes <- c(
@@ -3544,7 +3572,7 @@ kusto_write_timeout_error <- function(
     message,
     class = classes,
     staging_path = staging_path,
-    staging_retained = TRUE,
+    staging_retained = staging_retained,
     operation_id = ingestion$id %||% ingestion$operation_id %||% NULL,
     ingestion = ingestion,
     parent = parent

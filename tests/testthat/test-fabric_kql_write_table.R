@@ -197,7 +197,8 @@ test_that("Eventhouse writer refreshes an expired Storage SAS and retries", {
       invisible(TRUE)
     },
     fabric_kql_ingest = function(...) kql_write_test_ingestion(),
-    fabric_kql_ingestion_status = function(...) kql_write_test_status()
+    fabric_kql_ingestion_status = function(...) kql_write_test_status(),
+    kusto_remove_staging = function(...) TRUE
   )
 
   result <- fabric_kql_write_table(
@@ -1494,5 +1495,71 @@ test_that("Storage multipart sources renew all SAS credentials after the last up
         sub("[?].*", "", uploads)
       )
     }
+  }
+})
+test_that("Storage ingestion reports unknown disposition after ambiguous or mixed outcomes", {
+  skip_if_not_installed("arrow")
+  for (outcome in c("submission", "status", "timeout", "mixed")) {
+    deleted <- 0L
+    local_mocked_bindings(
+      kusto_write_table_schema = function(...) character(),
+      kusto_write_assert_identity_schema = function(...) invisible(NULL),
+      kusto_ingestion_configuration = function(...) {
+        kql_write_test_configuration(
+          storage_containers = "https://account.blob.core.windows.net/ingest?sp=rwd&sig=test",
+          preferred_upload_method = "Storage"
+        )
+      },
+      kusto_storage_upload = function(...) TRUE,
+      fabric_kql_ingest = function(..., delete_after_download) {
+        expect_identical(delete_after_download, TRUE)
+        if (outcome == "submission") {
+          stop("submission response lost")
+        }
+        kql_write_test_ingestion()
+      },
+      fabric_kql_ingestion_status = function(...) {
+        if (outcome == "status") {
+          stop("status response lost after download")
+        }
+        if (outcome == "timeout") {
+          rlang::abort(
+            "status timed out",
+            class = "fabric_kql_ingestion_timeout"
+          )
+        }
+        status <- kql_write_test_status()
+        status$state <- "Failed"
+        status
+      },
+      kusto_remove_staging = function(...) {
+        deleted <<- deleted + 1L
+        TRUE
+      }
+    )
+    result <- tryCatch(
+      fabric_kql_write_table(
+        "https://ingest-cluster.kusto.fabric.microsoft.com",
+        "Raw",
+        data.frame(id = 1:2),
+        database = "Telemetry",
+        token = "test-token",
+        max_rows_per_file = 1,
+        error_on_failure = FALSE
+      ),
+      error = identity
+    )
+    if (outcome != "mixed") {
+      expect_s3_class(result, "fabric_kql_write_ambiguous")
+      expect_match(
+        conditionMessage(result),
+        "disposition is unknown",
+        fixed = TRUE
+      )
+    } else {
+      expect_output(print(result), "unknown")
+    }
+    expect_identical(result$staging_retained, NA)
+    expect_identical(deleted, 0L)
   }
 })
