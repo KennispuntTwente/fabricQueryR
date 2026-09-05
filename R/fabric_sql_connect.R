@@ -774,6 +774,9 @@ fabric_sql_query <- function(
 # invisibly before the one-shot query helper opens a connection
 fabric_sql_validate_query_statement <- function(sql) {
   tokens <- fabric_sql_top_level_tokens(sql)
+  while (length(tokens) && identical(tokens[[1L]], ";")) {
+    tokens <- tokens[-1L]
+  }
   terminators <- which(tokens == ";")
   if (length(terminators)) {
     valid_terminator <- length(terminators) == 1L &&

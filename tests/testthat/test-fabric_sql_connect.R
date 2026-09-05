@@ -846,12 +846,21 @@ test_that("fabric_sql_query accepts exactly one read-only SELECT", {
     expect_silent(fabric_sql_validate_query_statement(statement))
   }
   valid_set_queries <- c(
+    ";WITH c AS (SELECT 1 AS x) SELECT x FROM c",
+    ";; /* leading empty statements */ WITH c AS (SELECT 1 AS x) SELECT x FROM c;",
     "SELECT 1 UNION SELECT 2",
     "SELECT 1 UNION ALL SELECT 2 EXCEPT SELECT 3",
     "SELECT 1 INTERSECT SELECT 1"
   )
   for (statement in valid_set_queries) {
     expect_silent(fabric_sql_validate_query_statement(statement))
+  }
+  for (statement in c(
+    ";SELECT 1; SELECT 2",
+    ";WITH c AS (SELECT 1 AS x) SELECT x FROM c; DELETE FROM t"
+  )) {
+    error <- rlang::catch_cnd(fabric_sql_validate_query_statement(statement))
+    expect_s3_class(error, "fabric_sql_statement_error")
   }
   expect_identical(
     fabric_sql_top_level_tokens(
