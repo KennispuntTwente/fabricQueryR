@@ -23,7 +23,9 @@ fabric_onelake_read_file(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
-  dfs_base = "https://onelake.dfs.fabric.microsoft.com"
+  dfs_base = "https://onelake.dfs.fabric.microsoft.com",
+  col_names = TRUE,
+  na = c("", "NA")
 )
 
 fabric_onelake_write_file(
@@ -103,6 +105,16 @@ fabric_onelake_write_file(
   OneLake DFS service address. A private or regional endpoint on a
   discovered object is preferred when this argument is omitted.
 
+- col_names:
+
+  Whether a CSV has a header, or a character vector of column names. Use
+  `FALSE` for files written with `include_header = FALSE`.
+
+- na:
+
+  Text used for missing values in a written CSV, or character values
+  interpreted as missing when reading CSV.
+
 - data:
 
   A data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
@@ -124,10 +136,6 @@ fabric_onelake_write_file(
 - include_header:
 
   Whether a written CSV includes column names.
-
-- na:
-
-  Text used for missing values in a written CSV.
 
 - create_parents:
 

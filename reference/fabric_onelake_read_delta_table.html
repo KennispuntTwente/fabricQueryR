@@ -86,7 +86,8 @@ Warehouse and mirrored database items are also accepted</p></dd>
 
 <dt id="arg-schema">schema<a class="anchor" aria-label="anchor" href="#arg-schema"></a></dt>
 <dd><p>Schema containing the table, or <code>NULL</code>. Warehouses and mirrored
-databases default to <code>"dbo"</code> when discovery provides no default</p></dd>
+databases default to <code>"dbo"</code> when discovery provides no default. Use <code>""</code>
+for a physical table directly below <code>Tables/</code> without a schema directory</p></dd>
 
 
 <dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>
@@ -179,9 +180,8 @@ on garbage collection to delete the staged file, particularly on Windows</p>
 <p>Common dates, timestamps, numbers, text, and logical values are converted to
 practical R types. Values that R cannot represent exactly, including decimal
 and 64-bit integer values, are returned as character data when collecting a
-tibble. Nested columns require an Arrow stream. The complete mapping is:</p><table class="table table"><tr><td>Delta/Arrow source</td><td>Arrow stream result</td><td>Tibble result</td></tr><tr><td>Decimal (any precision/scale)</td><td>UTF-8 text</td><td>character</td></tr><tr><td>Large UTF-8 / large binary</td><td>UTF-8 / binary with 32-bit offsets</td><td>character / blob list-column</td></tr><tr><td>Large-list variants</td><td>list with 32-bit offsets</td><td>rejected as nested</td></tr><tr><td>Signed/unsigned 64-bit integer</td><td>original integer type</td><td>exact character</td></tr><tr><td>Signed 32-bit integer</td><td>original integer type</td><td>double</td></tr><tr><td>Timestamp without timezone</td><td>original Arrow timestamp</td><td>character</td></tr><tr><td>Timestamp with timezone</td><td>original Arrow timestamp</td><td>UTC <code>POSIXct</code></td></tr><tr><td>Date, Boolean, floating point, smaller integers, UTF-8, binary</td><td>corresponding Arrow scalar</td><td>corresponding R scalar type from 'nanoarrow'</td></tr><tr><td>Struct, map, list, extension/Variant</td><td>corresponding normalized Arrow type when supported</td><td>rejected; request an Arrow stream</td></tr></table><p>Decimal text retains its scale and digits. Some large Arrow buffer types are
-normalized for R compatibility and may fail if one value exceeds the
-supported buffer size</p>
+tibble. Nested columns require an Arrow stream. The complete mapping is:</p><table class="table table"><tr><td>Delta/Arrow source</td><td>Arrow stream result</td><td>Tibble result</td></tr><tr><td>Decimal (any precision/scale)</td><td>UTF-8 text</td><td>character</td></tr><tr><td>Large UTF-8 / large binary</td><td>original large-offset type</td><td>character / blob list-column</td></tr><tr><td>UTF-8 / binary views</td><td>UTF-8 / binary with 32-bit offsets</td><td>character / blob list-column</td></tr><tr><td>List views / large-list views</td><td>list / large list</td><td>rejected as nested</td></tr><tr><td>Large list</td><td>original large-offset list</td><td>rejected as nested</td></tr><tr><td>Signed/unsigned 64-bit integer</td><td>original integer type</td><td>exact character</td></tr><tr><td>Signed 32-bit integer</td><td>original integer type</td><td>double</td></tr><tr><td>Timestamp without timezone</td><td>original Arrow timestamp</td><td>character</td></tr><tr><td>Timestamp with timezone</td><td>original Arrow timestamp</td><td>UTC <code>POSIXct</code></td></tr><tr><td>Date, Boolean, floating point, smaller integers, UTF-8, binary</td><td>corresponding Arrow scalar</td><td>corresponding R scalar type from 'nanoarrow'</td></tr><tr><td>Struct, map, list, extension/Variant</td><td>corresponding normalized Arrow type when supported</td><td>rejected; request an Arrow stream</td></tr></table><p>Decimal text retains its scale and digits. Arrow view types are normalized
+for R compatibility; ordinary large-offset types retain their offsets</p>
     </div>
     <div class="section level2">
     <h2 id="permissions-and-supported-tables">Permissions and supported tables<a class="anchor" aria-label="anchor" href="#permissions-and-supported-tables"></a></h2>
