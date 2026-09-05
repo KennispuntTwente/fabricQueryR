@@ -232,15 +232,10 @@ fabric_mirrored_database_read_table <- function(
   if (!schema_supplied && !is.null(storage_target)) {
     table_target <- storage_target
   }
-  item_target <- if (!is.null(storage_target) && is.null(table_target$schema)) {
-    context$item_id
-  } else {
-    context$item_target$record
-  }
   fabric_onelake_read_delta_table(
     table_path = table_target$table,
     workspace_name = context$workspace_id,
-    lakehouse_name = item_target,
+    lakehouse_name = context$item_target$record,
     schema = if (!schema_supplied && !is.null(storage_target)) {
       table_target$schema %||% ""
     } else {

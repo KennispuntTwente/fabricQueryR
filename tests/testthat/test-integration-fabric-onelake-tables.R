@@ -316,8 +316,16 @@ test_that("mirrored database discovery and table helpers work end to end", {
   )
   token <- fabric_test_token_provider()
 
+  workspaces <- fabric_workspaces(
+    token = token,
+    prefer_workspace_endpoints = TRUE
+  )
+  workspace <- Filter(
+    function(x) identical(x$id, manifest$workspace_id),
+    workspaces
+  )[[1L]]
   databases <- fabric_mirrored_databases(
-    manifest$workspace_id,
+    workspace,
     detail = TRUE,
     token = token
   )
@@ -327,6 +335,10 @@ test_that("mirrored database discovery and table helpers work end to end", {
   )
   expect_length(matches, 1L)
   target <- matches[[1L]]
+  expect_identical(
+    target$workspaceOneLakeDfsEndpoint,
+    workspace$oneLakeEndpoints$dfsEndpoint
+  )
   expect_equal(target$type, "MirroredDatabase")
   expect_equal(target$default_schema, provisioned$schema)
   expect_match(target$one_lake_tables_path, provisioned$id, fixed = TRUE)

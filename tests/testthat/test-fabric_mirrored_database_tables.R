@@ -144,6 +144,8 @@ test_that("mirrored database reader resolves records and forwards Delta reads", 
 
 test_that("legacy mirrored tables honor their schema-less storage location", {
   captured <- NULL
+  item <- mirrored_database_test_item()
+  item$workspaceOneLakeDfsEndpoint <- "https://workspace.dfs.fabric.microsoft.com"
   local_mocked_bindings(
     fabric_onelake_read_delta_table = function(...) {
       captured <<- list(...)
@@ -164,7 +166,7 @@ test_that("legacy mirrored tables honor their schema-less storage location", {
   )
 
   fabric_mirrored_database_read_table(
-    mirrored_database_test_item(),
+    item,
     table,
     token = "storage-token"
   )
@@ -180,4 +182,8 @@ test_that("legacy mirrored tables honor their schema-less storage location", {
     captured$item_type
   )
   expect_identical(target$target$path, "Tables/sales_orders")
+  expect_identical(
+    target$target$dfs_base,
+    item$workspaceOneLakeDfsEndpoint
+  )
 })
