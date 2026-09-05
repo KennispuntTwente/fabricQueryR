@@ -79,6 +79,9 @@
 #' Fabric's SQL JSON output represents non-finite floating-point values as
 #' `null`, so those values are returned as typed missing values. Binary and
 #' nested values use list-columns
+#' Nested decimal values retain their JSON spelling. Fabric may round these
+#' values before sending SQL JSON output; cast decimal leaves to STRING in
+#' Spark when full precision is required across that service boundary.
 #'
 #' @section R on Runtime 2.0:
 #' Microsoft Fabric distributes `sparklyr` and documents
@@ -1165,14 +1168,6 @@ fabric_livy_restore_decimal_tokens <- function(value, lexical) {
     headers <- value$headers
   }
   if (is.list(headers) && is.list(value$data) && is.list(lexical$data)) {
-    decimal_columns <- which(vapply(
-      headers,
-      function(header) {
-        is.list(header) &&
-          identical(fabric_livy_spark_type(header$type), "decimal")
-      },
-      logical(1)
-    ))
     for (row_index in seq_along(value$data)) {
       if (
         !is.list(value$data[[row_index]]) ||
@@ -1180,10 +1175,18 @@ fabric_livy_restore_decimal_tokens <- function(value, lexical) {
       ) {
         next
       }
-      for (column_index in decimal_columns) {
-        if (column_index <= length(lexical$data[[row_index]])) {
-          value$data[[row_index]][column_index] <-
-            lexical$data[[row_index]][column_index]
+      for (column_index in seq_along(headers)) {
+        if (
+          column_index <= length(lexical$data[[row_index]]) &&
+            column_index <= length(value$data[[row_index]])
+        ) {
+          value$data[[row_index]][column_index] <- list(
+            fabric_livy_restore_decimal_cell(
+              value$data[[row_index]][[column_index]],
+              lexical$data[[row_index]][[column_index]],
+              headers[[column_index]]$type
+            )
+          )
         }
       }
     }
@@ -1205,6 +1208,61 @@ fabric_livy_restore_decimal_tokens <- function(value, lexical) {
         lexical[[index]]
       ))
     }
+  }
+  value
+}
+
+# Restore decimal leaves according to Spark's recursive JSON data type schema.
+fabric_livy_restore_decimal_cell <- function(value, lexical, type) {
+  if (is.null(value)) {
+    return(NULL)
+  }
+  kind <- fabric_livy_spark_type(type)
+  if (identical(kind, "decimal")) {
+    return(lexical)
+  }
+  if (!is.list(type) || !is.list(value) || !is.list(lexical)) {
+    return(value)
+  }
+  if (
+    identical(kind, "struct") &&
+      is.list(value$schema) &&
+      is.list(value$values) &&
+      is.list(lexical$values)
+  ) {
+    value["values"] <- list(fabric_livy_restore_decimal_cell(
+      value$values,
+      lexical$values,
+      type
+    ))
+    return(value)
+  }
+  for (index in seq_len(min(length(value), length(lexical)))) {
+    child_type <- switch(
+      kind,
+      array = type$elementType,
+      map = type$valueType,
+      struct = {
+        fields <- type$fields
+        field_index <- if (is.null(names(value))) {
+          index
+        } else {
+          match(
+            names(value)[[index]],
+            vapply(fields, `[[`, character(1), "name")
+          )
+        }
+        if (!is.na(field_index) && field_index <= length(fields)) {
+          fields[[field_index]]$type
+        }
+      },
+      NULL
+    )
+    value[index] <- list(fabric_livy_restore_decimal_cell(
+      value[[index]],
+      lexical[[index]],
+      child_type
+    ))
   }
   value
 }

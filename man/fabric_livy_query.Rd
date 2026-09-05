@@ -119,6 +119,9 @@ temporal classes; timestamps without a time zone remain wall-clock text
 Fabric's SQL JSON output represents non-finite floating-point values as
 \code{null}, so those values are returned as typed missing values. Binary and
 nested values use list-columns
+Nested decimal values retain their JSON spelling. Fabric may round these
+values before sending SQL JSON output; cast decimal leaves to STRING in
+Spark when full precision is required across that service boundary.
 }
 
 \section{R on Runtime 2.0}{

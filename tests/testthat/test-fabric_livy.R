@@ -2347,3 +2347,38 @@ test_that("Livy retains application flow through stored credentials", {
   )
   expect_s3_class(error, "fabric_multi_audience_auth_error")
 })
+test_that("Livy restores decimal leaves in arrays maps and structs", {
+  decimal <- "12345678901234567890.123456789012345"
+  raw <- paste0(
+    '{"schema":{"type":"struct","fields":[',
+    '{"name":"a","type":{"type":"array","elementType":"decimal(38,15)"}},',
+    '{"name":"m","type":{"type":"map","keyType":"string","valueType":"decimal(38,15)"}},',
+    '{"name":"s","type":{"type":"struct","fields":[',
+    '{"name":"nested","type":{"type":"array","elementType":"decimal(38,15)"}}]}}',
+    ']},"data":[[[',
+    decimal,
+    ',null],{"x":',
+    decimal,
+    ',"missing":null},{"nested":[',
+    decimal,
+    ',null]}],[null,null,null]]}'
+  )
+  parsed <- fabric_livy_parse_sql_json(raw)
+  expect_identical(parsed$a, list(list(decimal, NULL), NULL))
+  expect_identical(parsed$m, list(list(x = decimal, missing = NULL), NULL))
+  expect_identical(parsed$s, list(list(nested = list(decimal, NULL)), NULL))
+})
+test_that("Livy restores decimal tokens in Fabric struct envelopes", {
+  raw <- paste0(
+    '{"schema":{"type":"struct","fields":[{"name":"s","type":',
+    '{"type":"struct","fields":[{"name":"value","type":"decimal(38,15)"}]}}]},',
+    '"data":[[{"schema":[{"name":"value","dataType":{"precision":38,"scale":15}}],',
+    '"values":[12345678901234567890.123456789012345]}]]}'
+  )
+  result <- fabric_livy_parse_sql_json(raw)
+  expect_identical(
+    result$s[[1]]$values[[1]],
+    "12345678901234567890.123456789012345"
+  )
+  expect_identical(result$s[[1]]$schema[[1]]$dataType$precision, 38L)
+})

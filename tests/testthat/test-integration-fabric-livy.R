@@ -151,6 +151,27 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   expect_identical(exact_numbers$output$parsed$id, "1000000000000001")
   expect_identical(exact_numbers$output$parsed$ratio, 1.2345678901234567)
 
+  nested_decimal <- session$run(
+    paste(
+      "SELECT array(d, CAST(NULL AS DECIMAL(38,15))) AS a,",
+      "map('value', d) AS m, named_struct('value', d) AS s",
+      "FROM (SELECT CAST('123456.125' AS DECIMAL(38,15)) AS d)"
+    ),
+    kind = "sql",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expected_decimal <- "123456.125"
+  expect_identical(
+    nested_decimal$output$parsed$a[[1]],
+    list(expected_decimal, NULL)
+  )
+  expect_identical(nested_decimal$output$parsed$m[[1]]$value, expected_decimal)
+  expect_identical(
+    nested_decimal$output$parsed$s[[1]]$values[[1]],
+    expected_decimal
+  )
+
   scala <- session$run(
     "println(\"FABRICQUERYR_SCALA_OK\")",
     kind = "spark",
