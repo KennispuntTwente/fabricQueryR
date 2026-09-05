@@ -1229,6 +1229,29 @@ test_that("Spark SQL JSON output is parsed into a tibble", {
   expect_identical(result$output$parsed$fabricqueryr_sql_value, 42L)
 })
 
+test_that("Livy preserves duplicate SQL aliases and joined columns by position", {
+  for (names in list(
+    c("id", "id"),
+    c("id", "label", "id", "label"),
+    c("id", "id", "id...1")
+  )) {
+    headers <- lapply(names, function(name) list(name = name, type = "integer"))
+    values <- as.list(seq_along(names))
+    table <- fabric_livy_parse_table(list(
+      headers = headers,
+      data = list(values)
+    ))
+    expect_identical(names(table), make.unique(names, sep = "..."))
+    expect_identical(lapply(seq_along(table), function(i) table[[i]]), values)
+    expect_identical(attr(table, "spark_schema"), headers)
+    sql <- fabric_livy_parse_sql_json(list(
+      schema = list(type = "struct", fields = headers),
+      data = list(values)
+    ))
+    expect_identical(sql, table)
+  }
+})
+
 test_that("Livy table MIME output rejects malformed rows", {
   expect_error(
     fabric_livy_parse_table(list(

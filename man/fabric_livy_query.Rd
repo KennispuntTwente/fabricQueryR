@@ -94,6 +94,15 @@ Starts Spark, runs one piece of code, returns its output, and closes the Spark
 session. This is the simplest Livy helper for a one-off operation. For quick
 reads from a Lakehouse or Warehouse, SQL is often faster to start
 }
+\section{Tabular column names}{
+
+Duplicate SQL aliases and joined column names are repaired with
+\code{make.unique(names, sep = "...")}: for example, \verb{id, id} becomes
+\verb{id, id...1}. Every column retains its positional values. The \code{spark_schema}
+attribute keeps the original header names and types, and the result retains
+the original response.
+}
+
 \section{Before you run code}{
 
 Fabric needs a workspace on supported capacity, a Lakehouse, and the tenant

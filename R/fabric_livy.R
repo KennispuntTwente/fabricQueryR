@@ -55,6 +55,12 @@
 #'   `fabric_livy_cleanup_warning` identifying the retained session. When both
 #'   execution and cleanup fail, a `fabric_livy_execution_cleanup_error` retains
 #'   the execution error and safe cleanup diagnostics
+#' @section Tabular column names:
+#' Duplicate SQL aliases and joined column names are repaired with
+#' `make.unique(names, sep = "...")`: for example, `id, id` becomes
+#' `id, id...1`. Every column retains its positional values. The `spark_schema`
+#' attribute keeps the original header names and types, and the result retains
+#' the original response.
 #' @section Before you run code:
 #' Fabric needs a workspace on supported capacity, a Lakehouse, and the tenant
 #' admin setting for the Livy API enabled. In the Fabric portal, open the
@@ -1357,9 +1363,6 @@ fabric_livy_parse_table <- function(value) {
     character(1)
   )
 
-  if (anyDuplicated(column_names)) {
-    malformed("header names must be unique")
-  }
   column_count <- length(column_names)
   valid_rows <- vapply(
     rows,
@@ -1385,7 +1388,10 @@ fabric_livy_parse_table <- function(value) {
 
   # Return the typed table in the stable form expected by the caller
 
-  out <- tibble::as_tibble(stats::setNames(columns, column_names))
+  out <- tibble::as_tibble(stats::setNames(
+    columns,
+    make.unique(column_names, sep = "...")
+  ))
   attr(out, "spark_schema") <- headers
   out
 }

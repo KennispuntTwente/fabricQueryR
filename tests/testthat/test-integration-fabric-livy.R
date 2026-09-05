@@ -144,6 +144,29 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   expect_null(
     sql_null$output$data[["application/json"]]$data[[1L]][[2L]]
   )
+  for (query in c(
+    "SELECT 1 AS id, 2 AS id",
+    "SELECT * FROM (SELECT 1 AS id) a CROSS JOIN (SELECT 2 AS id) b"
+  )) {
+    duplicate <- session$run(
+      query,
+      kind = "sql",
+      timeout = 300,
+      poll_interval = 2
+    )
+    expect_identical(names(duplicate$output$parsed), c("id", "id...1"))
+    expect_identical(duplicate$output$parsed[[1L]], 1L)
+    expect_identical(duplicate$output$parsed[[2L]], 2L)
+    expect_identical(
+      vapply(
+        attr(duplicate$output$parsed, "spark_schema"),
+        `[[`,
+        character(1),
+        "name"
+      ),
+      c("id", "id")
+    )
+  }
 
   exact_numbers <- session$run(
     paste(
