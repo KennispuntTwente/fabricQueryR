@@ -1029,3 +1029,17 @@ test_that("Delta runtime configuration initializes and reports missing modules",
   )
   expect_null(config$versions)
 })
+test_that("Delta normalization preserves ordinary large buffer types", {
+  skip_if_not_installed("arrow")
+  for (type in list(arrow::large_utf8(), arrow::large_binary())) {
+    schema <- nanoarrow::as_nanoarrow_schema(type)
+    expect_identical(
+      fabric_delta_normalize_schema(schema)$format,
+      schema$format
+    )
+    expect_identical(
+      fabric_delta_normalize_schema(schema, collect = TRUE)$format,
+      schema$format
+    )
+  }
+})

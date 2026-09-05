@@ -108,8 +108,10 @@ and 64-bit integer values, are returned as character data when collecting a
 tibble. Nested columns require an Arrow stream. The complete mapping is:\tabular{lll}{
    Delta/Arrow source \tab Arrow stream result \tab Tibble result \cr
    Decimal (any precision/scale) \tab UTF-8 text \tab character \cr
-   Large UTF-8 / large binary \tab UTF-8 / binary with 32-bit offsets \tab character / blob list-column \cr
-   Large-list variants \tab list with 32-bit offsets \tab rejected as nested \cr
+   Large UTF-8 / large binary \tab original large-offset type \tab character / blob list-column \cr
+   UTF-8 / binary views \tab UTF-8 / binary with 32-bit offsets \tab character / blob list-column \cr
+   List views / large-list views \tab list / large list \tab rejected as nested \cr
+   Large list \tab original large-offset list \tab rejected as nested \cr
    Signed/unsigned 64-bit integer \tab original integer type \tab exact character \cr
    Signed 32-bit integer \tab original integer type \tab double \cr
    Timestamp without timezone \tab original Arrow timestamp \tab character \cr
@@ -119,9 +121,8 @@ tibble. Nested columns require an Arrow stream. The complete mapping is:\tabular
 }
 
 
-Decimal text retains its scale and digits. Some large Arrow buffer types are
-normalized for R compatibility and may fail if one value exceeds the
-supported buffer size
+Decimal text retains its scale and digits. Arrow view types are normalized
+for R compatibility; ordinary large-offset types retain their offsets
 }
 
 \section{Permissions and supported tables}{

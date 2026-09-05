@@ -47,8 +47,10 @@
 #' | Delta/Arrow source | Arrow stream result | Tibble result |
 #' |---|---|---|
 #' | Decimal (any precision/scale) | UTF-8 text | character |
-#' | Large UTF-8 / large binary | UTF-8 / binary with 32-bit offsets | character / blob list-column |
-#' | Large-list variants | list with 32-bit offsets | rejected as nested |
+#' | Large UTF-8 / large binary | original large-offset type | character / blob list-column |
+#' | UTF-8 / binary views | UTF-8 / binary with 32-bit offsets | character / blob list-column |
+#' | List views / large-list views | list / large list | rejected as nested |
+#' | Large list | original large-offset list | rejected as nested |
 #' | Signed/unsigned 64-bit integer | original integer type | exact character |
 #' | Signed 32-bit integer | original integer type | double |
 #' | Timestamp without timezone | original Arrow timestamp | character |
@@ -56,9 +58,8 @@
 #' | Date, Boolean, floating point, smaller integers, UTF-8, binary | corresponding Arrow scalar | corresponding R scalar type from 'nanoarrow' |
 #' | Struct, map, list, extension/Variant | corresponding normalized Arrow type when supported | rejected; request an Arrow stream |
 #'
-#' Decimal text retains its scale and digits. Some large Arrow buffer types are
-#' normalized for R compatibility and may fail if one value exceeds the
-#' supported buffer size
+#' Decimal text retains its scale and digits. Arrow view types are normalized
+#' for R compatibility; ordinary large-offset types retain their offsets
 #'
 #' @section Permissions and supported tables:
 #' Direct reads require OneLake data access; item `Read` permission by itself is
