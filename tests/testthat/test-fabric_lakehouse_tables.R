@@ -102,7 +102,8 @@ test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
   table <- fabric_lakehouse_table(
     lakehouse_table_test_item(),
     list(name = "\u00e9xport_\u6570\u636e", schema = "sales"),
-    token = provider
+    token = provider,
+    enrich_fabric = TRUE
   )
 
   expect_equal(table$name, "\u00e9xport_\u6570\u636e")
@@ -121,6 +122,28 @@ test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
     ignore.case = TRUE
   )
   expect_equal(audiences, c(.fabric_audience$fabric, .fabric_audience$storage))
+})
+
+test_that("singular Lakehouse metadata only needs a fixed Storage token", {
+  credential <- fabric_credential(token = "synthetic-storage-token")
+  fabric_get_token(credential, .fabric_audience$storage)
+  urls <- character()
+  httr2::local_mocked_responses(function(req) {
+    urls <<- c(urls, req$url)
+    lakehouse_table_test_response(
+      list(name = "orders", schema_name = "dbo", columns = list()),
+      url = req$url
+    )
+  })
+  table <- fabric_lakehouse_table(
+    lakehouse_table_test_item(),
+    "orders",
+    token = credential
+  )
+  expect_identical(table$name, "orders")
+  expect_length(urls, 1L)
+  expect_match(urls, "onelake", fixed = TRUE)
+  expect_length(table$fabric_raw[[1L]], 0L)
 })
 
 test_that("OneLake table targets accept named-list aliases and schema overrides", {

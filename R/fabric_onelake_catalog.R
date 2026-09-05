@@ -29,6 +29,11 @@
 #'   resolved. Most users should keep the default.
 #' @param table_api_base OneLake Delta table API base URL. Most users should
 #'   keep the default.
+#' @param enrich_fabric For `fabric_lakehouse_table()`, also list the Fabric
+#'   table inventory to enrich the result. Defaults to `FALSE`, so a complete
+#'   discovered item needs only a Storage token. Setting `TRUE` requires both
+#'   Fabric and Storage audiences; use an audience-aware provider or supply
+#'   `token` and `storage_token` separately.
 #'
 #' @return The schema functions return a tibble with `name`, `catalog`,
 #'   `full_name`, `comment`, `owner`, `schema_id`, timestamps, and the unmodified
@@ -141,8 +146,16 @@ fabric_lakehouse_table <- function(
   auth_args = list(),
   api_base = .fabric_api_base,
   table_api_base = .fabric_onelake_table_base,
-  storage_token = NULL
+  storage_token = NULL,
+  enrich_fabric = FALSE
 ) {
+  if (
+    !is.logical(enrich_fabric) ||
+      length(enrich_fabric) != 1L ||
+      is.na(enrich_fabric)
+  ) {
+    .fabric_abort("enrich_fabric must be TRUE or FALSE")
+  }
   context <- .fabric_onelake_catalog_context(
     item = lakehouse,
     workspace = workspace,
@@ -162,11 +175,15 @@ fabric_lakehouse_table <- function(
     schema,
     default_schema = context$default_schema
   )
-  fabric_records <- .fabric_lakehouse_fabric_inventory(
-    context$item_target,
-    context$credential,
-    page_size = NULL
-  )
+  fabric_records <- if (enrich_fabric) {
+    .fabric_lakehouse_fabric_inventory(
+      context$item_target,
+      context$credential,
+      page_size = NULL
+    )
+  } else {
+    list()
+  }
   .fabric_onelake_table_detail(context, table_target, fabric_records)
 }
 
