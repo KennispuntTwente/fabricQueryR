@@ -1669,7 +1669,13 @@ fabric_parse_sql_connection_string <- function(server) {
           ),
           class = "fabric_sql_target_error",
           conflicting_options = key,
-          conflicting_values = c(fields[[key]], field_value)
+          conflicting_values = if (
+            .httr2_is_secret_field(key) || key == "pwd"
+          ) {
+            rep("<redacted>", 2L)
+          } else {
+            c(fields[[key]], field_value)
+          }
         )
       }
       fields[[key]] <- field_value

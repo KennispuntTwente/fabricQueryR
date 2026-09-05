@@ -1722,3 +1722,23 @@ test_that("the Fabric integration manifest requires every SQL fixture", {
     "does not provision required item 'TestSQLDatabase'"
   )
 })
+test_that("conflicting SQL credentials are redacted in condition metadata", {
+  for (key in c("Password", "Pwd", "AccessToken", "Token")) {
+    connection_string <- paste0(
+      key,
+      "=fake-secret-one;",
+      key,
+      "=fake-secret-two"
+    )
+    error <- tryCatch(
+      fabric_parse_sql_connection_string(connection_string),
+      error = identity
+    )
+    expect_s3_class(error, "fabric_sql_target_error")
+    expect_identical(error$conflicting_values, rep("<redacted>", 2L))
+    expect_identical(
+      any(grepl("fake-secret", capture.output(dput(error)))),
+      FALSE
+    )
+  }
+})
