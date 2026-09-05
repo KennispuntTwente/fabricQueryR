@@ -217,19 +217,15 @@ logs. If the reader cannot open a Warehouse table, use <code><a href="fabric_sql
 <span class="r-in"><span><span class="va">table</span> <span class="op">&lt;-</span> <span class="va">tables</span><span class="op">[</span><span class="fl">1L</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Read the discovered table into a tibble</span></span></span>
-<span class="r-in"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="fu">fabric_onelake_read_delta_table</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  table_path <span class="op">=</span> <span class="va">table</span><span class="op">$</span><span class="va">name</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span>,</span></span>
-<span class="r-in"><span>  workspace_name <span class="op">=</span> <span class="va">workspace</span>,</span></span>
-<span class="r-in"><span>  lakehouse_name <span class="op">=</span> <span class="va">lakehouse</span>,</span></span>
-<span class="r-in"><span>  schema <span class="op">=</span> <span class="va">table</span><span class="op">$</span><span class="va">schema</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  lakehouse <span class="op">=</span> <span class="va">lakehouse</span>,</span></span>
+<span class="r-in"><span>  table <span class="op">=</span> <span class="va">table</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Stream the same table when it may not fit in R memory</span></span></span>
-<span class="r-in"><span><span class="va">stream</span> <span class="op">&lt;-</span> <span class="fu">fabric_onelake_read_delta_table</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  table_path <span class="op">=</span> <span class="va">table</span><span class="op">$</span><span class="va">name</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span>,</span></span>
-<span class="r-in"><span>  workspace_name <span class="op">=</span> <span class="va">workspace</span>,</span></span>
-<span class="r-in"><span>  lakehouse_name <span class="op">=</span> <span class="va">lakehouse</span>,</span></span>
-<span class="r-in"><span>  schema <span class="op">=</span> <span class="va">table</span><span class="op">$</span><span class="va">schema</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span>,</span></span>
+<span class="r-in"><span><span class="va">stream</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  lakehouse <span class="op">=</span> <span class="va">lakehouse</span>,</span></span>
+<span class="r-in"><span>  table <span class="op">=</span> <span class="va">table</span>,</span></span>
 <span class="r-in"><span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></span>

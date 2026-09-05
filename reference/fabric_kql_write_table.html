@@ -121,12 +121,14 @@ folder for package staging.</p></dd>
 
 
 <dt id="arg-cleanup">cleanup<a class="anchor" aria-label="anchor" href="#arg-cleanup"></a></dt>
-<dd><p>Remove the unique staging directory after confirmed success.</p></dd>
+<dd><p>Remove OneLake staging after confirmed success, or authorize
+Kusto to delete Storage blobs after download.</p></dd>
 
 
 <dt id="arg-keep-staging-on-failure">keep_staging_on_failure<a class="anchor" aria-label="anchor" href="#arg-keep-staging-on-failure"></a></dt>
 <dd><p>Retain staging after a confirmed terminal
-Kusto failure. Ambiguous failures are always retained.</p></dd>
+Kusto failure. The client never deletes staging after ambiguous failures;
+Storage may already have deleted downloaded blobs when <code>cleanup = TRUE</code>.</p></dd>
 
 
 <dt id="arg-compression">compression<a class="anchor" aria-label="anchor" href="#arg-compression"></a></dt>
@@ -268,11 +270,9 @@ case-sensitive name. Before staging, the writer verifies that those names
 and their Kusto scalar types exactly match the target table. Supply <code>mapping</code>
 when the Parquet schema and table need an explicit predefined mapping; a
 named mapping bypasses this identity-schema check.</p>
-<p><code>skip_batching = TRUE</code> cannot be combined with <code>ingest_if_not_exists</code> when
-staging produces multiple Parquet files. Kusto then ingests each file
-independently, so the shared idempotency tag can suppress later files in the
-same logical write. Use normal batching, stage one file, or omit the
-idempotency key.</p>
+<p><code>ingest_if_not_exists</code> requires staging to produce one Parquet file,
+regardless of <code>skip_batching</code>. A shared idempotency tag can suppress later
+files in the same logical write. Stage one file or omit the idempotency key.</p>
 <p>The service's advertised <code>maxDataSize</code> and source <code>rawSize</code> refer to the
 uncompressed source representation. Arrow's in-memory buffer size is not an
 equivalent Parquet measurement, so the writer deliberately omits <code>rawSize</code>
@@ -292,13 +292,14 @@ an expired authorization.</p>
     <h2 id="failure-and-cleanup-safety">Failure and cleanup safety<a class="anchor" aria-label="anchor" href="#failure-and-cleanup-safety"></a></h2>
 
 
-<p>A successful tracked ingestion is cleaned up by default. Kusto removes blobs
-uploaded to its service-owned Storage container; OneLake staging is removed
-after the tracked success is confirmed. A submission error, polling timeout,
-or other ambiguous result always retains staging because Kusto may still be
-reading it. A confirmed terminal ingestion failure retains staging by default
-and can remove it with
-<code>keep_staging_on_failure = FALSE</code>. The retained full OneLake path is carried
+<p>A successful tracked ingestion is cleaned up by default. Kusto removes
+service-owned Storage blobs after download; the client removes OneLake
+staging after confirmed success. Ambiguous results retain OneLake staging.
+With Storage and <code>cleanup = TRUE</code>, an ambiguous or failed batch reports
+<code>staging_retained = NA</code>: some or all blobs may already have been deleted.
+Set <code>cleanup = FALSE</code> to retain Storage sources for recovery.
+After a confirmed terminal failure, the client leaves remaining staging
+alone unless <code>keep_staging_on_failure = FALSE</code>. The full staging path is carried
 by <code>fabric_kql_write_error</code> conditions.
 A transport failure during OneLake's final atomic rename can also leave the
 unique destination present; upload errors report <code>staging_retained = NA</code> and

@@ -212,12 +212,15 @@ when sequential statements need to share variables or cached data:
 
 ``` r
 
-session <- lakehouse$livy_session()
-on.exit(session$close(), add = TRUE)
+answer <- local({
+  session <- lakehouse$livy_session()
+  on.exit(session$close(), add = TRUE)
 
-session$wait()
-session$run("shared_value = 40", kind = "pyspark")
-answer <- session$run("print(shared_value + 2)", kind = "pyspark")
+  session$wait()
+  session$run("shared_value = 40", kind = "pyspark")
+  answer <- session$run("print(shared_value + 2)", kind = "pyspark")
+  answer
+})
 answer$output$parsed
 ```
 

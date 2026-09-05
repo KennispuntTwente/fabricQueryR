@@ -79,12 +79,14 @@ fabric_kql_write_table(
 
 - cleanup:
 
-  Remove the unique staging directory after confirmed success.
+  Remove OneLake staging after confirmed success, or authorize Kusto to
+  delete Storage blobs after download.
 
 - keep_staging_on_failure:
 
-  Retain staging after a confirmed terminal Kusto failure. Ambiguous
-  failures are always retained.
+  Retain staging after a confirmed terminal Kusto failure. The client
+  never deletes staging after ambiguous failures; Storage may already
+  have deleted downloaded blobs when `cleanup = TRUE`.
 
 - compression:
 
@@ -230,11 +232,10 @@ names and their Kusto scalar types exactly match the target table.
 Supply `mapping` when the Parquet schema and table need an explicit
 predefined mapping; a named mapping bypasses this identity-schema check.
 
-`skip_batching = TRUE` cannot be combined with `ingest_if_not_exists`
-when staging produces multiple Parquet files. Kusto then ingests each
-file independently, so the shared idempotency tag can suppress later
-files in the same logical write. Use normal batching, stage one file, or
-omit the idempotency key.
+`ingest_if_not_exists` requires staging to produce one Parquet file,
+regardless of `skip_batching`. A shared idempotency tag can suppress
+later files in the same logical write. Stage one file or omit the
+idempotency key.
 
 The service's advertised `maxDataSize` and source `rawSize` refer to the
 uncompressed source representation. Arrow's in-memory buffer size is not
@@ -258,12 +259,13 @@ credentials when Storage reports an expired authorization.
 ## Failure and cleanup safety
 
 A successful tracked ingestion is cleaned up by default. Kusto removes
-blobs uploaded to its service-owned Storage container; OneLake staging
-is removed after the tracked success is confirmed. A submission error,
-polling timeout, or other ambiguous result always retains staging
-because Kusto may still be reading it. A confirmed terminal ingestion
-failure retains staging by default and can remove it with
-`keep_staging_on_failure = FALSE`. The retained full OneLake path is
+service-owned Storage blobs after download; the client removes OneLake
+staging after confirmed success. Ambiguous results retain OneLake
+staging. With Storage and `cleanup = TRUE`, an ambiguous or failed batch
+reports `staging_retained = NA`: some or all blobs may already have been
+deleted. Set `cleanup = FALSE` to retain Storage sources for recovery.
+After a confirmed terminal failure, the client leaves remaining staging
+alone unless `keep_staging_on_failure = FALSE`. The full staging path is
 carried by `fabric_kql_write_error` conditions. A transport failure
 during OneLake's final atomic rename can also leave the unique
 destination present; upload errors report `staging_retained = NA` and
