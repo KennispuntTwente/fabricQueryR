@@ -959,7 +959,8 @@ kusto_execute_query <- function(
     req,
     credential = credential,
     audience = .fabric_audience$kusto,
-    idempotent = TRUE
+    idempotent = TRUE,
+    request_timeout = timeout
   )
 
   # 3 Parse and return response frames -------------------------------------------------------------

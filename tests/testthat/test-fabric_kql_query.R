@@ -181,7 +181,7 @@ test_that("KQL table reader delegates a safely parameterized projection", {
     columns = c("id", "display name"),
     limit = 25,
     request_properties = list(servertimeout = "30s"),
-    timeout = 17,
+    timeout = 900,
     retain_raw_frames = TRUE,
     token = "kusto-token"
   )
@@ -206,7 +206,7 @@ test_that("KQL table reader delegates a safely parameterized projection", {
   )
   expect_match(captured$query, "| take 25", fixed = TRUE)
   expect_identical(captured$request_properties, list(servertimeout = "30s"))
-  expect_identical(captured$timeout, 17)
+  expect_identical(captured$timeout, 900)
   expect_true(captured$retain_raw_frames)
   expect_identical(captured$token, "kusto-token")
 
@@ -466,7 +466,7 @@ test_that("fabric_kql_query sends a read-only v2 request with Kusto auth", {
     database = "Events",
     parameters = list(input = "not interpolated ' ; --"),
     request_properties = list(servertimeout = "30s"),
-    timeout = 17,
+    timeout = 900,
     token = function(audience, force_refresh = FALSE) {
       audiences <<- c(audiences, audience)
       "kusto-token"
@@ -480,7 +480,7 @@ test_that("fabric_kql_query sends a read-only v2 request with Kusto auth", {
     "https://cluster.kusto.fabric.microsoft.com/v2/rest/query"
   )
   expect_equal(captured$headers[["x-ms-readonly"]], "true")
-  expect_equal(captured$options$timeout_ms, 17000)
+  expect_equal(captured$options$timeout_ms, 900000)
   expect_equal(captured$body$data$db, "Events")
   expect_match(captured$body$data$csl, "query_parameters", fixed = TRUE)
   properties <- jsonlite::fromJSON(
