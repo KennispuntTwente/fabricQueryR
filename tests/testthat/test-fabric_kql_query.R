@@ -522,7 +522,7 @@ test_that("Kusto v2 type metadata produces stable R columns", {
     '{"ColumnName":"text","ColumnType":"string"},',
     '{"ColumnName":"elapsed","ColumnType":"timespan"}',
     '],"Rows":[',
-    '[true,"2026-07-24T12:30:01.125Z","12.50","{\\"a\\":1}",',
+    '[true,"2026-07-24T12:30:01.125Z","12.50",{"a":1},',
     '"74be27de-1e4e-49d9-b579-fe0b331d3642",7,9007199254740993,',
     '1.5,"hello","1.02:03:04.5"],',
     '[null,null,null,null,null,null,null,null,null,null]',
@@ -1057,4 +1057,18 @@ test_that("fabric_kql_query validates query, timeout, and discovery types", {
     "Eventhouse or KQLDatabase",
     fixed = TRUE
   )
+})
+test_that("dynamic cells retain their decoded JSON types", {
+  values <- list(
+    "123",
+    "true",
+    "null",
+    "[1,2]",
+    "{\"a\":1}",
+    list(1L, 2L),
+    NULL,
+    TRUE,
+    123L
+  )
+  expect_identical(kusto_convert_column(values, "dynamic"), values)
 })

@@ -855,3 +855,21 @@ test_that("Fabric GraphQL surfaces schema and authentication failures", {
     "HTTP (401|403)"
   )
 })
+test_that("live KQL dynamic JSON-looking strings retain their types", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  value <- fabric_kql_query(
+    database$query_service_uri,
+    database = database$database_name,
+    token = fabric_test_token_provider(),
+    query = paste0(
+      'print n=dynamic("123"), b=dynamic("true"), ',
+      'z=dynamic("null"), a=dynamic("[1,2]"), actual=dynamic([1,2])'
+    )
+  )
+  expect_identical(value$n[[1L]], "123")
+  expect_identical(value$b[[1L]], "true")
+  expect_identical(value$z[[1L]], "null")
+  expect_identical(value$a[[1L]], "[1,2]")
+  expect_type(value$actual[[1L]], "list")
+})

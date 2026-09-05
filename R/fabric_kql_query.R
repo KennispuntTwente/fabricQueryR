@@ -1605,22 +1605,9 @@ kusto_timespan_seconds <- function(value) {
       as.numeric(parts[[6L]]))
 }
 
-# Decode one dynamic JSON `value` when possible. Returns structured R data, the
-# original scalar, or `NULL` for a Kusto null
+# Preserve a dynamic cell already decoded by the HTTP JSON parser.
 kusto_dynamic_value <- function(value) {
-  if (is.null(value)) {
-    return(NULL)
-  }
-
-  if (!is.character(value) || length(value) != 1L) {
-    return(value)
-  }
-  parsed <- try(
-    jsonlite::fromJSON(value, simplifyVector = FALSE, bigint_as_char = TRUE),
-    silent = TRUE
-  )
-
-  if (inherits(parsed, "try-error")) value else parsed
+  value
 }
 
 # Dispatch nullable `values` to the parser for declared Kusto `type`. Returns
