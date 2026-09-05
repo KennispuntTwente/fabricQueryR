@@ -1900,3 +1900,48 @@ test_that("OneLake DFS bases must be canonical HTTPS origins", {
     "https://workspace.z12.dfs.fabric.microsoft.com"
   )
 })
+test_that("OneLake distinguishes literal percent filenames from URI escapes", {
+  target <- onelake_resolve_target("ws", "lh.Lakehouse", "Files/a%2Fb%20c.txt")
+  expect_match(
+    onelake_path_url(target),
+    "/Files/a%252Fb%2520c.txt$",
+    fixed = FALSE
+  )
+  uri <- "https://onelake.dfs.fabric.microsoft.com/ws/lh.Lakehouse/%54ables/orders/part.parquet"
+  target <- onelake_parse_uri(uri)
+  expect_identical(target$path, "Tables/orders/part.parquet")
+  error <- tryCatch(
+    onelake_require_mutable_path(target, "delete", FALSE),
+    error = identity
+  )
+  expect_s3_class(error, "error")
+  expect_match(conditionMessage(error), "below Tables/", fixed = TRUE)
+  target <- onelake_parse_uri(
+    "https://onelake.dfs.fabric.microsoft.com/ws/lh.Lakehouse/Files/a%252Fb.txt"
+  )
+  expect_identical(target$path, "Files/a%2Fb.txt")
+  expect_match(onelake_path_url(target), "/Files/a%252Fb.txt$", fixed = FALSE)
+})
+test_that("encoded managed-table URIs are rejected before mutation transport", {
+  uri <- paste0(
+    "https://onelake.dfs.fabric.microsoft.com/",
+    "ws/lh.Lakehouse/%54ables/orders/part.parquet"
+  )
+  httr2::local_mocked_responses(function(req) stop("unexpected transport"))
+  upload <- tryCatch(
+    fabric_onelake_upload(uri, source = raw(), token = "test"),
+    error = identity
+  )
+  delete <- tryCatch(
+    fabric_onelake_delete(uri, confirm = TRUE, token = "test"),
+    error = identity
+  )
+  for (error in list(upload, delete)) {
+    expect_s3_class(error, "error")
+    expect_match(
+      conditionMessage(error),
+      "below Tables/ is blocked",
+      fixed = TRUE
+    )
+  }
+})

@@ -941,8 +941,9 @@ onelake_parse_uri <- function(uri) {
     item <- pieces[[1L]]
     path <- paste(utils::tail(pieces, -1L), collapse = "/")
   }
-  onelake_scalar(workspace, "workspace")
-  onelake_scalar(item, "item")
+  # url_parse() has already decoded the URI components once.
+  onelake_segment(workspace, "workspace")
+  onelake_segment(item, "item")
   workspace_guid <- fabric_is_guid(workspace)
   item_guid <- fabric_is_guid(item)
   if (!identical(workspace_guid, item_guid)) {
@@ -1193,6 +1194,7 @@ onelake_encode_path <- function(...) {
       utils::URLencode,
       character(1),
       reserved = TRUE,
+      repeated = TRUE,
       USE.NAMES = FALSE
     ),
     collapse = "/"
