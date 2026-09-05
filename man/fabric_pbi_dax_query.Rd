@@ -98,7 +98,11 @@ A tibble for one result table. Multiple Arrow result tables are
 returned as a \code{fabric_pbi_dax_rowsets} list of tibbles or Arrow streams
 Power BI column names are preserved. Result tables with no rows have no
 column metadata and therefore return a zero-row, zero-column tibble.
-Missing, partial, or truncated results raise an error
+Missing results and service-reported errors or truncation raise an error.
+Arrow results respect \code{arrow_options$resultSetRowCountLimit}; the service
+default is 1,000,000 rows. Intentional row limits do not raise an error.
+Reaching the cap does not establish whether more rows exist. For complete
+extraction, verify expected row counts or query bounded partitions
 }
 \description{
 Runs a DAX query against a published semantic model and returns the result as
