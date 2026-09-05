@@ -679,3 +679,16 @@ test_that("shortcut records redact credential fields returned by Fabric", {
     paste(capture.output(str(result)), collapse = "\n")
   ))
 })
+test_that("shortcut get infers transforms when the list flag is absent", {
+  record <- shortcut_test_onelake_record(transform = TRUE)
+  listed <- .fabric_shortcut_record(record)
+  record$isShortcutTransform <- NULL
+  fetched <- .fabric_shortcut_record(record)
+  expect_identical(fetched$is_transform, TRUE)
+  expect_identical(fetched$transform, listed$transform)
+  record$isShortcutTransform <- FALSE
+  expect_identical(.fabric_shortcut_record(record)$is_transform, FALSE)
+  record$isShortcutTransform <- NULL
+  record$transform <- NULL
+  expect_identical(.fabric_shortcut_record(record)$is_transform, FALSE)
+})

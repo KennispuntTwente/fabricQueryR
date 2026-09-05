@@ -1112,7 +1112,11 @@ fabric_onelake_shortcut_delete <- function(
     ),
     one_lake_item_id = .fabric_shortcut_optional_string(one_lake$itemId),
     one_lake_path = .fabric_shortcut_optional_string(one_lake$path),
-    is_transform = isTRUE(record$isShortcutTransform),
+    is_transform = if (is.null(record$isShortcutTransform)) {
+      length(record$transform) > 0L
+    } else {
+      isTRUE(record$isShortcutTransform)
+    },
     target = target,
     transform = .httr2_redact_object(record$transform %||% list()),
     raw = .httr2_redact_object(record)
