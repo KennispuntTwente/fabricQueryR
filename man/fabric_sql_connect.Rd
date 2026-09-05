@@ -95,7 +95,11 @@ named list is merged with the package-managed \code{azure_token}; that protected
 attribute cannot be overridden. ODBC authentication, target, driver, and
 TLS options cannot be supplied through \code{...} because the package validates
 and constructs those settings before attaching the access token. This also
-excludes raw \code{.connection_string}, \code{DSN}, and \code{FileDSN} arguments}
+excludes raw \code{.connection_string}, \code{DSN}, and \code{FileDSN} arguments
+ADBC defaults to \code{bigint = "integer64"}, so ordinary BIGINT values do not
+have to fit an R 32-bit integer. Supply another \code{bigint} policy explicitly
+through \code{...} if needed. Direct DBI reads with \code{integer64} cannot represent
+the minimum signed BIGINT because 'bit64' reserves that value for \code{NA}.}
 }
 \value{
 A live \code{DBIConnection}. Close it with \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}} when

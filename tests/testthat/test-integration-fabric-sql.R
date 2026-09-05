@@ -107,6 +107,27 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
   }
 })
 
+test_that("ADBC default connections accept ordinary large BIGINT values", {
+  fabric_test_require_package("adbi")
+  manifest <- fabric_test_manifest()
+  fixture <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  target <- fabric_item(
+    manifest$workspace_id,
+    fixture$id,
+    type = "Lakehouse",
+    token = fabric_test_token_provider()
+  )
+  con <- fabric_sql_connect(
+    target,
+    backend = "adbc",
+    token = fabric_test_token_provider(),
+    verbose = FALSE
+  )
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  value <- DBI::dbGetQuery(con, "SELECT CAST('2147483648' AS bigint) AS v")
+  expect_identical(as.character(value$v), "2147483648")
+})
+
 test_that("fabric_sql_query returns tibbles and consumable Arrow streams", {
   backends <- fabric_test_sql_backends()
   manifest <- fabric_test_manifest()

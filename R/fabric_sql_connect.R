@@ -237,6 +237,10 @@ fabric_sql_connection_info <- function(
 #'   TLS options cannot be supplied through `...` because the package validates
 #'   and constructs those settings before attaching the access token. This also
 #'   excludes raw `.connection_string`, `DSN`, and `FileDSN` arguments
+#'   ADBC defaults to `bigint = "integer64"`, so ordinary BIGINT values do not
+#'   have to fit an R 32-bit integer. Supply another `bigint` policy explicitly
+#'   through `...` if needed. Direct DBI reads with `integer64` cannot represent
+#'   the minimum signed BIGINT because 'bit64' reserves that value for `NA`.
 #'
 #' @return A live `DBIConnection`. Close it with [DBI::dbDisconnect()] when
 #'   finished. For an ADBC connection with child results still registered,
@@ -1913,18 +1917,19 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
 .fabric_sql_db_connect <- function(
   backend = c("odbc", "adbc"),
   adbc_driver = NULL,
+  bigint = "integer64",
   ...
 ) {
   backend <- match.arg(backend)
   if (identical(backend, "odbc")) {
-    return(DBI::dbConnect(odbc::odbc(), ...))
+    return(DBI::dbConnect(odbc::odbc(), bigint = bigint, ...))
   }
   driver <- if (inherits(adbc_driver, "adbc_driver")) {
     adbc_driver
   } else {
     adbcdrivermanager::adbc_driver(adbc_driver)
   }
-  DBI::dbConnect(adbi::adbi(driver), ...)
+  DBI::dbConnect(adbi::adbi(driver), bigint = bigint, ...)
 }
 
 # Execute one query through `con` and return the requested result shape. This

@@ -1106,6 +1106,7 @@ test_that("SQL connection adapters construct ODBC and ADBC connections", {
   direct_connection <- .fabric_sql_db_connect(
     "adbc",
     adbc_driver = managed_driver,
+    bigint = "character",
     uri = "sql.fabric.microsoft.com"
   )
 
@@ -1120,6 +1121,8 @@ test_that("SQL connection adapters construct ODBC and ADBC connections", {
   expect_identical(manager_calls, "adbc_mssql")
   expect_identical(connection_calls[[2L]]$driver, adbi_driver)
   expect_identical(connection_calls[[3L]]$driver, adbi_driver)
+  expect_identical(connection_calls[[2L]]$args$bigint, "integer64")
+  expect_identical(connection_calls[[3L]]$args$bigint, "character")
 })
 
 test_that("SQL query adapters preserve result shape and disconnect semantics", {
