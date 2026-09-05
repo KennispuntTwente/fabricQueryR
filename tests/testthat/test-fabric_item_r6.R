@@ -1298,3 +1298,41 @@ test_that("Runnable item methods cover the complete job lifecycle", {
   )
   expect_identical(delete$schedule_id, "schedule-id")
 })
+test_that("R6 Livy session creation keeps discovery application authentication", {
+  credential <- fabric_credential(
+    "tenant",
+    "client",
+    auth_args = list(password = "synthetic")
+  )
+  audiences <- list()
+  credential$provider <- function(audience, force_refresh = FALSE) {
+    audiences[[length(audiences) + 1L]] <<- audience
+    "synthetic"
+  }
+  fabric_get_token(credential, .fabric_audience$fabric)
+  item <- fabric_r6_record(
+    list(
+      id = "11111111-1111-4111-8111-111111111111",
+      workspaceId = "22222222-2222-4222-8222-222222222222",
+      displayName = "Lake",
+      type = "Lakehouse",
+      livy_url = "https://api.fabric.microsoft.com/livy"
+    ),
+    legacy_class = c("fabric_item", "list"),
+    credential = credential
+  )
+  httr2::local_mocked_responses(function(req) {
+    httr2::response(
+      201L,
+      headers = list(`content-type` = "application/json"),
+      body = charToRaw('{"id":1,"state":"starting"}'),
+      url = req$url
+    )
+  })
+  session <- item$livy_session(verbose = FALSE)
+  expect_s3_class(session, "FabricLivySession")
+  expect_identical(
+    audiences,
+    list(.fabric_audience$fabric, .fabric_audience$power_bi)
+  )
+})

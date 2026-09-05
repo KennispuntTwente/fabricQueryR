@@ -646,8 +646,13 @@ fabric_livy_credential <- function(
 # Choose the explicit or flow-appropriate Livy token audience. Returns one or
 # more scopes used when creating the internal credential
 fabric_livy_audience <- function(audience, token = NULL, auth_args = list()) {
+  application <- if (inherits(token, "fabric_credential")) {
+    isTRUE(token$client_credentials)
+  } else {
+    is.null(token) && fabric_uses_client_credentials(auth_args)
+  }
   if (is.null(audience)) {
-    if (is.null(token) && fabric_uses_client_credentials(auth_args)) {
+    if (application) {
       return(.fabric_audience$power_bi)
     }
 
@@ -671,8 +676,7 @@ fabric_livy_audience <- function(audience, token = NULL, auth_args = list()) {
   }
 
   if (
-    is.null(token) &&
-      fabric_uses_client_credentials(auth_args) &&
+    application &&
       (length(audience) != 1L ||
         !grepl("/[.]default$", audience, ignore.case = TRUE))
   ) {

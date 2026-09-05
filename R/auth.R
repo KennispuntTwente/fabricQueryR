@@ -193,7 +193,12 @@ fabric_credential <- function(
     fabric_extract_azure_token(azure_token)
   }
   structure(
-    list(provider = provider, refreshable = TRUE, type = "AzureAuth"),
+    list(
+      provider = provider,
+      refreshable = TRUE,
+      type = "AzureAuth",
+      client_credentials = fabric_uses_client_credentials(auth_args)
+    ),
     class = "fabric_credential"
   )
 }
@@ -610,7 +615,7 @@ fabric_bind_fixed_credential_audience <- function(credential, audience) {
     return(invisible(audience))
   }
 
-  key <- .fabric_audience_cache_key(audience)
+  key <- paste(sort(unique(sub("/[^/]+$", "", audience))), collapse = " ")
   if (is.null(credential$audience_ref$key)) {
     credential$audience_ref$key <- key
     credential$audience_ref$audience <- audience

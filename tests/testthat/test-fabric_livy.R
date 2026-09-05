@@ -2308,3 +2308,25 @@ test_that("generic Livy JSON preserves fractional and tiny numbers", {
   )
   expect_equal(fabric_livy_parse_json(value), value, tolerance = 1e-15)
 })
+test_that("Livy retains application flow through stored credentials", {
+  credential <- fabric_credential(
+    "tenant",
+    "client",
+    auth_args = list(password = "synthetic")
+  )
+  expect_identical(
+    fabric_livy_audience(NULL, credential),
+    .fabric_audience$power_bi
+  )
+  fixed <- fabric_credential(token = "synthetic")
+  fabric_get_token(fixed, .fabric_audience$fabric)
+  expect_identical(
+    fabric_get_token(fixed, fabric_livy_audience(NULL, fixed)),
+    "synthetic"
+  )
+  error <- tryCatch(
+    fabric_get_token(fixed, .fabric_audience$storage),
+    error = identity
+  )
+  expect_s3_class(error, "fabric_multi_audience_auth_error")
+})

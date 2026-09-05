@@ -61,11 +61,18 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()
-  session <- fabric_livy_session(
-    lakehouse$livy_url,
+  discovered <- fabric_lakehouses(
+    manifest$workspace_id,
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
-    auth_args = auth$auth_args,
+    auth_args = auth$auth_args
+  )
+  selected <- Filter(
+    function(item) identical(item$id, lakehouse$id),
+    discovered
+  )
+  expect_length(selected, 1L)
+  session <- selected[[1L]]$livy_session(
     name = "fabricqueryr-integration-session",
     tags = list(test = "multiple-statements"),
     conf = list("spark.sql.shuffle.partitions" = "2"),
