@@ -109,8 +109,10 @@
 #' also needs an item read permission, as does resolving a parameterized run's
 #' collection `Location`. For a parameterized Notebook, 'fabricQueryR' captures
 #' recent history before submission so a collection `Location` cannot be
-#' confused with an earlier run. Recovery stops with an accepted-but-unresolved
-#' error when multiple new runs make the identity ambiguous. 'fabricQueryR'
+#' confused with an earlier run. Recovery requires response correlation with
+#' the job's root activity ID; history alone cannot establish ownership.
+#' Recovery stops with an accepted-but-unresolved error if correlation is
+#' absent or ambiguous. 'fabricQueryR'
 #' reconciles notebook status information from Fabric before returning it and
 #' stops with a typed error if Fabric reports an unfamiliar state instead of
 #' waiting indefinitely
@@ -461,7 +463,6 @@ fabric_job_run <- function(
     .sleep(delay)
   }
   deadline <- submitted_at + max(recovery_timeout, retry_after)
-  candidate_id <- NULL
   repeat {
     records <- tryCatch(
       .httr2_collection(
@@ -576,17 +577,6 @@ fabric_job_run <- function(
     }
     ids <- unique(vapply(matches, `[[`, character(1), "id"))
     ids <- ids[!tolower(ids) %in% tolower(baseline_ids)]
-    if (length(ids) == 1L) {
-      if (
-        !is.null(candidate_id) &&
-          identical(tolower(candidate_id), tolower(ids[[1L]]))
-      ) {
-        return(ids[[1L]])
-      }
-      candidate_id <- ids[[1L]]
-    } else {
-      candidate_id <- NULL
-    }
     if (length(ids) > 1L) {
       .fabric_job_recovery_abort(
         result,
@@ -606,9 +596,10 @@ fabric_job_run <- function(
         target,
         route,
         message = paste0(
-          "Fabric accepted the parameterized job, but its instance did not ",
-          "appear in recent history before the recovery deadline"
-        )
+          "Fabric accepted the parameterized job, but its instance could not ",
+          "be correlated before the recovery deadline"
+        ),
+        matching_ids = ids
       )
     }
     .sleep(min(poll_interval, remaining))

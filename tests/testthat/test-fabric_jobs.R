@@ -384,6 +384,7 @@ test_that("parameterized jobs recover collection Location instance IDs", {
           "jobs/instances?jobType=RunNotebook"
         ),
         retry_after = 5,
+        request_id = "55555555-5555-5555-5555-555555555555",
         body = list()
       )
     },
@@ -410,6 +411,7 @@ test_that("parameterized jobs recover collection Location instance IDs", {
       ))
       if (history_calls >= 3L) {
         records[[2L]] <- list(
+          rootActivityId = "55555555-5555-5555-5555-555555555555",
           id = "33333333-3333-3333-3333-333333333333",
           itemId = "11111111-1111-1111-1111-111111111111",
           jobType = "RunNotebook",
@@ -434,8 +436,8 @@ test_that("parameterized jobs recover collection Location instance IDs", {
   )
 
   expect_identical(job$id, "33333333-3333-3333-3333-333333333333")
-  expect_identical(history_calls, 4L)
-  expect_equal(waits, c(5, 1, 1))
+  expect_identical(history_calls, 3L)
+  expect_equal(waits, c(5, 1))
   expect_match(
     history_url,
     paste0(
@@ -516,7 +518,7 @@ test_that("parameterized job recovery detects staggered concurrent runs", {
       if (history_calls == 1L) {
         return(list())
       }
-      ids <- if (history_calls == 2L) {
+      ids <- if (history_calls <= 3L) {
         "33333333-3333-3333-3333-333333333333"
       } else {
         c(
@@ -548,7 +550,16 @@ test_that("parameterized job recovery detects staggered concurrent runs", {
 
   expect_s3_class(error, "fabric_job_accepted_unresolved")
   expect_length(error$matching_ids, 2L)
-  expect_identical(history_calls, 3L)
+  expect_identical(history_calls, 4L)
+  expect_null(error$id)
+  requests <- 0L
+  local_mocked_bindings(.fabric_job_request = function(...) {
+    requests <<- requests + 1L
+    stop("unexpected request for unresolved job")
+  })
+  expect_s3_class(rlang::catch_cnd(fabric_job_cancel(error)), "error")
+  expect_s3_class(rlang::catch_cnd(fabric_job_wait(error)), "error")
+  expect_identical(requests, 0L)
 })
 
 test_that("parameterized job recovery times out as accepted and unresolved", {
@@ -2166,6 +2177,7 @@ test_that("Core parameter jobs recover accepted collection locations once", {
           "jobs/instances?jobType=Execute"
         ),
         retry_after = 0,
+        request_id = "55555555-5555-5555-5555-555555555555",
         body = list()
       )
     },
@@ -2175,6 +2187,7 @@ test_that("Core parameter jobs recover accepted collection locations once", {
         return(list())
       }
       list(list(
+        rootActivityId = "55555555-5555-5555-5555-555555555555",
         id = "33333333-3333-3333-3333-333333333333",
         itemId = "11111111-1111-1111-1111-111111111111",
         jobType = "Execute",
