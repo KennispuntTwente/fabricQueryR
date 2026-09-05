@@ -1768,11 +1768,9 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' when the Parquet schema and table need an explicit predefined mapping; a
 #' named mapping bypasses this identity-schema check.
 #'
-#' `skip_batching = TRUE` cannot be combined with `ingest_if_not_exists` when
-#' staging produces multiple Parquet files. Kusto then ingests each file
-#' independently, so the shared idempotency tag can suppress later files in the
-#' same logical write. Use normal batching, stage one file, or omit the
-#' idempotency key.
+#' `ingest_if_not_exists` requires staging to produce one Parquet file,
+#' regardless of `skip_batching`. A shared idempotency tag can suppress later
+#' files in the same logical write. Stage one file or omit the idempotency key.
 #'
 #' The service's advertised `maxDataSize` and source `rawSize` refer to the
 #' uncompressed source representation. Arrow's in-memory buffer size is not an
