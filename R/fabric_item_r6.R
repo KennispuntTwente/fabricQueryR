@@ -46,26 +46,7 @@ FabricRecord <- R6::R6Class(
 
       reserved <- ls(self, all.names = TRUE)
       for (name in setdiff(names(record), reserved)) {
-        local({
-          key <- name
-          makeActiveBinding(
-            key,
-            function(value) {
-              if (!missing(value)) {
-                .fabric_abort(
-                  paste0(
-                    "Fabric record field `",
-                    key,
-                    "` is read-only"
-                  ),
-                  class = "fabric_r6_read_only_error"
-                )
-              }
-              private$record[[key]]
-            },
-            self
-          )
-        })
+        makeActiveBinding(name, .fabric_r6_field_binding(name, private), self)
       }
       lockEnvironment(self, bindings = FALSE)
       invisible(self)
@@ -1502,6 +1483,20 @@ fabric_r6_record <- function(
 .fabric_r6_record_label <- function(record) {
   label <- class(record)[[1L]]
   gsub("([a-z])([A-Z])", "\\1 \\2", label)
+}
+
+.fabric_r6_field_binding <- function(key, private) {
+  force(key)
+  force(private)
+  function(value) {
+    if (!missing(value)) {
+      .fabric_abort(
+        paste0("Fabric record field `", key, "` is read-only"),
+        class = "fabric_r6_read_only_error"
+      )
+    }
+    private$record[[key]]
+  }
 }
 
 .fabric_r6_credential_reference <- function(credential) {

@@ -138,21 +138,33 @@ test_that("Fabric item factories select actionable R6 subclasses", {
 })
 
 test_that("serialized R6 records omit discovery credentials", {
-  item <- fabric_r6_record(
-    list(
-      id = "11111111-1111-4111-8111-111111111111",
-      workspaceId = "22222222-2222-4222-8222-222222222222",
-      displayName = "Sales Lake",
-      type = "Lakehouse"
-    ),
-    legacy_class = c("fabric_item", "list"),
-    credential = fabric_credential(token = "discovery-token")
+  credential <- fabric_credential(
+    "tenant",
+    "client",
+    auth_args = list(password = "synthetic-client-secret")
   )
-
-  copy <- unserialize(serialize(item, NULL))
-
-  expect_identical(copy$as_list(), item$as_list())
-  expect_null(copy$.__enclos_env__$private$credential())
+  environment(credential$provider)$cache$synthetic <- list(
+    access_token = "synthetic-cached-token"
+  )
+  for (auth in list(
+    credential,
+    fabric_credential(token = "synthetic-bearer-token")
+  )) {
+    for (type in c("Workspace", "Lakehouse")) {
+      item <- r6_test_record(type, auth)
+      bytes <- serialize(item, NULL, ascii = TRUE)
+      for (secret in c(
+        "synthetic-client-secret",
+        "synthetic-cached-token",
+        "synthetic-bearer-token"
+      )) {
+        expect_identical(grepl(secret, rawToChar(bytes), fixed = TRUE), FALSE)
+      }
+      copy <- unserialize(bytes)
+      expect_identical(copy$as_list(), item$as_list())
+      expect_null(copy$.__enclos_env__$private$credential())
+    }
+  }
 })
 
 test_that("R6 records pass through the shared discovery adapter", {
