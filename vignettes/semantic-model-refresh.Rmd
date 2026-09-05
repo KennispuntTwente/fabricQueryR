@@ -108,7 +108,7 @@ load <- lakehouse$write_table(
   mode = "overwrite"
 )
 
-refresh <- model$refresh()
+refresh <- model$refresh(mode = "enhanced")
 completed <- model$refresh_wait(
   refresh,
   timeout = 1800,
