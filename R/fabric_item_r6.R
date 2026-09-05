@@ -456,7 +456,7 @@ FabricItem <- R6::R6Class(
       workspace_id <- private$workspace_id()
       private$invoke(
         fabric_item,
-        args = list(workspace = workspace_id, item = self),
+        args = list(workspace = workspace_id, item = self$id),
         dots = list(...),
         output = "r6"
       )

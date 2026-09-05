@@ -522,7 +522,7 @@ test_that("Item detail methods retain the Fabric API discovery origin", {
     calls$details$workspace,
     "22222222-2222-4222-8222-222222222222"
   )
-  expect_identical(calls$details$item, item)
+  expect_identical(calls$details$item, item$id)
   expect_identical(
     calls$details$api_base,
     "https://highapi.fabric.microsoft.us/v1"
@@ -807,9 +807,9 @@ test_that("Workspace and generic item methods all delegate their context", {
     "details",
     list(),
     "fabric_item",
-    calls,
-    "item"
+    calls
   )
+  expect_identical(call$item, item$id)
   expect_identical(call$workspace, item$workspaceId)
   expect_identical(call$output, "r6")
 })
@@ -1335,4 +1335,43 @@ test_that("R6 Livy session creation keeps discovery application authentication",
     audiences,
     list(.fabric_audience$fabric, .fabric_audience$power_bi)
   )
+})
+test_that("generic item details fetch current Core metadata and deletions", {
+  for (type in c("Report", "UserDataFunction")) {
+    item <- r6_test_record(type)
+    urls <- character()
+    deleted <- FALSE
+    local_mocked_bindings(
+      .httr2_perform = function(req, ...) {
+        urls <<- c(urls, req$url)
+        is_item <- grepl("/items/", req$url, fixed = TRUE)
+        if (is_item && deleted) {
+          rlang::abort(
+            "ItemNotFound",
+            class = "fabric_http_error",
+            status_code = 404L
+          )
+        }
+        body <- if (is_item) {
+          list(id = item$id, displayName = "New name", type = type)
+        } else {
+          list(id = item$workspaceId, displayName = "Workspace")
+        }
+        httr2::response(
+          status_code = 200L,
+          headers = list("content-type" = "application/json"),
+          body = charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE))
+        )
+      }
+    )
+    fresh <- item$details(detail = FALSE, token = "test-token")
+    expect_identical(fresh$displayName, "New name")
+    expect_equal(sum(grepl("/items/", urls, fixed = TRUE)), 1L)
+    deleted <- TRUE
+    error <- rlang::catch_cnd(item$details(
+      detail = FALSE,
+      token = "test-token"
+    ))
+    expect_s3_class(error, "fabric_http_error")
+  }
 })
