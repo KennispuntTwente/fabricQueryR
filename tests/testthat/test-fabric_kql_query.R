@@ -404,6 +404,150 @@ test_that("KQL numeric parameters ignore R's output decimal option", {
   )
 })
 
+test_that("KQL dynamic numbers retain the same exact values as scalar parameters", {
+  smallest <- .Machine$double.xmin * .Machine$double.eps
+  positive <- c(
+    0,
+    smallest,
+    2 * smallest,
+    .Machine$double.xmin - smallest,
+    .Machine$double.xmin,
+    .Machine$double.xmin + smallest,
+    1e-200,
+    .Machine$double.eps,
+    1 - .Machine$double.eps / 2,
+    1,
+    1 + .Machine$double.eps,
+    pi,
+    pi + 2 * .Machine$double.eps,
+    2^53 - 1,
+    2^53,
+    2^53 + 2,
+    1e200,
+    .Machine$double.xmax
+  )
+  values <- c(positive, -positive[-1L])
+  withr::local_options(digits = 3L, OutDec = ",", scipen = 999L)
+
+  literal <- kusto_encode_parameter(values)
+  json <- substr(literal, 9L, nchar(literal) - 1L)
+  decoded <- jsonlite::fromJSON(json)
+  scalar_decoded <- vapply(
+    values,
+    \(value) as.numeric(kusto_encode_parameter(value)),
+    numeric(1)
+  )
+
+  expect_match(literal, "^dynamic\\(\\[")
+  expect_type(decoded, "double")
+  expect_identical(decoded, values)
+  expect_identical(scalar_decoded, values)
+})
+
+test_that("KQL dynamic numbers round trip across binary exponents", {
+  powers <- 2^seq.int(-1074L, 1023L, by = 37L)
+  mantissas <- c(
+    1,
+    1 + .Machine$double.eps,
+    1.25,
+    pi / 2,
+    2 - .Machine$double.eps
+  )
+  positive <- as.vector(outer(mantissas, powers))
+  values <- c(positive, -positive)
+
+  literal <- kusto_encode_parameter(values)
+  json <- substr(literal, 9L, nchar(literal) - 1L)
+
+  expect_identical(jsonlite::fromJSON(json), values)
+})
+
+test_that("KQL dynamic objects retain nested numeric values and types", {
+  values <- list(
+    scalar = pi,
+    nested = list(
+      adjacent = c(1 - .Machine$double.eps / 2, 1 + .Machine$double.eps),
+      limits = list(
+        small = .Machine$double.xmin * .Machine$double.eps,
+        large = .Machine$double.xmax
+      )
+    ),
+    rows = data.frame(value = c(pi, -pi), enabled = c(TRUE, FALSE)),
+    numeric_text = "9007199254740993"
+  )
+
+  literal <- kusto_encode_parameter(values)
+  json <- substr(literal, 9L, nchar(literal) - 1L)
+  decoded <- jsonlite::fromJSON(json)
+
+  expect_identical(decoded, values)
+})
+
+test_that("KQL exact integer parameters retain integer64 dispatch", {
+  text <- c(
+    "0",
+    "-1",
+    "9007199254740993",
+    "-9007199254740993",
+    "9223372036854775807",
+    "-9223372036854775807"
+  )
+
+  encoded <- vapply(
+    text,
+    \(value) kusto_encode_parameter(bit64::as.integer64(value)),
+    character(1),
+    USE.NAMES = FALSE
+  )
+  literal <- kusto_encode_parameter(list(ids = bit64::as.integer64(text)))
+  json <- substr(literal, 9L, nchar(literal) - 1L)
+  decoded <- jsonlite::fromJSON(json, bigint_as_char = TRUE)
+
+  expect_identical(encoded, text)
+  expect_identical(decoded$ids, text)
+  expect_identical(kusto_encode_parameter(NaN), "real(nan)")
+  expect_identical(kusto_encode_parameter(Inf), "real(+inf)")
+  expect_identical(kusto_encode_parameter(-Inf), "real(-inf)")
+})
+
+test_that("KQL request properties retain exact dynamic numeric parameters", {
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    captured <<- req
+    kusto_test_response(list(
+      list(
+        FrameType = "DataSetHeader",
+        Version = "v2.0",
+        IsProgressive = FALSE
+      ),
+      list(
+        FrameType = "DataTable",
+        TableId = 0L,
+        TableKind = "PrimaryResult",
+        TableName = "PrimaryResult",
+        Columns = list(list(ColumnName = "value", ColumnType = "int")),
+        Rows = list(list(1L))
+      ),
+      kusto_test_completion()
+    ))
+  })
+  values <- c(pi, 1 + .Machine$double.eps, .Machine$double.xmin, 2^53 + 2)
+
+  result <- fabric_kql_query(
+    "https://cluster.kusto.fabric.microsoft.com",
+    "declare query_parameters(values:dynamic); print value=1",
+    database = "Events",
+    parameters = list(values = values),
+    token = "kusto-token"
+  )
+  properties <- jsonlite::fromJSON(captured$body$data$properties)
+  literal <- properties$Parameters$values
+  json <- substr(literal, 9L, nchar(literal) - 1L)
+
+  expect_identical(result$value, 1L)
+  expect_identical(jsonlite::fromJSON(json), values)
+})
+
 test_that("Fabric-only KQL request-property restrictions are enforced", {
   for (property in c(
     "queryconsistency",

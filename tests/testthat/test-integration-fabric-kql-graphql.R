@@ -220,6 +220,45 @@ test_that("fabric_kql_query discovers targets and binds safe parameters", {
   expect_equal(empty_dynamic$option_count, 0L)
 })
 
+test_that("fabric_kql_query preserves exact dynamic numeric parameters in Fabric", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  result <- fabric_kql_query(
+    database$query_service_uri,
+    query = paste(
+      "declare query_parameters(scalar:real, values:dynamic, object:dynamic);",
+      "print scalar_matches=toreal(values[0]) == scalar,",
+      "below_matches=toreal(values[1]) == real(0.99999999999999989),",
+      "above_matches=toreal(values[2]) == real(1.0000000000000002),",
+      "small_matches=toreal(values[3]) == real(2.2250738585072014e-308),",
+      "large_matches=toreal(values[4]) == real(1.7976931348623157e308),",
+      "integer_matches=toreal(values[5]) == real(9007199254740994),",
+      "nested_matches=toreal(object.nested.value) == -scalar,",
+      "value=toreal(values[0])"
+    ),
+    database = database$database_name,
+    parameters = list(
+      scalar = pi,
+      values = c(
+        pi,
+        1 - .Machine$double.eps / 2,
+        1 + .Machine$double.eps,
+        .Machine$double.xmin,
+        .Machine$double.xmax,
+        2^53 + 2
+      ),
+      object = list(nested = list(value = -pi))
+    ),
+    token = fabric_test_token_provider()
+  )
+
+  expect_identical(
+    unname(unlist(result[grepl("_matches$", names(result))])),
+    rep(TRUE, 7L)
+  )
+  expect_identical(result$value, pi)
+})
+
 test_that("fabric_kql_query returns multiple live primary tables", {
   manifest <- fabric_test_manifest()
   database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")

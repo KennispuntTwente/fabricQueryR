@@ -862,13 +862,14 @@ kusto_encode_parameter <- function(value) {
 
   # 3 Encode vector and object values --------------------------------------------------------------
 
-  # Serialize vectors and objects as JSON-backed dynamic Kusto values
+  # Use full double precision for JSON-backed dynamic Kusto values; digits = NA
+  # can round finite numbers and overflow the largest finite double.
 
   json <- jsonlite::toJSON(
     value,
     auto_unbox = TRUE,
     null = "null",
-    digits = NA
+    digits = 22
   )
   paste0("dynamic(", json, ")")
 }
