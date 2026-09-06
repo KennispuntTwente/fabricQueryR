@@ -351,7 +351,7 @@ function_serialize_parameters <- function(parameters) {
       null = "null",
       na = "null",
       dataframe = "columns",
-      digits = NA
+      digits = 22
     ),
     silent = TRUE
   )

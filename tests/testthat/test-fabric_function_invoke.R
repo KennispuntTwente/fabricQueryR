@@ -75,6 +75,114 @@ test_that("function parameters support empty, named-vector, and data-frame objec
   )
 })
 
+test_that("function parameters preserve finite doubles across their full range", {
+  values <- c(
+    pi,
+    1 / 3,
+    0.1,
+    1.2345678901234567,
+    1 - .Machine$double.eps / 2,
+    1 + .Machine$double.eps,
+    2^53 - 1,
+    2^53,
+    2^53 + 2,
+    .Machine$double.xmin,
+    .Machine$double.xmax,
+    .Machine$double.xmin * .Machine$double.eps,
+    1e-100,
+    1e100,
+    0
+  )
+  values <- c(values, -values)
+  encoded <- function_serialize_parameters(list(values = values))
+  decoded <- jsonlite::fromJSON(encoded)
+
+  expect_identical(as.double(decoded$values), values)
+  for (value in values) {
+    scalar <- jsonlite::fromJSON(function_serialize_parameters(list(
+      value = value
+    )))
+    expect_identical(as.double(scalar$value), value)
+  }
+})
+
+test_that("function parameters preserve sampled doubles without display rounding", {
+  withr::local_seed(42)
+  withr::local_options(digits = 3, scipen = 999, OutDec = ",")
+  values <- stats::runif(1000, -1, 1) * 10^stats::runif(1000, -300, 300)
+
+  encoded <- function_serialize_parameters(list(values = values))
+
+  expect_identical(jsonlite::fromJSON(encoded)$values, values)
+})
+
+test_that("function numeric parameters retain precision in nested and tabular objects", {
+  values <- c(pi, 1 / 3, 1 + .Machine$double.eps)
+  parameters <- list(
+    scalar = pi,
+    array = I(pi),
+    nested = list(rows = list(list(value = pi), list(value = 1 / 3))),
+    frame = data.frame(value = values),
+    matrix = matrix(values, nrow = 1)
+  )
+  decoded <- jsonlite::fromJSON(
+    function_serialize_parameters(parameters),
+    simplifyVector = FALSE
+  )
+
+  expect_identical(decoded$scalar, pi)
+  expect_identical(decoded$array, list(pi))
+  expect_identical(decoded$nested$rows, parameters$nested$rows)
+  expect_identical(decoded$frame$value, as.list(values))
+  expect_identical(decoded$matrix, list(as.list(values)))
+  expect_identical(
+    jsonlite::fromJSON(function_serialize_parameters(c(
+      first = pi,
+      second = 1 / 3
+    ))),
+    list(first = pi, second = 1 / 3)
+  )
+})
+
+test_that("function precision handling retains exact integer and decimal inputs", {
+  identifiers <- bit64::as.integer64(c(
+    "9007199254740993",
+    "9223372036854775807",
+    "-9223372036854775807"
+  ))
+  decimal <- "12345678901234567890.123456789012345"
+  encoded <- function_serialize_parameters(list(
+    identifiers = identifiers,
+    decimal = decimal,
+    missing = c(NA_real_, NaN, Inf, -Inf),
+    nullable = c(pi, NA_real_)
+  ))
+  decoded <- jsonlite::fromJSON(encoded, bigint_as_char = TRUE)
+
+  expect_identical(decoded$identifiers, as.character(identifiers))
+  expect_identical(decoded$decimal, decimal)
+  expect_identical(decoded$missing, rep(NA, 4))
+  expect_identical(decoded$nullable, c(pi, NA_real_))
+})
+
+test_that("function invocation sends precise numeric JSON through the public API", {
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    captured <<- jsonlite::fromJSON(rawToChar(req$body$data))
+    function_test_response(function_success_body(), url = req$url)
+  })
+  values <- c(pi, 1 / 3, .Machine$double.xmin, .Machine$double.xmax)
+
+  fabric_function_invoke(
+    function_test_url,
+    parameters = list(scalar = pi, values = values),
+    token = "function-token"
+  )
+
+  expect_identical(captured$scalar, pi)
+  expect_identical(captured$values, values)
+})
+
 test_that("function parameters enforce Fabric camelCase naming", {
   expect_identical(
     function_serialize_parameters(list(orderId = 1L, line2Value = "ok")),
