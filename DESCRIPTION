@@ -21,13 +21,13 @@ Suggests:
     adbi,
     arrow (>= 9.0.0),
     DBI (>= 1.2.0),
+    dplyr,
     knitr,
     lifecycle,
     odbc,
     purrr,
     rmarkdown,
     testthat (>= 3.2.0),
-    vctrs,
     waldo,
     withr
 VignetteBuilder: knitr
@@ -39,7 +39,7 @@ Imports:
     bit64,
     httr2 (>= 1.2.0),
     R6,
-    dplyr,
+    vctrs,
     tibble,
     jsonlite,
     methods,

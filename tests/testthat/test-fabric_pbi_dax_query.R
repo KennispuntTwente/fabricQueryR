@@ -505,6 +505,35 @@ test_that("DAX client timeout is positive and validated before authentication", 
   }
 })
 
+test_that("JSON DAX Variant columns preserve heterogeneous scalar values", {
+  for (values in list(list(TRUE, "two"), list(TRUE, 0L), list(1L, "two"))) {
+    rows <- c(
+      lapply(values, function(value) list(value = value)),
+      list(list(value = NULL), list())
+    )
+    body <- jsonlite::toJSON(
+      list(results = list(list(tables = list(list(rows = rows))))),
+      auto_unbox = TRUE,
+      null = "null"
+    )
+    httr2::local_mocked_responses(function(req) {
+      httr2::response(
+        200L,
+        headers = list(`content-type` = "application/json"),
+        body = charToRaw(body),
+        url = req$url
+      )
+    })
+    result <- fabric_pbi_dax_query(
+      dax = 'EVALUATE ROW("value", 1)',
+      workspace_id = pbi_test_workspace_id,
+      dataset_id = pbi_test_dataset_id,
+      token = "token"
+    )
+    expect_identical(result$value, c(values, list(NULL, NULL)))
+  }
+})
+
 test_that("DAX response parser promotes mixed-size Whole Numbers", {
   parsed <- pbi_parse_dax_response(list(
     results = list(list(

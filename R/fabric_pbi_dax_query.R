@@ -1518,20 +1518,29 @@ pbi_parse_dax_response <- function(out) {
 
   # bigint_as_char preserves large Whole Numbers as strings. Promote smaller
   # numeric values in the same column before binding so a valid mixed-size
-  # integer column remains exact and does not fail dplyr's type negotiation
+  # integer column remains exact during column assembly
   rows <- pbi_normalize_dax_integer_columns(rows)
   column_names <- unique(unlist(lapply(rows, names), use.names = FALSE))
   if (!length(column_names)) {
     return(tibble::tibble(.rows = length(rows)))
   }
-  rows <- lapply(rows, function(row) {
-    values <- lapply(column_names, function(column_name) {
-      value <- row[[column_name]]
-      if (is.null(value)) NA else value
-    })
-    stats::setNames(values, column_names)
+  columns <- lapply(column_names, function(column_name) {
+    values <- lapply(rows, function(row) row[[column_name]])
+    present <- Filter(Negate(is.null), values)
+    types <- unique(vapply(
+      present,
+      function(value) {
+        if (is.numeric(value)) "numeric" else typeof(value)
+      },
+      character(1)
+    ))
+    if (length(types) > 1L) {
+      return(values)
+    }
+    values <- lapply(values, function(value) if (is.null(value)) NA else value)
+    do.call(vctrs::vec_c, unname(values))
   })
-  dplyr::bind_rows(rows)
+  tibble::as_tibble(stats::setNames(columns, column_names))
 }
 
 # Validate one decoded DAX JSON object. Returns invisibly or raises a typed
@@ -1608,7 +1617,19 @@ pbi_normalize_dax_integer_columns <- function(rows) {
       function(value) is.integer(value) || is.double(value),
       logical(1)
     ))
-    if (!has_character || !has_numeric) {
+    integer_text <- vapply(
+      present,
+      function(value) {
+        !is.character(value) || all(grepl("^-?[0-9]+$", value))
+      },
+      logical(1)
+    )
+    if (
+      !has_character ||
+        !has_numeric ||
+        !all(integer_text) ||
+        any(vapply(present, is.logical, logical(1)))
+    ) {
       next
     }
     rows <- lapply(rows, function(row) {

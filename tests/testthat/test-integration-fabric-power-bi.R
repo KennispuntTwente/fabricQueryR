@@ -2,6 +2,27 @@
 # These tests use the sandbox model to check target resolution, typed query
 # results, and the Arrow-based query path used for efficient data transfer
 
+test_that("JSON DAX queries retain Boolean Variant values", {
+  manifest <- fabric_test_manifest()
+  model <- fabric_test_manifest_item(manifest, "TestArrowSemanticModel")
+  for (other in c('"two"', "0")) {
+    result <- fabric_pbi_dax_query(
+      workspace_id = manifest$workspace_id,
+      dataset_id = model$id,
+      dax = paste0(
+        'EVALUATE SELECTCOLUMNS({1, 2}, "mixed", IF([Value] = 1, TRUE(), ',
+        other,
+        '))'
+      ),
+      token = fabric_test_token_provider()
+    )
+    expect_identical(
+      result[["[mixed]"]],
+      list(TRUE, if (other == "0") 0L else "two")
+    )
+  }
+})
+
 test_that("semantic-model refresh completes with history and execution details", {
   manifest <- fabric_test_manifest()
   semantic_model <- fabric_test_manifest_item(
