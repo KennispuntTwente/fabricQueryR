@@ -107,7 +107,8 @@ configured in Fabric. Advanced callers can instead supply records with
 not accept parameters. \code{bit64::integer64} values infer \code{Number} and are
 accepted only when exactly representable as a double, since Fabric may
 interpret numeric parameters as floating point. This check also applies
-to explicit \code{Number} and \code{Automatic} types. For other exact integers or
+to explicit \code{Number} and \code{Automatic} types, which also require finite
+numeric values. For other exact integers or
 decimals, pass \code{as.character(value)} with type \code{Text}; the receiving job
 must handle them as text. Fabric normalizes numeric negative zero to zero;
 pass \code{"-0.0"} with type \code{Text} when its sign must be retained.}

@@ -295,6 +295,52 @@ test_that("GraphQL request JSON preserves recursive negative zero", {
   expect_match(captured, '"text":"-0"', fixed = TRUE)
 })
 
+test_that("GraphQL variables map missing values to null and reject non-finite numbers", {
+  requests <- 0L
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    requests <<- requests + 1L
+    captured <<- rawToChar(req$body$data)
+    graphql_test_response(list(data = list(echo = NULL)), url = req$url)
+  })
+  query <- "query Echo($input: EchoInput) { echo(input: $input) }"
+
+  fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = query,
+    variables = list(input = list(missing = NA_real_, values = c(1, NA_real_))),
+    token = "token"
+  )
+  expect_match(captured, '"missing":null', fixed = TRUE)
+  expect_match(captured, '"values":[1,null]', fixed = TRUE)
+  expect_identical(requests, 1L)
+
+  for (value in list(NaN, Inf, -Inf, list(nested = c(1, Inf)))) {
+    expect_error(
+      fabric_graphql_query(
+        "https://api.fabric.microsoft.com/graphql",
+        query = query,
+        variables = list(input = value),
+        token = "token"
+      ),
+      class = "fabric_graphql_variables_error"
+    )
+  }
+  expect_identical(requests, 1L)
+
+  expect_error(
+    fabric_graphql_paginate(
+      "https://api.fabric.microsoft.com/graphql",
+      query = query,
+      variables = list(input = list(value = Inf)),
+      next_cursor = function(result) NULL,
+      token = "token"
+    ),
+    class = "fabric_graphql_variables_error"
+  )
+  expect_identical(requests, 1L)
+})
+
 test_that("GraphQL selects the audience from the AzureAuth flow", {
   calls <- list()
   local_mocked_bindings(

@@ -38,7 +38,9 @@ variables for changing values instead of pasting values into this string}
 the next opaque cursor, or \code{NULL} when pagination is complete. Use
 \code{\link[=fabric_graphql_cursor]{fabric_graphql_cursor()}} for Fabric's normal connection fields}
 
-\item{variables}{Named list of values for variables declared in \code{query}
+\item{variables}{Named list of values for variables declared in \code{query}.
+Numeric and other R missing values are sent as JSON \code{null}; numeric \code{NaN}
+and infinities are rejected because GraphQL JSON has no such numbers.
 One-element values are normally sent as scalars. Wrap a one-element list
 variable in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to send it as an array}
 

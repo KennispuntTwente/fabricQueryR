@@ -318,6 +318,27 @@ test_that("numeric job parameters reject negative zero before submission", {
   expect_match(outgoing, '"type":"Text"', fixed = TRUE)
 })
 
+test_that("Automatic job parameters reject non-finite numbers locally", {
+  local_mocked_bindings(
+    .httr2_collection = function(...) stop("must not query history"),
+    .httr2_perform = function(...) stop("must not submit")
+  )
+
+  for (value in list(NaN, Inf, -Inf)) {
+    for (type in list(NULL, "Number", "Automatic")) {
+      error <- rlang::catch_cnd(fabric_job_run(
+        job_test_item(),
+        parameters = list(value = value),
+        parameter_types = if (is.null(type)) NULL else c(value = type),
+        token = "test-token",
+        api_base = "https://api.fabric.test/v1"
+      ))
+      expect_s3_class(error, "fabric_job_parameter_precision_error")
+      expect_match(error$message, "must be finite", fixed = TRUE)
+    }
+  }
+})
+
 test_that("unsafe integer64 job parameters fail before any request", {
   local_mocked_bindings(
     .httr2_collection = function(...) stop("must not query history"),

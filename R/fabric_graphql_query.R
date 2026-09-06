@@ -138,7 +138,9 @@
 #'   because it supplies the endpoint and workspace ID
 #' @param query One GraphQL document containing a query or mutation. Use
 #'   variables for changing values instead of pasting values into this string
-#' @param variables Named list of values for variables declared in `query`
+#' @param variables Named list of values for variables declared in `query`.
+#'   Numeric and other R missing values are sent as JSON `null`; numeric `NaN`
+#'   and infinities are rejected because GraphQL JSON has no such numbers.
 #'   One-element values are normally sent as scalars. Wrap a one-element list
 #'   variable in [I()], for example `list(ids = I("x"))`, to send it as an array
 #' @param operation_name Optional operation name. Supply it when the document
@@ -890,6 +892,7 @@ graphql_execute <- function(
     body,
     auto_unbox = TRUE,
     null = "null",
+    na = "null",
     digits = 22
   )
   req <- httr2::req_body_raw(
@@ -1459,7 +1462,28 @@ graphql_validate_variables <- function(variables) {
       "variables must have unique, non-empty names"
     )
   }
+  graphql_validate_variable_numbers(variables)
   variables
+}
+
+# Reject numeric values that JSON cannot represent without changing their type.
+# Missing values remain valid and are serialized as GraphQL nulls.
+graphql_validate_variable_numbers <- function(value) {
+  if (is.numeric(value)) {
+    if (any(is.nan(value) | is.infinite(value))) {
+      .fabric_abort(
+        "variables cannot contain numeric NaN or infinite values",
+        class = "fabric_graphql_variables_error"
+      )
+    }
+    return(invisible(TRUE))
+  }
+  if (is.list(value)) {
+    for (element in value) {
+      graphql_validate_variable_numbers(element)
+    }
+  }
+  invisible(TRUE)
 }
 
 # Check `value` as one non-empty string named by `name`. Returns the original

@@ -119,6 +119,10 @@ wires. Because Fabric's job `Number` binder still normalizes negative zero,
 numeric job parameters now reject it locally and explain the exact `Text`
 alternative.
 
+* GraphQL variables now encode R missing values as JSON null and reject numeric
+NaN and infinities locally. Numeric `Automatic` job parameters likewise reject
+non-finite values instead of silently changing them to JSON strings.
+
 * `fabric_livy_query()` now bounds temporary-session cleanup with a separate
 deadline and reports both errors when statement execution and session deletion
 fail together.

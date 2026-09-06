@@ -45,7 +45,8 @@
 #'   not accept parameters. `bit64::integer64` values infer `Number` and are
 #'   accepted only when exactly representable as a double, since Fabric may
 #'   interpret numeric parameters as floating point. This check also applies
-#'   to explicit `Number` and `Automatic` types. For other exact integers or
+#'   to explicit `Number` and `Automatic` types, which also require finite
+#'   numeric values. For other exact integers or
 #'   decimals, pass `as.character(value)` with type `Text`; the receiving job
 #'   must handle them as text. Fabric normalizes numeric negative zero to zero;
 #'   pass `"-0.0"` with type `Text` when its sign must be retained.
@@ -2442,6 +2443,19 @@ print.fabric_job_instance <- function(x, ...) {
     length(as.POSIXct(value))
   } else {
     length(value)
+  }
+
+  if (
+    value_length == 1L &&
+      is.numeric(value) &&
+      !inherits(value, "integer64") &&
+      (is.nan(value) || is.infinite(value)) &&
+      type %in% c("Number", "Automatic")
+  ) {
+    .fabric_abort(
+      sprintf("%s parameter `%s` must be finite", type, name),
+      class = "fabric_job_parameter_precision_error"
+    )
   }
 
   if (
