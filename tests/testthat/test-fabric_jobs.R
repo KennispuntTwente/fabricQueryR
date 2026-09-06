@@ -1106,7 +1106,11 @@ test_that("job POST requests preserve one-element schema arrays", {
             )
           )
         ),
-        customExtension = list(values = I("only"))
+        customExtension = list(
+          values = I("only"),
+          files = list(input = "data.csv"),
+          parameters = list(marker = "keep")
+        )
       ),
       parameters = list(list(name = "mode", type = "Text", value = "test"))
     ),
@@ -1120,6 +1124,14 @@ test_that("job POST requests preserve one-element schema arrays", {
   expect_length(parsed$executionData$computeConfiguration$sparkProperties, 1L)
   expect_length(parsed$executionData$computeConfiguration$mountPoints, 2L)
   expect_length(parsed$executionData$customExtension$values, 1L)
+  expect_identical(
+    parsed$executionData$customExtension$files,
+    list(input = "data.csv")
+  )
+  expect_identical(
+    parsed$executionData$customExtension$parameters,
+    list(marker = "keep")
+  )
   expect_length(parsed$parameters, 1L)
   expect_match(
     body,

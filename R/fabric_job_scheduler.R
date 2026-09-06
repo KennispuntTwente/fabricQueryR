@@ -533,7 +533,7 @@ fabric_job_schedule_update <- function(
     encoded_payload <- payload
     encoded_payload[names(preserved_json)] <- NULL
     encoded <- fabric_json_serialize(
-      .fabric_job_preserve_json_arrays(encoded_payload),
+      .fabric_job_preserve_json_arrays(encoded_payload, schedule = TRUE),
       auto_unbox = TRUE,
       null = "null",
       digits = 22

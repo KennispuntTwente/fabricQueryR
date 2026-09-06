@@ -1263,7 +1263,10 @@ print.fabric_job_instance <- function(x, ...) {
       type = "application/json"
     )
   } else if (!is.null(payload)) {
-    payload <- .fabric_job_preserve_json_arrays(payload)
+    payload <- .fabric_job_preserve_json_arrays(
+      payload,
+      schedule = grepl("/schedules(?:/|$)", url, perl = TRUE)
+    )
     payload_json <- fabric_json_serialize(
       payload,
       auto_unbox = TRUE,
@@ -1330,36 +1333,51 @@ print.fabric_job_instance <- function(x, ...) {
   )
 }
 
-# Preserve lists that represent JSON arrays while cleaning `value`. Returns a
-# JSON-ready object used before job request bodies are encoded
-.fabric_job_preserve_json_arrays <- function(value, field = NULL) {
-  array_fields <- c(
-    "parameters",
-    "times",
-    "weekdays",
-    "additionalLibraryUris",
-    "jars",
-    "pyFiles",
-    "files",
-    "archives",
-    "sparkProperties",
-    "mountPoints"
-  )
-
-  if (!is.null(field) && field %in% array_fields) {
-    return(I(unname(value)))
+# Normalize arrays only at known job and schedule schema locations. Workload
+# schedule execution data and nested parameter values remain caller-owned.
+.fabric_job_preserve_json_arrays <- function(
+  value,
+  schedule = "configuration" %in% names(value)
+) {
+  preserve <- function(object, fields) {
+    for (field in intersect(names(object), fields)) {
+      if (!is.null(object[[field]])) {
+        object[[field]] <- I(unname(object[[field]]))
+      }
+    }
+    object
   }
-
   if (!is.list(value)) {
     return(value)
   }
-  value_names <- names(value)
-  for (index in seq_along(value)) {
-    child_field <- if (is.null(value_names)) NULL else value_names[[index]]
-    value[index] <- list(.fabric_job_preserve_json_arrays(
-      value[[index]],
-      field = child_field
-    ))
+  if (schedule) {
+    if ("configuration" %in% names(value)) {
+      value$configuration <- preserve(
+        value$configuration,
+        c("times", "weekdays")
+      )
+    }
+    return(value)
+  }
+  value <- preserve(value, "parameters")
+  if (is.list(value$executionData)) {
+    value$executionData <- preserve(
+      value$executionData,
+      "additionalLibraryUris"
+    )
+    if (is.list(value$executionData$computeConfiguration)) {
+      value$executionData$computeConfiguration <- preserve(
+        value$executionData$computeConfiguration,
+        c(
+          "jars",
+          "pyFiles",
+          "files",
+          "archives",
+          "sparkProperties",
+          "mountPoints"
+        )
+      )
+    }
   }
   value
 }

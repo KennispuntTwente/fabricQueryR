@@ -381,6 +381,10 @@ test_that("schedule creation sends the documented payload and preserves arrays",
     null = "null"
   )
   expect_match(json, '"times":["09:30"]', fixed = TRUE)
+  expect_identical(
+    jsonlite::fromJSON(json, simplifyVector = FALSE)$executionData,
+    list(parameters = list(marker = "scheduled"))
+  )
   expect_match(
     json,
     '"weekdays":["Monday","Thursday"]',
@@ -400,6 +404,52 @@ test_that("schedule creation sends the documented payload and preserves arrays",
   )
   expect_match(empty_json, '"executionData":{}', fixed = TRUE)
   expect_false(grepl('"executionData":[]', empty_json, fixed = TRUE))
+})
+
+test_that("schedule requests preserve the complete workload execution subtree", {
+  request <- NULL
+  execution_data <- list(
+    parameters = list(marker = "scheduled"),
+    files = list(input = "data.csv"),
+    nested = list(
+      times = list(start = "09:00"),
+      parameters = list(flag = TRUE)
+    ),
+    computeConfiguration = list(jars = list(primary = "library.jar"))
+  )
+  local_mocked_bindings(.httr2_perform = function(req, ...) {
+    request <<- req
+    httr2::response(
+      if (identical(req$method, "POST")) 201L else 200L,
+      headers = list(`content-type` = "application/json"),
+      body = charToRaw(jsonlite::toJSON(
+        scheduler_test_response(),
+        auto_unbox = TRUE
+      ))
+    )
+  })
+  schedule <- fabric_job_schedule_create(
+    scheduler_test_item(),
+    scheduler_test_configuration(),
+    execution_data = execution_data,
+    token = "test-token"
+  )
+  body <- jsonlite::fromJSON(
+    rawToChar(request$body$data),
+    simplifyVector = FALSE
+  )
+  expect_identical(body$executionData, execution_data)
+  fabric_job_schedule_update(
+    scheduler_test_item(),
+    schedule,
+    execution_data = execution_data,
+    token = "test-token"
+  )
+  body <- jsonlite::fromJSON(
+    rawToChar(request$body$data),
+    simplifyVector = FALSE
+  )
+  expect_identical(body$executionData, execution_data)
 })
 
 test_that("unknown future schedule types use the documented escape hatch", {
