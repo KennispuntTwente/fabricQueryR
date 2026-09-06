@@ -123,6 +123,10 @@ alternative.
 NaN and infinities locally. Numeric `Automatic` job parameters likewise reject
 non-finite values instead of silently changing them to JSON strings.
 
+* Partial job schedule updates now replay omitted configuration JSON directly
+from Fabric, preserving future integer, decimal, exponent, signed-zero, overflow,
+and underflow tokens without routing them through R doubles.
+
 * `fabric_livy_query()` now bounds temporary-session cleanup with a separate
 deadline and reports both errors when statement execution and session deletion
 fail together.

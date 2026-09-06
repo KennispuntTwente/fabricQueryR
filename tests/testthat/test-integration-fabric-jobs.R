@@ -500,7 +500,13 @@ test_that("disabled schedule updates preserve numeric execution data in Fabric",
     add = TRUE
   )
   before <- attr(schedule, "fabric_execution_data_json", exact = TRUE)
+  before_configuration <- attr(
+    schedule,
+    "fabric_configuration_json",
+    exact = TRUE
+  )
   expect_match(before, "9007199254740993", fixed = TRUE)
+  expect_match(before_configuration, '"type":"Daily"', fixed = TRUE)
   updated <- fabric_job_schedule_update(
     item,
     schedule,
@@ -510,6 +516,10 @@ test_that("disabled schedule updates preserve numeric execution data in Fabric",
   expect_identical(
     attr(updated, "fabric_execution_data_json", exact = TRUE),
     before
+  )
+  expect_identical(
+    attr(updated, "fabric_configuration_json", exact = TRUE),
+    before_configuration
   )
   expect_identical(updated$enabled, FALSE)
 })

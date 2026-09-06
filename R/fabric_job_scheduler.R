@@ -300,10 +300,11 @@ fabric_job_schedule_config <- function(
 #' `fabric_job_schedule_update()` accepts partial R input for convenience, but
 #' the Fabric PATCH contract requires `enabled` and a complete `configuration`.
 #' When either is omitted, the function first reads the current schedule and
-#' preserves the omitted value. An omitted or `NULL` `execution_data` is also
-#' preserved from the original response JSON, retaining numeric precision and
-#' empty objects or arrays; supply a named list to replace it. Decoded record
-#' fields use ordinary R JSON types and cannot represent arbitrary decimals.
+#' preserves the omitted value. Omitted `configuration` and omitted or `NULL`
+#' `execution_data` are replayed from the original response JSON, retaining
+#' numeric precision and empty objects or arrays; supply a named list to replace
+#' either value. Decoded record fields use ordinary R JSON types and cannot
+#' represent arbitrary decimals.
 #'
 #' The published REST response currently exposes `enabled` but no standard
 #' auto-disable reason. `auto_disabled` is therefore `NA` unless Fabric returns
@@ -460,6 +461,8 @@ fabric_job_schedule_update <- function(
   auth_args = list(),
   api_base = .fabric_api_base
 ) {
+  configuration_supplied <- !missing(configuration) &&
+    !is.null(configuration)
   execution_data_supplied <- !missing(execution_data) &&
     !is.null(execution_data)
   if (is.null(job_type) && inherits(schedule_id, "fabric_job_schedule")) {
@@ -479,12 +482,12 @@ fabric_job_schedule_update <- function(
   )
   id <- .fabric_job_schedule_id(schedule_id)
   current <- NULL
-  if (is.null(configuration) || is.null(enabled) || !execution_data_supplied) {
+  if (!configuration_supplied || is.null(enabled) || !execution_data_supplied) {
     current <- .fabric_job_schedule_get(context, id)
   }
   # Fabric may return offset-free boundaries and list-backed JSON arrays, so
   # preserve the trusted service shape while validating caller input strictly
-  configuration <- if (is.null(configuration)) {
+  configuration <- if (!configuration_supplied) {
     current$configuration
   } else {
     .fabric_job_schedule_configuration(configuration)
@@ -501,24 +504,51 @@ fabric_job_schedule_update <- function(
     payload$executionData <- execution_data
   }
   payload_json <- NULL
-  preserved <- attr(current, "fabric_execution_data_json", exact = TRUE)
-  if (!execution_data_supplied && !is.null(preserved)) {
-    # Resend the service's original subtree, including exact numeric tokens,
+  preserved_json <- list()
+  preserved_configuration <- attr(
+    current,
+    "fabric_configuration_json",
+    exact = TRUE
+  )
+  if (!configuration_supplied && !is.null(preserved_configuration)) {
+    preserved_json$configuration <- preserved_configuration
+  }
+  preserved_execution_data <- attr(
+    current,
+    "fabric_execution_data_json",
+    exact = TRUE
+  )
+  if (!execution_data_supplied && !is.null(preserved_execution_data)) {
+    preserved_json$executionData <- preserved_execution_data
+  }
+  if (length(preserved_json) > 0L) {
+    # Resend the service's original subtrees, including exact numeric tokens,
     # empty objects, arrays and nulls. R decoding cannot represent every number.
-    payload$executionData <- NULL
+    encoded_payload <- payload
+    encoded_payload[names(preserved_json)] <- NULL
     encoded <- fabric_json_serialize(
-      .fabric_job_preserve_json_arrays(payload),
+      .fabric_job_preserve_json_arrays(encoded_payload),
       auto_unbox = TRUE,
       null = "null",
       digits = 22
     )
+    raw_members <- paste0(
+      vapply(
+        names(preserved_json),
+        function(name) {
+          as.character(jsonlite::toJSON(name, auto_unbox = TRUE))
+        },
+        character(1)
+      ),
+      ":",
+      unlist(preserved_json, use.names = FALSE)
+    )
     payload_json <- paste0(
       substr(encoded, 1L, nchar(encoded) - 1L),
-      ',"executionData":',
-      preserved,
+      if (nchar(encoded) > 2L) "," else "",
+      paste(raw_members, collapse = ","),
       "}"
     )
-    payload$executionData <- execution_data
   }
   result <- .fabric_job_request(
     "PATCH",
@@ -789,6 +819,10 @@ print.fabric_job_schedule <- function(x, ...) {
   }
   schedule <- .fabric_job_schedule_record(result$body, context)
   if (!is.null(result$body_json)) {
+    attr(schedule, "fabric_configuration_json") <- .fabric_job_json_member(
+      result$body_json,
+      "configuration"
+    )
     attr(schedule, "fabric_execution_data_json") <- .fabric_job_json_member(
       result$body_json,
       "executionData"

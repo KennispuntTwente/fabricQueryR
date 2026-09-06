@@ -808,7 +808,13 @@ test_that("schedule records retain custom job types for later operations", {
   expect_match(calls[[1L]], "/jobs/ScheduledSparkJob/schedules/", fixed = TRUE)
 })
 
-test_that("schedule updates preserve untouched execution JSON exactly", {
+test_that("schedule updates preserve untouched service JSON exactly", {
+  configuration_json <- paste0(
+    '{"type":"FutureNumeric","integer":9007199254740993,',
+    '"decimal":12345678901234567890.1234500,',
+    '"exponent":9.007199254740993e15,"negativeZero":-0.0,',
+    '"underflow":1e-400,"overflow":1e400}'
+  )
   execution_json <- paste0(
     '{"id":9007199254740993,"max":9223372036854775807,',
     '"min":-9223372036854775808,',
@@ -819,8 +825,9 @@ test_that("schedule updates preserve untouched execution JSON exactly", {
   )
   incoming <- paste0(
     '{"id":"44444444-4444-4444-4444-444444444444","enabled":true,',
-    '"configuration":{"type":"Daily","times":["09:30"],',
-    '"localTimeZoneId":"UTC","startDateTime":"2026-10-01T00:00:00Z"},',
+    '"configuration":',
+    configuration_json,
+    ',',
     '"executionData":',
     execution_json,
     '}'
@@ -869,8 +876,12 @@ test_that("schedule updates preserve untouched execution JSON exactly", {
   expect_length(outgoing, 2L)
   for (body in outgoing) {
     expect_identical(jsonlite::validate(body), TRUE)
+    expect_match(
+      body,
+      paste0('"configuration":', configuration_json),
+      fixed = TRUE
+    )
     expect_match(body, paste0('"executionData":', execution_json), fixed = TRUE)
-    expect_identical(jsonlite::fromJSON(body)$configuration$times, "09:30")
   }
   expect_identical(jsonlite::fromJSON(outgoing[[1L]])$enabled, FALSE)
 })
@@ -901,7 +912,54 @@ test_that("explicit schedule execution data replaces preserved numeric JSON", {
     api_base = "https://api.fabric.test/v1"
   )
 
-  expect_identical(outgoing$executionData, list(id = "exact text", ratio = pi))
+  outgoing <- rawToChar(outgoing)
+  expect_match(
+    outgoing,
+    '"configuration":{"type":"Cron","interval":1}',
+    fixed = TRUE
+  )
+  expect_identical(
+    jsonlite::fromJSON(outgoing, simplifyVector = FALSE)$executionData,
+    list(id = "exact text", ratio = pi)
+  )
+})
+
+test_that("explicit schedule configuration replaces preserved JSON", {
+  configuration_json <- paste0(
+    '{"type":"FutureNumeric","integer":9007199254740993,',
+    '"decimal":12345678901234567890.1234500}'
+  )
+  incoming <- paste0(
+    '{"id":"44444444-4444-4444-4444-444444444444","enabled":true,',
+    '"configuration":',
+    configuration_json,
+    '}'
+  )
+  outgoing <- NULL
+  local_mocked_bindings(.httr2_perform = function(req, ...) {
+    if (identical(req$method, "PATCH")) {
+      outgoing <<- rawToChar(req$body$data)
+    }
+    httr2::response(
+      200L,
+      headers = list("content-type" = "application/json"),
+      body = charToRaw(incoming)
+    )
+  })
+
+  fabric_job_schedule_update(
+    scheduler_test_item(),
+    "44444444-4444-4444-4444-444444444444",
+    configuration = list(type = "FutureNumeric", marker = "replacement"),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1"
+  )
+
+  expect_false(grepl(configuration_json, outgoing, fixed = TRUE))
+  expect_identical(
+    jsonlite::fromJSON(outgoing, simplifyVector = FALSE)$configuration,
+    list(type = "FutureNumeric", marker = "replacement")
+  )
 })
 
 test_that("schedule JSON preservation respects escaping and member boundaries", {
@@ -926,6 +984,13 @@ test_that("schedule JSON preservation respects escaping and member boundaries", 
     '{"nested":{"executionData":1}}',
     "executionData"
   ))
+  expect_identical(
+    .fabric_job_json_member(
+      '{"configuration":{"integer":9007199254740993}}',
+      "configuration"
+    ),
+    '{"integer":9007199254740993}'
+  )
   expect_snapshot(error = TRUE, {
     .fabric_job_json_member(
       '{"executionData":1,"execution\\u0044ata":2}',
