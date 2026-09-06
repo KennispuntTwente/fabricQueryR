@@ -58,6 +58,8 @@ type-specific subclasses. With \code{output = "list"}, a list of
 \code{fabric_catalog_entry} records that also inherit from \code{fabric_item}. Both
 representations preserve the fields returned by Fabric and add the item
 workspace identity from the catalog hierarchy.
+Workspace entries returned by unfiltered browsing become \link{FabricWorkspace}
+objects, or \code{fabric_catalog_entry} records inheriting \code{fabric_workspace}.
 }
 \description{
 Searches Fabric item metadata across every workspace visible to the caller.

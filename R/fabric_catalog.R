@@ -22,6 +22,8 @@
 #'   `fabric_catalog_entry` records that also inherit from `fabric_item`. Both
 #'   representations preserve the fields returned by Fabric and add the item
 #'   workspace identity from the catalog hierarchy.
+#'   Workspace entries returned by unfiltered browsing become [FabricWorkspace]
+#'   objects, or `fabric_catalog_entry` records inheriting `fabric_workspace`.
 #' @details
 #' Catalog search is a preview Fabric API. It is for metadata discovery only
 #' and does not grant access to item contents. The caller needs
@@ -257,7 +259,14 @@ fabric_catalog_search <- function(
 ) {
   output <- .fabric_r6_output(output)
   hierarchy <- if (is.list(entry$hierarchy)) entry$hierarchy else NULL
-  workspace <- if (is.list(hierarchy)) hierarchy$workspace else NULL
+  is_workspace <- identical(entry$type, "Workspace")
+  workspace <- if (is_workspace) {
+    entry
+  } else if (is.list(hierarchy)) {
+    hierarchy$workspace
+  } else {
+    NULL
+  }
   valid <- is.character(entry$id) &&
     length(entry$id) == 1L &&
     !is.na(entry$id) &&
@@ -288,7 +297,11 @@ fabric_catalog_search <- function(
   entry$workspaceDisplayName <- workspace$displayName
   record <- structure(
     entry,
-    class = c("fabric_catalog_entry", "fabric_item", "list")
+    class = c(
+      "fabric_catalog_entry",
+      if (is_workspace) "fabric_workspace" else "fabric_item",
+      "list"
+    )
   )
   if (identical(output, "r6")) {
     fabric_r6_record(record, class(record), credential, api_base)

@@ -37,6 +37,29 @@ test_that("catalog search paginates POST bodies and returns R6 items", {
   expect_equal(requests[[2L]]$body$data$continuationToken, "page-2")
 })
 
+test_that("unfiltered catalog browsing handles workspace and item records", {
+  workspace <- list(
+    id = catalog_test_workspace_id,
+    displayName = "Sales Analytics",
+    type = "Workspace"
+  )
+  httr2::local_mocked_responses(function(req) {
+    catalog_test_response(
+      list(value = list(workspace, catalog_test_entry())),
+      req$url
+    )
+  })
+  result <- fabric_catalog_search(token = "test-token")
+  expect_length(result, 2L)
+  expect_s3_class(result[[1L]], "FabricWorkspace")
+  expect_identical(result[[1L]]$id, catalog_test_workspace_id)
+  expect_s3_class(result[[2L]], "FabricLakehouse")
+  records <- fabric_catalog_search(token = "test-token", output = "list")
+  expect_s3_class(records[[1L]], "fabric_workspace")
+  expect_s3_class(records[[1L]], "fabric_catalog_entry")
+  expect_identical(records[[2L]]$workspaceId, records[[1L]]$id)
+})
+
 test_that("catalog search can return plain item records explicitly", {
   httr2::local_mocked_responses(function(req) {
     catalog_test_response(

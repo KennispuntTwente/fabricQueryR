@@ -391,6 +391,20 @@ test_that("Fabric long-running operations complete a live Warehouse creation", {
   expect_true(cleaned)
 })
 
+test_that("unfiltered OneLake catalog browsing includes the sandbox items", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  entries <- fabric_catalog_search(token = fabric_test_token_provider())
+  ids <- vapply(entries, function(entry) entry$id, character(1))
+  expect_contains(ids, lakehouse$id)
+  for (entry in entries) {
+    expect_s3_class(
+      entry,
+      if (entry$type == "Workspace") "FabricWorkspace" else "FabricItem"
+    )
+  }
+})
+
 test_that("OneLake catalog search finds the sandbox Lakehouse", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
