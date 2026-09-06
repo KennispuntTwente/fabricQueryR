@@ -108,9 +108,13 @@ not accept parameters. \code{bit64::integer64} values infer \code{Number} and ar
 accepted only when exactly representable as a double, since Fabric may
 interpret numeric parameters as floating point. This check also applies
 to explicit \code{Number} and \code{Automatic} types, which also require finite
-numeric values. For other exact integers or
-decimals, pass \code{as.character(value)} with type \code{Text}; the receiving job
-must handle them as text. Fabric normalizes numeric negative zero to zero;
+numeric values. Fabric's decimal parameter binder has a narrower range and
+scale than R doubles. Numeric parameters are rejected if parsing their JSON
+token through that binder would overflow or change the original double.
+For other exact integers or decimals, pass character values with type
+\code{Text}; for doubles, \code{sprintf("\%.17g", value)} supplies reversible text.
+The receiving job must handle these values as text.
+Fabric normalizes numeric negative zero to zero;
 pass \code{"-0.0"} with type \code{Text} when its sign must be retained.}
 
 \item{parameter_types}{Optional named character vector overriding inferred

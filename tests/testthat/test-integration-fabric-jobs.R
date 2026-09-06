@@ -195,6 +195,79 @@ test_that("notebook integer64 parameters reject rounding and support exact text"
   )
 })
 
+test_that("notebook numbers guard decimal narrowing and preserve exact Text", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  fixture <- fabric_test_manifest_item(manifest, "JobFixtures")
+  item <- list(
+    id = fixture$id,
+    workspaceId = manifest$workspace_id,
+    type = fixture$type
+  )
+  unsafe <- c(
+    .Machine$double.xmin * .Machine$double.eps,
+    1e-29,
+    as.numeric("0x1.79ca10c924224p-67"),
+    .Machine$double.xmax
+  )
+  for (value in unsafe) {
+    error <- rlang::catch_cnd(fabric_job_run(
+      item,
+      parameters = list(mode = "success", marker = value),
+      token = token
+    ))
+    expect_s3_class(error, "fabric_job_parameter_precision_error")
+  }
+  session_tag <- paste0("fabricqueryr_number_precision_", Sys.getpid())
+  for (value in c(1e-20, 1 + .Machine$double.eps)) {
+    job <- fabric_job_run(
+      item,
+      parameters = list(mode = "success", marker = value),
+      session_tag = session_tag,
+      token = token
+    )
+    result <- fabric_job_wait(
+      job,
+      timeout = 900,
+      cancel_on_timeout = TRUE,
+      notebook_details = TRUE
+    )
+    expect_identical(result$status, "Completed")
+    expect_match(result$exit_value, "^fabricqueryr-job-success:")
+    returned <- as.numeric(sub(
+      "^fabricqueryr-job-success:",
+      "",
+      result$exit_value
+    ))
+    expect_identical(
+      writeBin(returned, raw(), size = 8L),
+      writeBin(value, raw(), size = 8L)
+    )
+  }
+  text <- paste(sprintf("%.17g", unsafe), collapse = "|")
+  job <- fabric_job_run(
+    item,
+    parameters = list(mode = "success", marker = text),
+    parameter_types = c(marker = "Text"),
+    session_tag = session_tag,
+    token = token
+  )
+  result <- fabric_job_wait(
+    job,
+    timeout = 900,
+    cancel_on_timeout = TRUE,
+    notebook_details = TRUE
+  )
+  expect_identical(result$status, "Completed")
+  expect_identical(result$exit_value, paste0("fabricqueryr-job-success:", text))
+  returned_text <- sub("^fabricqueryr-job-success:", "", result$exit_value)
+  returned <- as.numeric(strsplit(returned_text, "|", fixed = TRUE)[[1L]])
+  expect_identical(
+    writeBin(returned, raw(), size = 8L),
+    writeBin(unsafe, raw(), size = 8L)
+  )
+})
+
 test_that("Fabric pipeline and Spark job definition jobs complete", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")

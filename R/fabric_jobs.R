@@ -46,9 +46,13 @@
 #'   accepted only when exactly representable as a double, since Fabric may
 #'   interpret numeric parameters as floating point. This check also applies
 #'   to explicit `Number` and `Automatic` types, which also require finite
-#'   numeric values. For other exact integers or
-#'   decimals, pass `as.character(value)` with type `Text`; the receiving job
-#'   must handle them as text. Fabric normalizes numeric negative zero to zero;
+#'   numeric values. Fabric's decimal parameter binder has a narrower range and
+#'   scale than R doubles. Numeric parameters are rejected if parsing their JSON
+#'   token through that binder would overflow or change the original double.
+#'   For other exact integers or decimals, pass character values with type
+#'   `Text`; for doubles, `sprintf("%.17g", value)` supplies reversible text.
+#'   The receiving job must handle these values as text.
+#'   Fabric normalizes numeric negative zero to zero;
 #'   pass `"-0.0"` with type `Text` when its sign must be retained.
 #' @param parameter_types Optional named character vector overriding inferred
 #'   parameter types. Supported values are `VariableReference`, `Integer`,
@@ -2596,11 +2600,128 @@ print.fabric_job_instance <- function(x, ...) {
     }
   }
 
+  if (is.numeric(value) && type %in% c("Number", "Automatic")) {
+    .fabric_job_validate_number(value, name, type)
+  }
+
   # 4 Return the parameter record ------------------------------------------------------------------
 
   # Return the parameter record in the stable form expected by the caller
 
   list(name = name, value = value, type = type)
+}
+
+# Validate the token actually emitted by the job request serializer. Fabric's
+# Number binder parses decimal values before injecting them into a notebook;
+# preserving JSON's binary64 spelling alone does not protect this conversion.
+.fabric_job_validate_number <- function(value, name, type) {
+  token <- fabric_json_serialize(value, auto_unbox = TRUE, digits = 22)
+  decimal <- .fabric_job_decimal_token(token)
+  restored <- if (is.null(decimal)) NA_real_ else as.numeric(decimal)
+  if (
+    !identical(
+      writeBin(as.numeric(value), raw(), size = 8L),
+      writeBin(restored, raw(), size = 8L)
+    )
+  ) {
+    .fabric_abort(
+      sprintf(
+        paste0(
+          "%s parameter `%s` cannot retain this double through Fabric's ",
+          "decimal parameter binder; pass \"%s\" with type Text"
+        ),
+        type,
+        name,
+        token
+      ),
+      class = "fabric_job_parameter_precision_error"
+    )
+  }
+  invisible(value)
+}
+
+# Model invariant System.Decimal parsing of one finite JSON number token using
+# decimal digits only: a 96-bit coefficient, scale 0..28, nearest-even rounding.
+# Retry rounding from the original digits when a carry requires a lower scale;
+# rounding an already rounded coefficient would introduce double rounding.
+# Returns decimal text, or NULL when the rounded value overflows.
+.fabric_job_decimal_token <- function(token) {
+  if (
+    length(token) != 1L ||
+      is.na(token) ||
+      !grepl("^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$", token)
+  ) {
+    return(NULL)
+  }
+  negative <- startsWith(token, "-")
+  parts <- strsplit(sub("^-", "", tolower(token)), "e", fixed = TRUE)[[1L]]
+  mantissa <- parts[[1L]]
+  exponent <- if (length(parts) == 1L) 0L else as.integer(parts[[2L]])
+  point <- regexpr(".", mantissa, fixed = TRUE)[[1L]]
+  scale <- if (point < 0L) 0L else nchar(mantissa) - point
+  scale <- scale - exponent
+  coefficient <- sub("^0+", "", gsub(".", "", mantissa, fixed = TRUE))
+  if (!nzchar(coefficient)) {
+    return("0")
+  }
+  if (scale < 0L) {
+    coefficient <- paste0(coefficient, strrep("0", -scale))
+    scale <- 0L
+  }
+  digits <- utf8ToInt(coefficient) - 48L
+  maximum <- utf8ToInt("79228162514264337593543950335") - 48L
+  discard <- max(0L, scale - 28L)
+  repeat {
+    keep <- length(digits) - discard
+    rounded <- if (keep > 0L) digits[seq_len(keep)] else 0L
+    next_digit <- if (keep >= 0L && discard > 0L) {
+      digits[[keep + 1L]]
+    } else {
+      0L
+    }
+    remaining_nonzero <- discard > 1L &&
+      keep >= 0L &&
+      any(digits[seq.int(keep + 2L, length(digits))] != 0L)
+    round_up <- next_digit > 5L ||
+      (next_digit == 5L &&
+        (remaining_nonzero || rounded[[length(rounded)]] %% 2L == 1L))
+    if (round_up) {
+      index <- length(rounded)
+      repeat {
+        rounded[[index]] <- rounded[[index]] + 1L
+        if (rounded[[index]] < 10L) {
+          break
+        }
+        rounded[[index]] <- 0L
+        index <- index - 1L
+        if (index == 0L) {
+          rounded <- c(1L, rounded)
+          break
+        }
+      }
+    }
+    different <- if (length(rounded) == length(maximum)) {
+      which(rounded != maximum)
+    } else {
+      integer()
+    }
+    fits <- length(rounded) < length(maximum) ||
+      (length(rounded) == length(maximum) &&
+        (!length(different) ||
+          rounded[[different[[1L]]]] < maximum[[different[[1L]]]]))
+    if (fits) {
+      return(paste0(
+        if (negative && any(rounded != 0L)) "-" else "",
+        paste0(rounded, collapse = ""),
+        "e-",
+        scale - discard
+      ))
+    }
+    if (discard == scale) {
+      return(NULL)
+    }
+    discard <- discard + 1L
+  }
 }
 
 # Infer Fabric's parameter type from one R `value`. Returns a type name when the

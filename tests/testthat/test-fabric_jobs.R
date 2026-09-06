@@ -380,6 +380,115 @@ test_that("unsafe integer64 job parameters fail before any request", {
   })
 })
 
+test_that("finite job numbers reject decimal binder loss before transport", {
+  requests <- 0L
+  local_mocked_bindings(.httr2_perform = function(...) {
+    requests <<- requests + 1L
+    stop("must not reach transport")
+  })
+  adjacent <- as.numeric("0x1.79ca10c924224p-67")
+  unsafe <- c(
+    .Machine$double.xmin * .Machine$double.eps,
+    1e-29,
+    adjacent,
+    .Machine$double.xmax,
+    2^96
+  )
+  for (value in c(unsafe, -unsafe)) {
+    for (type in list(NULL, "Number", "Automatic")) {
+      error <- rlang::catch_cnd(fabric_job_run(
+        job_test_item(),
+        parameters = list(value = value),
+        parameter_types = if (is.null(type)) NULL else c(value = type),
+        token = "test-token",
+        api_base = "https://api.fabric.test/v1"
+      ))
+      expect_s3_class(error, "fabric_job_parameter_precision_error")
+      expect_match(error$message, "decimal parameter binder", fixed = TRUE)
+      expect_match(error$message, "with type Text", fixed = TRUE)
+    }
+  }
+  expect_identical(requests, 0L)
+})
+
+test_that("safe Number tokens and explicit Text survive public submission", {
+  outgoing <- NULL
+  local_mocked_bindings(.httr2_perform = function(req, ...) {
+    if (is.null(req$body)) {
+      return(httr2::response(
+        200L,
+        headers = list(`content-type` = "application/json"),
+        body = charToRaw('{"value":[]}')
+      ))
+    }
+    outgoing <<- rawToChar(req$body$data)
+    httr2::response(
+      202L,
+      headers = list(
+        location = "/jobs/instances/33333333-3333-3333-3333-333333333333"
+      )
+    )
+  })
+  safe <- c(0, 0.1, pi, 1e-28, 1e-20, 1 + .Machine$double.eps, 1e28)
+  for (value in c(safe, -safe[safe != 0])) {
+    for (type in list(NULL, "Number", "Automatic")) {
+      fabric_job_run(
+        job_test_item(),
+        parameters = list(value = value),
+        parameter_types = if (is.null(type)) NULL else c(value = type),
+        token = "test-token",
+        api_base = "https://api.fabric.test/v1"
+      )
+      decoded <- jsonlite::fromJSON(outgoing, simplifyVector = FALSE)
+      expect_identical(decoded$parameters[[1L]]$type, type %||% "Number")
+      expect_identical(
+        writeBin(as.numeric(decoded$parameters[[1L]]$value), raw(), size = 8L),
+        writeBin(value, raw(), size = 8L)
+      )
+    }
+  }
+  for (value in c(
+    .Machine$double.xmax,
+    .Machine$double.xmin * .Machine$double.eps
+  )) {
+    text <- sprintf("%.17g", value)
+    fabric_job_run(
+      job_test_item(),
+      parameters = list(value = text),
+      parameter_types = c(value = "Text"),
+      token = "test-token",
+      api_base = "https://api.fabric.test/v1"
+    )
+    decoded <- jsonlite::fromJSON(outgoing, simplifyVector = FALSE)
+    expect_identical(decoded$parameters[[1L]]$type, "Text")
+    expect_identical(decoded$parameters[[1L]]$value, text)
+  }
+})
+
+test_that("job decimal binder model handles ties, carry and coefficient range", {
+  cases <- c(
+    "5e-29" = "0e-28",
+    "15e-29" = "2e-28",
+    "25e-29" = "2e-28",
+    "-35e-29" = "-4e-28",
+    "0.0000000000000000000000000001500" = "2e-28",
+    "79228162514264337593543950335.0" = "79228162514264337593543950335e-0",
+    "79228162514264337593543950335.4" = "79228162514264337593543950335e-0",
+    "79228162514264337593543950334.5" = "79228162514264337593543950334e-0",
+    "7922816251426433759354395033.55" = "7922816251426433759354395034e-0"
+  )
+  for (token in names(cases)) {
+    expect_identical(.fabric_job_decimal_token(token), unname(cases[[token]]))
+  }
+  expect_null(.fabric_job_decimal_token("79228162514264337593543950335.5"))
+  expect_null(.fabric_job_decimal_token("-79228162514264337593543950336"))
+  expect_null(.fabric_job_decimal_token("[1.5]"))
+  expect_identical(
+    .fabric_job_decimal_token("0.99999999999999999999999999995"),
+    paste0("1", strrep("0", 28L), "e-28")
+  )
+})
+
 test_that("integer64 job parameters retain scalar and explicit integer validation", {
   lower <- .fabric_job_parameter(
     "value",
@@ -405,8 +514,8 @@ test_that("integer64 job parameters retain scalar and explicit integer validatio
   for (value in c(
     pi,
     1 + .Machine$double.eps,
-    .Machine$double.xmax,
-    .Machine$double.xmin * .Machine$double.eps
+    1e28,
+    1e-28
   )) {
     expect_identical(
       .fabric_job_parameter("value", value, "Number")$value,
