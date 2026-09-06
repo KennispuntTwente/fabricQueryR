@@ -84,12 +84,20 @@
       validity <- validity[array$offset + seq_len(array$length)]
     }
     children <- lapply(children, function(child) {
+      child_schema <- nanoarrow::infer_nanoarrow_schema(child)
+      child_is_null <- identical(child_schema$format, "n")
       child_updates <- list(
         offset = child$offset + array$offset,
         length = array$length,
-        null_count = if (child$null_count == 0L) 0L else -1L
+        null_count = if (child_is_null) {
+          array$length
+        } else if (child$null_count == 0L) {
+          0L
+        } else {
+          -1L
+        }
       )
-      if (any(!validity)) {
+      if (any(!validity) && !child_is_null) {
         child_validity <- nanoarrow::convert_buffer(
           child$buffers[[1L]],
           logical()

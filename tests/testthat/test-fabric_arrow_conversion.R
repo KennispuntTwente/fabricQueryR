@@ -256,3 +256,30 @@ test_that("ordinary numeric structs combine parent and child null masks", {
     )
   }
 })
+
+test_that("nullable structs retain Arrow Null children", {
+  skip_if_not_installed("arrow")
+  nested <- nanoarrow::as_nanoarrow_array(arrow::StructArray$create(
+    always_null = arrow::Array$create(rep(NA, 3L), type = arrow::null()),
+    value = c(10L, 20L, 30L)
+  ))
+  nested <- nanoarrow::nanoarrow_array_modify(
+    nested,
+    list(buffers = list(as.raw(5L)), null_count = 1L)
+  )
+  schema <- nanoarrow::na_struct(list(
+    nested = nanoarrow::infer_nanoarrow_schema(nested)
+  ))
+  batch <- nanoarrow::nanoarrow_array_modify(
+    nanoarrow::nanoarrow_array_init(schema),
+    list(length = 3L, children = list(nested = nested))
+  )
+  stream <- nanoarrow::basic_array_stream(list(batch), schema = schema)
+  withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
+
+  result <- .fabric_arrow_exact_tibble(stream)
+
+  expect_s3_class(result$nested$always_null, "vctrs_unspecified")
+  expect_true(all(is.na(result$nested$always_null)))
+  expect_identical(result$nested$value, c(10L, NA_integer_, 30L))
+})

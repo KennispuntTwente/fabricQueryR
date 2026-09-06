@@ -148,6 +148,56 @@ test_that("OneLake object reader returns tibbles and lazy streams", {
   }
 })
 
+test_that("OneLake IPC and Parquet reads support nullable structs with Null children", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("nanoarrow")
+  fixtures <- list(
+    arrow = tempfile(fileext = ".arrow"),
+    parquet = tempfile(fileext = ".parquet")
+  )
+  on.exit(unlink(unlist(fixtures), force = TRUE), add = TRUE)
+
+  nested <- nanoarrow::as_nanoarrow_array(arrow::StructArray$create(
+    always_null = arrow::Array$create(rep(NA, 3L), type = arrow::null()),
+    value = c(10L, 20L, 30L)
+  ))
+  nested <- nanoarrow::nanoarrow_array_modify(
+    nested,
+    list(buffers = list(as.raw(5L)), null_count = 1L)
+  )
+  schema <- nanoarrow::na_struct(list(
+    nested = nanoarrow::infer_nanoarrow_schema(nested)
+  ))
+  batch <- nanoarrow::nanoarrow_array_modify(
+    nanoarrow::nanoarrow_array_init(schema),
+    list(length = 3L, children = list(nested = nested))
+  )
+  source <- nanoarrow::basic_array_stream(list(batch), schema = schema)
+  withr::defer(nanoarrow::nanoarrow_pointer_release(source))
+  nanoarrow::write_nanoarrow(source, fixtures$arrow)
+  table <- arrow::read_ipc_stream(fixtures$arrow, as_data_frame = FALSE)
+  arrow::write_parquet(table, fixtures$parquet)
+
+  local_mocked_bindings(
+    fabric_onelake_download = function(path, dest, ...) {
+      file.copy(fixtures[[tools::file_ext(path)]], dest)
+      invisible(dest)
+    }
+  )
+
+  for (format in names(fixtures)) {
+    result <- fabric_onelake_read_file(
+      "workspace",
+      "lakehouse.Lakehouse",
+      paste0("Files/nested-null.", format),
+      token = "token"
+    )
+    expect_s3_class(result$nested$always_null, "vctrs_unspecified")
+    expect_true(all(is.na(result$nested$always_null)))
+    expect_identical(result$nested$value, c(10L, NA_integer_, 30L))
+  }
+})
+
 test_that("OneLake CSV defaults retain exact decimal and oversized numeric text", {
   skip_if_not_installed("arrow")
   fixture <- withr::local_tempfile(fileext = ".csv")
