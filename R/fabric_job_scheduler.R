@@ -506,12 +506,12 @@ fabric_job_schedule_update <- function(
     # Resend the service's original subtree, including exact numeric tokens,
     # empty objects, arrays and nulls. R decoding cannot represent every number.
     payload$executionData <- NULL
-    encoded <- as.character(jsonlite::toJSON(
+    encoded <- fabric_json_serialize(
       .fabric_job_preserve_json_arrays(payload),
       auto_unbox = TRUE,
       null = "null",
       digits = 22
-    ))
+    )
     payload_json <- paste0(
       substr(encoded, 1L, nchar(encoded) - 1L),
       ',"executionData":',

@@ -1,3 +1,10 @@
+graphql_request_body <- function(request) {
+  jsonlite::fromJSON(
+    rawToChar(request$body$data),
+    simplifyVector = FALSE
+  )
+}
+
 test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
   workspace_id <- "cfafbeb1-8037-4d0c-896e-a46fb27ff229"
   api_id <- "5b218778-e7a5-4d73-8187-f10824047715"
@@ -165,15 +172,16 @@ test_that("fabric_graphql_schema runs standard introspection", {
   expect_equal(schema$queryType$name, "Query")
   expect_equal(schema$types[[1L]]$name, "Product")
   expect_length(attr(schema, "errors"), 0L)
-  expect_equal(captured$body$data$operationName, "IntrospectionQuery")
-  expect_match(captured$body$data$query, "__schema", fixed = TRUE)
+  body <- graphql_request_body(captured)
+  expect_equal(body$operationName, "IntrospectionQuery")
+  expect_match(body$query, "__schema", fixed = TRUE)
   expect_match(
-    captured$body$data$query,
+    body$query,
     "fields(includeDeprecated: true)",
     fixed = TRUE
   )
   expect_match(
-    captured$body$data$query,
+    body$query,
     "fragment TypeRef on __Type",
     fixed = TRUE
   )
@@ -261,10 +269,30 @@ test_that("fabric_graphql_query sends variables and operation names unchanged", 
     captured$headers$accept,
     "application/graphql-response+json"
   )
-  expect_equal(captured$body$data$query, document)
-  expect_equal(captured$body$data$variables$category, "B")
-  expect_null(captured$body$data$variables$nullable)
-  expect_equal(captured$body$data$operationName, "Products")
+  body <- graphql_request_body(captured)
+  expect_equal(body$query, document)
+  expect_equal(body$variables$category, "B")
+  expect_null(body$variables$nullable)
+  expect_equal(body$operationName, "Products")
+})
+
+test_that("GraphQL request JSON preserves recursive negative zero", {
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    captured <<- rawToChar(req$body$data)
+    graphql_test_response(list(data = list(echo = 0)), url = req$url)
+  })
+
+  fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "query Echo($input: EchoInput!) { echo(input: $input) }",
+    variables = list(input = list(value = -0, values = c(0, -0), text = "-0")),
+    token = "token"
+  )
+
+  expect_match(captured, '"value":-0.0', fixed = TRUE)
+  expect_match(captured, '"values":[0,-0.0]', fixed = TRUE)
+  expect_match(captured, '"text":"-0"', fixed = TRUE)
 })
 
 test_that("GraphQL selects the audience from the AzureAuth flow", {
@@ -521,7 +549,7 @@ test_that("empty GraphQL variables are omitted instead of encoded as an array", 
     token = "token"
   )
 
-  expect_false("variables" %in% names(captured$body$data))
+  expect_false("variables" %in% names(graphql_request_body(captured)))
 })
 
 test_that("GraphQL singleton list variables can preserve their array shape", {
@@ -541,11 +569,7 @@ test_that("GraphQL singleton list variables can preserve their array shape", {
     token = "token"
   )
 
-  encoded <- jsonlite::toJSON(
-    captured$body$data,
-    auto_unbox = captured$body$params$auto_unbox,
-    null = captured$body$params$null
-  )
+  encoded <- rawToChar(captured$body$data)
   expect_match(encoded, '"ids":["x"]', fixed = TRUE)
 })
 
@@ -638,8 +662,11 @@ test_that("fabric_graphql_paginate passes opaque cursors and combines errors", {
     c(1L, 3L)
   )
   expect_length(pages$errors, 1L)
-  expect_null(requests[[1L]]$body$data$variables$after)
-  expect_equal(requests[[2L]]$body$data$variables$after, "page-one")
+  expect_null(graphql_request_body(requests[[1L]])$variables$after)
+  expect_equal(
+    graphql_request_body(requests[[2L]])$variables$after,
+    "page-one"
+  )
   expect_equal(pages$variables$after, "page-one")
 })
 

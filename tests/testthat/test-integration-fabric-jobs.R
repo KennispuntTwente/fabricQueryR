@@ -170,6 +170,12 @@ test_that("notebook integer64 parameters reject rounding and support exact text"
     token = token
   ))
   expect_s3_class(error, "fabric_job_parameter_precision_error")
+  negative_zero_error <- rlang::catch_cnd(fabric_job_run(
+    item,
+    parameters = list(marker = -0),
+    token = token
+  ))
+  expect_s3_class(negative_zero_error, "fabric_job_parameter_precision_error")
   job <- fabric_job_run(
     item,
     parameters = list(mode = "success", marker = as.character(value)),

@@ -113,6 +113,12 @@ rounding.
 * Exact Arrow-to-tibble conversion now supports nullable structs containing
 Arrow Null children, including OneLake IPC and Parquet reads.
 
+* Recursive JSON requests now spell IEEE-754 negative zero as `-0.0`, retaining
+its sign in KQL dynamic parameters and on GraphQL and User Data Function request
+wires. Because Fabric's job `Number` binder still normalizes negative zero,
+numeric job parameters now reject it locally and explain the exact `Text`
+alternative.
+
 * `fabric_livy_query()` now bounds temporary-session cleanup with a separate
 deadline and reports both errors when statement execution and session deletion
 fail together.

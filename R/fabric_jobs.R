@@ -47,7 +47,8 @@
 #'   interpret numeric parameters as floating point. This check also applies
 #'   to explicit `Number` and `Automatic` types. For other exact integers or
 #'   decimals, pass `as.character(value)` with type `Text`; the receiving job
-#'   must handle them as text.
+#'   must handle them as text. Fabric normalizes numeric negative zero to zero;
+#'   pass `"-0.0"` with type `Text` when its sign must be retained.
 #' @param parameter_types Optional named character vector overriding inferred
 #'   parameter types. Supported values are `VariableReference`, `Integer`,
 #'   `Number`, `Text`, `Boolean`, `DateTime`, `Guid`, and `Automatic`. Use this
@@ -1251,16 +1252,21 @@ print.fabric_job_instance <- function(x, ...) {
     }
     request <- httr2::req_body_raw(
       request,
-      payload_json,
+      charToRaw(enc2utf8(payload_json)),
       type = "application/json"
     )
   } else if (!is.null(payload)) {
     payload <- .fabric_job_preserve_json_arrays(payload)
-    request <- httr2::req_body_json(
-      request,
+    payload_json <- fabric_json_serialize(
       payload,
       auto_unbox = TRUE,
-      null = "null"
+      null = "null",
+      digits = 22
+    )
+    request <- httr2::req_body_raw(
+      request,
+      charToRaw(enc2utf8(payload_json)),
+      type = "application/json"
     )
   } else if (toupper(method) %in% c("POST", "PUT", "PATCH")) {
     request <- httr2::req_body_raw(request, raw())
@@ -2462,6 +2468,25 @@ print.fabric_job_instance <- function(x, ...) {
   # 3 Convert the value for JSON -------------------------------------------------------------------
 
   # Convert the validated value to Fabric's JSON-ready representation
+
+  # Fabric's Number binder normalizes every valid JSON spelling of negative
+  # zero. Refuse silent sign loss; Text is the only exact transfer option.
+  if (
+    is.numeric(value) &&
+      !inherits(value, "integer64") &&
+      value == 0 &&
+      identical(1 / as.numeric(value), -Inf) &&
+      type %in% c("Number", "Automatic")
+  ) {
+    .fabric_abort(
+      sprintf(
+        "%s parameter `%s` cannot retain the sign of negative zero; pass \"-0.0\" with type Text",
+        type,
+        name
+      ),
+      class = "fabric_job_parameter_precision_error"
+    )
+  }
 
   # Numeric job parameters can become doubles inside the receiving workload.
   if (inherits(value, "integer64") && type %in% c("Number", "Automatic")) {

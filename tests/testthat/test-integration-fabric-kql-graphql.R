@@ -254,6 +254,7 @@ test_that("fabric_kql_query preserves exact dynamic numeric parameters in Fabric
       "small_matches=toreal(values[3]) == real(2.2250738585072014e-308),",
       "large_matches=toreal(values[4]) == real(1.7976931348623157e308),",
       "integer_matches=toreal(values[5]) == real(9007199254740994),",
+      "negative_zero_matches=(1.0 / toreal(values[6])) == real(-inf),",
       "nested_matches=toreal(object.nested.value) == -scalar,",
       "value=toreal(values[0])"
     ),
@@ -266,7 +267,8 @@ test_that("fabric_kql_query preserves exact dynamic numeric parameters in Fabric
         1 + .Machine$double.eps,
         .Machine$double.xmin,
         .Machine$double.xmax,
-        2^53 + 2
+        2^53 + 2,
+        -0
       ),
       object = list(nested = list(value = -pi))
     ),
@@ -275,7 +277,7 @@ test_that("fabric_kql_query preserves exact dynamic numeric parameters in Fabric
 
   expect_identical(
     unname(unlist(result[grepl("_matches$", names(result))])),
-    rep(TRUE, 7L)
+    rep(TRUE, 8L)
   )
   expect_identical(result$value, pi)
 })

@@ -865,7 +865,7 @@ kusto_encode_parameter <- function(value) {
   # Use full double precision for JSON-backed dynamic Kusto values; digits = NA
   # can round finite numbers and overflow the largest finite double.
 
-  json <- jsonlite::toJSON(
+  json <- fabric_json_serialize(
     value,
     auto_unbox = TRUE,
     null = "null",

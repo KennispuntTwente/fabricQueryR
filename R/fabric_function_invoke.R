@@ -349,7 +349,7 @@ function_serialize_parameters <- function(parameters) {
   function_validate_parameter_names(names(parameters))
 
   encoded <- try(
-    jsonlite::toJSON(
+    fabric_json_serialize(
       parameters,
       auto_unbox = TRUE,
       null = "null",

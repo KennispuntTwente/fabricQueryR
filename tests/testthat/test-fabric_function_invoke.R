@@ -116,6 +116,29 @@ test_that("function parameters preserve sampled doubles without display rounding
   expect_identical(jsonlite::fromJSON(encoded)$values, values)
 })
 
+test_that("function request JSON preserves recursive negative zero", {
+  negative_zero <- -0
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    captured <<- rawToChar(req$body$data)
+    function_test_response(function_success_body(), url = req$url)
+  })
+
+  fabric_function_invoke(
+    function_test_url,
+    parameters = list(
+      negativeZero = negative_zero,
+      nested = list(values = c(0, negative_zero)),
+      text = "-0"
+    ),
+    token = "token"
+  )
+
+  expect_match(captured, '"negativeZero":-0.0', fixed = TRUE)
+  expect_match(captured, '"values":[0,-0.0]', fixed = TRUE)
+  expect_match(captured, '"text":"-0"', fixed = TRUE)
+})
+
 test_that("function numeric parameters retain precision in nested and tabular objects", {
   values <- c(pi, 1 / 3, 1 + .Machine$double.eps)
   parameters <- list(

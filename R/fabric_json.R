@@ -9,6 +9,26 @@ fabric_json_quote_numbers <- function(value) {
   gsub(paste(string, number, sep = "|"), '"\\1"', value, perl = TRUE)
 }
 
+# Serialize JSON while spelling IEEE-754 negative zero as a floating-point
+# token. Some receivers parse integer-shaped `-0` as unsigned zero.
+fabric_json_serialize <- function(value, ...) {
+  encoded <- as.character(jsonlite::toJSON(value, ...))
+  fabric_json_preserve_negative_zero(encoded)
+}
+
+# Rewrite only unquoted JSON negative-zero number tokens. Strings containing
+# the same text and nonzero negative numbers remain unchanged.
+fabric_json_preserve_negative_zero <- function(value) {
+  string <- '"(?:\\\\.|[^"\\\\])*"(*SKIP)(*F)'
+  negative_zero <- "-0(?=\\s*(?:[,}\\]]|$))"
+  gsub(
+    paste(string, negative_zero, sep = "|"),
+    "-0.0",
+    value,
+    perl = TRUE
+  )
+}
+
 # Restore decimal and exponent JSON leaves from a parallel lexical tree.
 # Returns the original topology with only numeric source tokens replaced
 fabric_json_restore_decimal_tokens <- function(value, lexical) {

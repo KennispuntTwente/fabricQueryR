@@ -574,6 +574,21 @@ test_that("KQL dynamic objects retain nested numeric values and types", {
   expect_identical(decoded, values)
 })
 
+test_that("KQL dynamic parameters spell recursive negative zero as a real", {
+  negative_zero <- -0
+  literal <- kusto_encode_parameter(list(
+    scalar = negative_zero,
+    values = c(0, negative_zero),
+    nested = list(value = negative_zero),
+    text = "-0"
+  ))
+
+  expect_match(literal, '"scalar":-0.0', fixed = TRUE)
+  expect_match(literal, '"values":[0,-0.0]', fixed = TRUE)
+  expect_match(literal, '"value":-0.0', fixed = TRUE)
+  expect_match(literal, '"text":"-0"', fixed = TRUE)
+})
+
 test_that("KQL exact integer parameters retain integer64 dispatch", {
   text <- c(
     "0",

@@ -220,10 +220,7 @@ test_that("job parameters serialize exactly representable integer64 values", {
   local_mocked_bindings(
     .httr2_collection = function(...) list(),
     .httr2_perform = function(req, ...) {
-      outgoing <<- as.character(do.call(
-        jsonlite::toJSON,
-        c(list(req$body$data), req$body$params)
-      ))
+      outgoing <<- rawToChar(req$body$data)
       httr2::response(
         202L,
         headers = list(
@@ -279,6 +276,46 @@ test_that("job parameters serialize exactly representable integer64 values", {
       expect_identical(sprintf("%.0f", record$value), value)
     }
   }
+})
+
+test_that("numeric job parameters reject negative zero before submission", {
+  outgoing <- NULL
+  local_mocked_bindings(
+    .httr2_collection = function(...) list(),
+    .httr2_perform = function(req, ...) {
+      outgoing <<- rawToChar(req$body$data)
+      httr2::response(
+        202L,
+        headers = list(
+          location = "/jobs/instances/33333333-3333-3333-3333-333333333333"
+        )
+      )
+    }
+  )
+
+  for (type in list(NULL, "Number", "Automatic")) {
+    error <- rlang::catch_cnd(fabric_job_run(
+      job_test_item(),
+      parameters = list(negative_zero = -0),
+      parameter_types = if (is.null(type)) NULL else c(negative_zero = type),
+      token = "test-token",
+      api_base = "https://api.fabric.test/v1"
+    ))
+    expect_s3_class(error, "fabric_job_parameter_precision_error")
+    expect_match(error$message, "cannot retain the sign", fixed = TRUE)
+    expect_null(outgoing)
+  }
+
+  fabric_job_run(
+    job_test_item(),
+    parameters = list(negative_zero = "-0.0"),
+    parameter_types = c(negative_zero = "Text"),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1"
+  )
+
+  expect_match(outgoing, '"value":"-0.0"', fixed = TRUE)
+  expect_match(outgoing, '"type":"Text"', fixed = TRUE)
 })
 
 test_that("unsafe integer64 job parameters fail before any request", {
@@ -831,11 +868,7 @@ test_that("job POST requests preserve one-element schema arrays", {
     parse_json = FALSE
   )
 
-  body <- jsonlite::toJSON(
-    request$body$data,
-    auto_unbox = request$body$params$auto_unbox,
-    null = request$body$params$null
-  )
+  body <- rawToChar(request$body$data)
   parsed <- jsonlite::fromJSON(body, simplifyVector = FALSE)
   expect_length(parsed$executionData$additionalLibraryUris, 1L)
   expect_length(parsed$executionData$computeConfiguration$jars, 1L)

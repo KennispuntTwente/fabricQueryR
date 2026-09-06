@@ -886,7 +886,17 @@ graphql_execute <- function(
   }
   req <- httr2::request(endpoint)
   req <- httr2::req_headers(req, Accept = "application/graphql-response+json")
-  req <- httr2::req_body_json(req, body, auto_unbox = TRUE, null = "null")
+  encoded <- fabric_json_serialize(
+    body,
+    auto_unbox = TRUE,
+    null = "null",
+    digits = 22
+  )
+  req <- httr2::req_body_raw(
+    req,
+    charToRaw(enc2utf8(encoded)),
+    type = "application/json"
+  )
   req <- httr2::req_timeout(req, timeout)
   response <- .httr2_perform(
     req,
