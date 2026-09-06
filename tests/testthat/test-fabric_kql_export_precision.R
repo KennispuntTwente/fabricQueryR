@@ -74,8 +74,6 @@ test_that("Parquet export refuses decimal schemas before any write", {
   expect_identical(properties$Options$query_results_apply_getschema, TRUE)
   expect_snapshot(export(), error = TRUE)
 
-  response <- kql_export_schema_response("string", second = "decimal")
-  expect_s3_class(rlang::catch_cnd(export()), "fabric_kql_export_decimal_error")
   response <- kql_export_schema_response("decimal", second = "string")
   expect_s3_class(rlang::catch_cnd(export()), "fabric_kql_export_decimal_error")
   response <- kql_export_schema_response("decimal", alter = function(frames) {
@@ -178,17 +176,20 @@ test_that("Parquet schema preflight shares the complete export deadline", {
     calls[[length(calls) + 1L]] <<- list(req = req, deadline = deadline)
     if (endsWith(req$url, "/v2/rest/query")) {
       now <<- now + 2
-      return(kql_export_schema_response(c(
-        "bool",
-        "datetime",
-        "dynamic",
-        "guid",
-        "int",
-        "long",
-        "real",
-        "string",
-        "timespan"
-      )))
+      return(kql_export_schema_response(
+        c(
+          "bool",
+          "datetime",
+          "dynamic",
+          "guid",
+          "int",
+          "long",
+          "real",
+          "string",
+          "timespan"
+        ),
+        second = "decimal"
+      ))
     }
     if (startsWith(req$body$data$csl, ".export")) {
       return(kusto_export_test_response(kusto_export_test_operation()))

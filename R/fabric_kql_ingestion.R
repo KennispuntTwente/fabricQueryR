@@ -4285,7 +4285,8 @@ kusto_export_validate_decimal_schema <- function(
     string = "System.String",
     timespan = "System.TimeSpan"
   )
-  for (schema in schemas) {
+  # Storage export writes only the first query result set.
+  for (schema in schemas[1L]) {
     required <- c("ColumnName", "ColumnType", "DataType", "ColumnOrdinal")
     if (
       !is.data.frame(schema) ||
