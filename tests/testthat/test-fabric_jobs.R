@@ -996,6 +996,51 @@ test_that("job POST requests carry an explicit zero-length body", {
   expect_length(request$body$data, 0L)
 })
 
+test_that("empty job object fields serialize as objects", {
+  request <- NULL
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      request <<- req
+      httr2::response(status_code = 202L)
+    }
+  )
+  empty_execution <- .fabric_job_execution_data(
+    target = list(workspace_id = "22222222-2222-4222-8222-222222222222"),
+    route = list(route = "core"),
+    execution_data = list(),
+    default_lakehouse = NULL,
+    default_lakehouse_workspace = NULL,
+    compute = NULL,
+    session_tag = NULL
+  )
+  notebook_execution <- .fabric_job_execution_data(
+    target = list(workspace_id = "22222222-2222-4222-8222-222222222222"),
+    route = list(route = "notebook"),
+    execution_data = list(compute = "Spark", computeConfiguration = list()),
+    default_lakehouse = NULL,
+    default_lakehouse_workspace = NULL,
+    compute = NULL,
+    session_tag = NULL
+  )
+
+  .fabric_job_request(
+    "POST",
+    "https://api.fabric.test/v1/jobs",
+    fabric_credential(token = "test-token"),
+    payload = list(
+      executionData = empty_execution,
+      notebookExecutionData = notebook_execution
+    ),
+    parse_json = FALSE
+  )
+
+  body <- rawToChar(request$body$data)
+  expect_match(body, '"executionData":{}', fixed = TRUE)
+  expect_match(body, '"computeConfiguration":{}', fixed = TRUE)
+  expect_false(grepl('"executionData":[]', body, fixed = TRUE))
+  expect_false(grepl('"computeConfiguration":[]', body, fixed = TRUE))
+})
+
 test_that("job submissions accept successful responses without bodies", {
   submitted_at <- as.POSIXct("2026-09-05 12:00:00", tz = "UTC")
   now <- submitted_at

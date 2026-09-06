@@ -1839,7 +1839,10 @@ print.fabric_job_instance <- function(x, ...) {
     }
 
     if (!is.null(execution_data)) {
-      .fabric_job_named_list(execution_data, "execution_data")
+      execution_data <- .fabric_job_named_list(
+        execution_data,
+        "execution_data"
+      )
       if (identical(route$route, "spark_job_definition")) {
         .fabric_job_validate_spark_definition(execution_data)
       }
@@ -1968,7 +1971,7 @@ print.fabric_job_instance <- function(x, ...) {
 
   # Check notebook execution data now so later code can rely on safe input
 
-  .fabric_job_named_list(execution_data, "execution_data")
+  execution_data <- .fabric_job_named_list(execution_data, "execution_data")
   allowed <- c("compute", "computeConfiguration")
   unknown <- setdiff(names(execution_data), allowed)
 
@@ -2006,7 +2009,7 @@ print.fabric_job_instance <- function(x, ...) {
 
   # Validate nested settings against the normalized compute type
   if (!is.null(execution_data$computeConfiguration)) {
-    .fabric_job_named_list(
+    execution_data$computeConfiguration <- .fabric_job_named_list(
       execution_data$computeConfiguration,
       "execution_data$computeConfiguration"
     )
@@ -3074,13 +3077,12 @@ print.fabric_job_instance <- function(x, ...) {
   parsed
 }
 
-# Check `value` as a fully named list identified by `name`. Returns the same list
-# for execution-data and parameter normalization
+# Check `value` as a fully named list identified by `name`. Returns a JSON object,
+# including an explicitly named empty list for `{}` serialization
 .fabric_job_named_list <- function(value, name) {
   value_names <- names(value)
   if (
     !is.list(value) ||
-      (!length(value) && !identical(value, list())) ||
       (length(value) &&
         (is.null(value_names) ||
           anyNA(value_names) ||
@@ -3092,7 +3094,10 @@ print.fabric_job_instance <- function(x, ...) {
       class = "fabric_job_validation_error"
     )
   }
-  invisible(TRUE)
+  if (!length(value)) {
+    names(value) <- character()
+  }
+  value
 }
 
 # Validate an integer against a documented Fabric enumeration

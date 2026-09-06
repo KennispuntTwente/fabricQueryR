@@ -413,7 +413,10 @@ fabric_job_schedule_create <- function(
   .fabric_schedule_flag(enabled, "enabled")
   configuration <- .fabric_job_schedule_configuration(configuration)
   if (!is.null(execution_data)) {
-    .fabric_job_named_list(execution_data, "execution_data")
+    execution_data <- .fabric_job_named_list(
+      execution_data,
+      "execution_data"
+    )
   }
   context <- .fabric_job_scheduler_context(
     item = item,
@@ -497,7 +500,10 @@ fabric_job_schedule_update <- function(
   if (!execution_data_supplied) {
     execution_data <- current$execution_data
   } else {
-    .fabric_job_named_list(execution_data, "execution_data")
+    execution_data <- .fabric_job_named_list(
+      execution_data,
+      "execution_data"
+    )
   }
   payload <- list(enabled = enabled, configuration = configuration)
   if (!is.null(execution_data)) {

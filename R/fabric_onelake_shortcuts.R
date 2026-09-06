@@ -769,6 +769,9 @@ fabric_onelake_shortcut_delete <- function(
       )
     }
   }
+  if (!length(properties)) {
+    names(properties) <- character()
+  }
   properties
 }
 

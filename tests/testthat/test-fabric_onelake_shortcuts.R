@@ -286,6 +286,41 @@ test_that("bulk shortcut creation submits validated transforms as an LRO", {
   expect_named(body[[2L]]$target, "adlsGen2")
 })
 
+test_that("empty shortcut transform properties serialize as an object", {
+  request <- NULL
+  operation_id <- "66666666-6666-4666-8666-666666666666"
+  httr2::local_mocked_responses(function(req) {
+    request <<- req
+    shortcut_test_response(
+      status = 202L,
+      headers = list(
+        Location = paste0(
+          "https://api.fabric.microsoft.com/v1/operations/",
+          operation_id
+        ),
+        `x-ms-operation-id` = operation_id
+      ),
+      url = req$url
+    )
+  })
+
+  fabric_onelake_shortcuts_bulk_create(
+    shortcut_test_item(),
+    shortcuts = list(list(
+      path = "Files/imports",
+      name = "orders",
+      target = shortcut_test_target(),
+      target_path = "Files/csv/orders",
+      transform = list(type = "csvToDelta", properties = list())
+    )),
+    token = "test-token"
+  )
+
+  body <- jsonlite::toJSON(request$body$data, auto_unbox = TRUE)
+  expect_match(body, '"properties":{}', fixed = TRUE)
+  expect_false(grepl('"properties":[]', body, fixed = TRUE))
+})
+
 test_that("bulk shortcut creation rejects malformed requests locally", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {

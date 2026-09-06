@@ -386,6 +386,20 @@ test_that("schedule creation sends the documented payload and preserves arrays",
     '"weekdays":["Monday","Thursday"]',
     fixed = TRUE
   )
+
+  fabric_job_schedule_create(
+    scheduler_test_item(),
+    configuration,
+    execution_data = list(),
+    token = "test-token"
+  )
+  empty_json <- fabric_json_serialize(
+    .fabric_job_preserve_json_arrays(call$payload),
+    auto_unbox = TRUE,
+    null = "null"
+  )
+  expect_match(empty_json, '"executionData":{}', fixed = TRUE)
+  expect_false(grepl('"executionData":[]', empty_json, fixed = TRUE))
 })
 
 test_that("unknown future schedule types use the documented escape hatch", {
