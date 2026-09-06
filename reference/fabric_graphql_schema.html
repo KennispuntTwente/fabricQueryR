@@ -60,7 +60,8 @@ API without assuming how Fabric named its generated objects</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  audience <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exact"</span>, <span class="st">"double"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -122,6 +123,13 @@ for a custom token provider or unusual identity flow</p></dd>
 <dt id="arg-api-base">api_base<a class="anchor" aria-label="anchor" href="#arg-api-base"></a></dt>
 <dd><p>Fabric REST API base URL used to derive endpoints from IDs
 Most users should keep the default</p></dd>
+
+
+<dt id="arg-numeric-policy">numeric_policy<a class="anchor" aria-label="anchor" href="#arg-numeric-policy"></a></dt>
+<dd><p>Numeric response policy. <code>"exact"</code> preserves decimal
+and exponent JSON numbers in GraphQL <code>data</code> as character source text;
+<code>"double"</code> decodes them as ordinary R doubles and can lose precision or
+lexical scale. Whole-number handling is unchanged</p></dd>
 
 </dl></div>
     <div class="section level2">

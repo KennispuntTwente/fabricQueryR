@@ -85,7 +85,10 @@ fabric_onelake_write_file(
   or character if the column contains the minimum signed value (reserved
   for missing values by bit64). Int32 columns containing `-2147483648`
   use exact R doubles. Nested lists retain character 64-bit integers and
-  decimals, and double 32-bit integers.
+  decimals, and double 32-bit integers. Structs with null parents
+  require `result = "arrow_stream"`: tibble collection cannot
+  distinguish them from valid structs with all-null fields and raises
+  `fabric_arrow_null_struct_error` before discarding that distinction.
 
 - item_type:
 

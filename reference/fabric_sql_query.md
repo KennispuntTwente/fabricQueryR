@@ -186,8 +186,11 @@ fabric_sql_query(
   using character for columns containing the minimum BIGINT. INT columns
   containing `-2147483648` use exact doubles. Nested lists retain
   character decimals and 64-bit integers, and double 32-bit integers.
-  ODBC rejects DECIMAL, NUMERIC, INT and BIGINT columns before fetching:
-  its conversion can round or truncate values or turn valid integer
+  Null struct parents require `result = "arrow_stream"`; exact tibble
+  collection raises `fabric_arrow_null_struct_error` to preserve their
+  distinction from valid structs with all-null fields. ODBC rejects
+  DECIMAL, NUMERIC, INT and BIGINT columns before fetching: its
+  conversion can round or truncate values or turn valid integer
   boundaries into missing values. Cast these columns to `varchar` in SQL
   or use ADBC. `"driver"` explicitly accepts the backend's conversions,
   including possible rounding and missing values, for either output

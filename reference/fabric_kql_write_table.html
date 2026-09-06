@@ -78,6 +78,7 @@ and removes staging only after a confirmed success.</p>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  column_types <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  query_cluster <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exact"</span>, <span class="st">"service"</span><span class="op">)</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -204,7 +205,8 @@ provider. Required when <code>token</code> cannot acquire a different audience.<
 
 <dt id="arg-create-if-missing">create_if_missing<a class="anchor" aria-label="anchor" href="#arg-create-if-missing"></a></dt>
 <dd><p>Whether to create a missing KQL table from the
-Arrow schema before staging. Existing tables are left unchanged.</p></dd>
+Arrow schema after local validation and before upload. Existing tables are
+left unchanged.</p></dd>
 
 
 <dt id="arg-column-types">column_types<a class="anchor" aria-label="anchor" href="#arg-column-types"></a></dt>
@@ -222,6 +224,15 @@ used for table creation and identity-schema validation. A discovered
 <code>cluster</code> already carries this URI; a standard Microsoft ingestion URI is
 converted to its paired query URI. Supply this explicitly for a trusted
 custom ingestion endpoint.</p></dd>
+
+
+<dt id="arg-numeric-policy">numeric_policy<a class="anchor" aria-label="anchor" href="#arg-numeric-policy"></a></dt>
+<dd><p>Decimal ingestion policy. <code>"exact"</code> checks actual
+staged decimal values before creation/upload and rejects coefficients
+requiring more than 34 significant digits. <code>"service"</code> explicitly delegates
+conversion to Kusto, including possible rounding or replacement by null.
+Neither policy changes the source Parquet values or preserves their
+precision, scale or trailing-zero spelling in Kusto.</p></dd>
 
 
 <dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>
@@ -279,10 +290,24 @@ equivalent Parquet measurement, so the writer deliberately omits <code>rawSize</
 and lets Kusto inspect the staged Parquet metadata. Compressed file sizes and
 Arrow buffer sizes remain available separately in the result.</p>
 <p>Set <code>create_if_missing = TRUE</code> to issue Kusto's idempotent <code>.create table</code>
-command before staging. A missing table is created from the Arrow schema; an
-existing table is returned unchanged, so this option never alters an
-existing schema. Common Arrow scalar and nested types are inferred as Kusto
-types. Supply a named <code>column_types</code> vector to override every column type.</p>
+command after local validation and before upload. A missing table is created
+from the Arrow schema; an existing table is returned unchanged, so this option
+never alters an existing schema. Common Arrow scalar and nested types are
+inferred as Kusto types. Supply a named <code>column_types</code> vector to override every
+column type.</p>
+<p>By default, decimal values are checked in every staged Parquet batch before
+table creation or upload. Kusto ingestion can replace decimals with more than
+34 significant digits by null even when ingestion succeeds. Precision above
+34 in an Arrow schema is allowed when the actual values fit; insignificant
+leading and trailing zeros do not count. The same check applies inside nested
+data and with explicit <code>column_types</code> or a named <code>mapping</code>. It does not certify
+arbitrary transformations in those user-selected mappings. Convert decimal
+columns explicitly to Arrow strings to transfer their full text, or select
+<code>numeric_policy = "service"</code> to accept service conversion, rounding and nulls.
+Kusto strings merge missing and empty values; preserve a separate null flag
+when that distinction matters. The check protects mathematical decimal
+values within the staged Parquet representation; Kusto can canonicalize
+their precision, scale and trailing-zero spelling.</p>
 <p>Service-owned Storage credentials are reacquired after local serialization.
 During a multipart upload, the writer honors the advertised configuration
 refresh interval and retries once with new credentials when Storage reports

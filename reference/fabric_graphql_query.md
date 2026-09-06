@@ -22,7 +22,8 @@ fabric_graphql_query(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  numeric_policy = c("exact", "double")
 )
 ```
 
@@ -42,10 +43,12 @@ fabric_graphql_query(
 
 - variables:
 
-  Named list of values for variables declared in `query` One-element
-  values are normally sent as scalars. Wrap a one-element list variable
-  in [`I()`](https://rdrr.io/r/base/AsIs.html), for example
-  `list(ids = I("x"))`, to send it as an array
+  Named list of values for variables declared in `query`. Numeric and
+  other R missing values are sent as JSON `null`; numeric `NaN` and
+  infinities are rejected because GraphQL JSON has no such numbers.
+  One-element values are normally sent as scalars. Wrap a one-element
+  list variable in [`I()`](https://rdrr.io/r/base/AsIs.html), for
+  example `list(ids = I("x"))`, to send it as an array
 
 - operation_name:
 
@@ -109,6 +112,13 @@ fabric_graphql_query(
   Fabric REST API base URL used to derive endpoints from IDs Most users
   should keep the default
 
+- numeric_policy:
+
+  Numeric response policy. `"exact"` preserves decimal and exponent JSON
+  numbers in GraphQL `data` as character source text; `"double"` decodes
+  them as ordinary R doubles and can lose precision or lexical scale.
+  Whole-number handling is unchanged
+
 ## Value
 
 A `fabric_graphql_result` list with `data`, `errors`, `extensions`, and
@@ -171,7 +181,11 @@ or use stored procedures or another abstraction for a single large
 source
 
 Large integers outside R's exact numeric range are returned as character
-values so identifiers and other large integer fields are not rounded
+values so identifiers and other large integer fields are not rounded. By
+default, JSON numbers containing a decimal point or exponent are also
+returned as their exact source text, retaining precision, scale,
+trailing zeros, and exponent spelling. Set `numeric_policy = "double"`
+to decode those values as ordinary R doubles instead
 
 ## References
 

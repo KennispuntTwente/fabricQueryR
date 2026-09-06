@@ -27,7 +27,8 @@ fabric_graphql_paginate(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  numeric_policy = c("exact", "double")
 )
 ```
 
@@ -54,10 +55,12 @@ fabric_graphql_paginate(
 
 - variables:
 
-  Named list of values for variables declared in `query` One-element
-  values are normally sent as scalars. Wrap a one-element list variable
-  in [`I()`](https://rdrr.io/r/base/AsIs.html), for example
-  `list(ids = I("x"))`, to send it as an array
+  Named list of values for variables declared in `query`. Numeric and
+  other R missing values are sent as JSON `null`; numeric `NaN` and
+  infinities are rejected because GraphQL JSON has no such numbers.
+  One-element values are normally sent as scalars. Wrap a one-element
+  list variable in [`I()`](https://rdrr.io/r/base/AsIs.html), for
+  example `list(ids = I("x"))`, to send it as an array
 
 - cursor_variable:
 
@@ -130,6 +133,13 @@ fabric_graphql_paginate(
 
   Fabric REST API base URL used to derive endpoints from IDs Most users
   should keep the default
+
+- numeric_policy:
+
+  Numeric response policy. `"exact"` preserves decimal and exponent JSON
+  numbers in GraphQL `data` as character source text; `"double"` decodes
+  them as ordinary R doubles and can lose precision or lexical scale.
+  Whole-number handling is unchanged
 
 ## Value
 

@@ -122,10 +122,12 @@ alternative, pass
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>fabric_function_result</code> list with <code>function_name</code>,
 <code>invocation_id</code>, <code>status</code>, <code>output</code>, <code>errors</code>, <code>http_status</code>, and
-<code>response</code>. Function <code>output</code> is returned unchanged because field names
-such as <code>token</code> can be legitimate domain data. The rest of <code>response</code> is
-redacted and retains unknown future fields. Inspect <code>status</code> and <code>errors</code>;
-receiving a result does not by itself mean the function succeeded.</p>
+<code>response</code>. Function <code>output</code> is not redacted because field names such as
+<code>token</code> can be legitimate domain data. Unsafe whole-number JSON values are
+exact character text; decimal JSON values use ordinary R doubles. The rest
+of <code>response</code> is redacted and retains unknown future fields. Inspect
+<code>status</code> and <code>errors</code>; receiving a result does not by itself mean the
+function succeeded.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -205,7 +207,9 @@ client timeout allows the service timeout response to arrive. The 32 MiB
 client response cap leaves room for Fabric's envelope around a 30 MB output.
 Secret-named fields and bearer-token text are redacted recursively from
 errors, response metadata, and conditions. Function <code>output</code> is domain data
-and is returned unchanged, even when it contains secret-like field names.</p>
+and is not redacted, even when it contains secret-like field names. Unsafe
+whole-number JSON values are returned as exact character text; decimal JSON
+values use ordinary R doubles.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

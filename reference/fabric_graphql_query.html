@@ -61,7 +61,8 @@ Lakehouse, Warehouse, or SQL Database data you need</p>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  audience <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span></span>
+<span>  api_base <span class="op">=</span> <span class="va">.fabric_api_base</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exact"</span>, <span class="st">"double"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -81,7 +82,9 @@ variables for changing values instead of pasting values into this string</p></dd
 
 
 <dt id="arg-variables">variables<a class="anchor" aria-label="anchor" href="#arg-variables"></a></dt>
-<dd><p>Named list of values for variables declared in <code>query</code>
+<dd><p>Named list of values for variables declared in <code>query</code>.
+Numeric and other R missing values are sent as JSON <code>null</code>; numeric <code>NaN</code>
+and infinities are rejected because GraphQL JSON has no such numbers.
 One-element values are normally sent as scalars. Wrap a one-element list
 variable in <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</a></code>, for example <code>list(ids = I("x"))</code>, to send it as an array</p></dd>
 
@@ -147,6 +150,13 @@ for a custom token provider or unusual identity flow</p></dd>
 <dd><p>Fabric REST API base URL used to derive endpoints from IDs
 Most users should keep the default</p></dd>
 
+
+<dt id="arg-numeric-policy">numeric_policy<a class="anchor" aria-label="anchor" href="#arg-numeric-policy"></a></dt>
+<dd><p>Numeric response policy. <code>"exact"</code> preserves decimal
+and exponent JSON numbers in GraphQL <code>data</code> as character source text;
+<code>"double"</code> decodes them as ordinary R doubles and can lose precision or
+lexical scale. Whole-number handling is unchanged</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -207,7 +217,10 @@ across multiple API items, or use stored procedures or another abstraction
 for a single large source</p>
 <p>Large integers outside R's exact numeric range are returned as
 character values so identifiers and other large integer fields are not
-rounded</p>
+rounded. By default, JSON numbers containing a decimal point or exponent are
+also returned as their exact source text, retaining precision, scale,
+trailing zeros, and exponent spelling. Set <code>numeric_policy = "double"</code> to
+decode those values as ordinary R doubles instead</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

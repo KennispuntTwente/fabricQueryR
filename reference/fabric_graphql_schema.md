@@ -20,7 +20,8 @@ fabric_graphql_schema(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  numeric_policy = c("exact", "double")
 )
 ```
 
@@ -82,6 +83,13 @@ fabric_graphql_schema(
 
   Fabric REST API base URL used to derive endpoints from IDs Most users
   should keep the default
+
+- numeric_policy:
+
+  Numeric response policy. `"exact"` preserves decimal and exponent JSON
+  numbers in GraphQL `data` as character source text; `"double"` decodes
+  them as ordinary R doubles and can lose precision or lexical scale.
+  Whole-number handling is unchanged
 
 ## Value
 

@@ -87,10 +87,12 @@ fabric_function_invoke(
 
 A `fabric_function_result` list with `function_name`, `invocation_id`,
 `status`, `output`, `errors`, `http_status`, and `response`. Function
-`output` is returned unchanged because field names such as `token` can
-be legitimate domain data. The rest of `response` is redacted and
-retains unknown future fields. Inspect `status` and `errors`; receiving
-a result does not by itself mean the function succeeded.
+`output` is not redacted because field names such as `token` can be
+legitimate domain data. Unsafe whole-number JSON values are exact
+character text; decimal JSON values use ordinary R doubles. The rest of
+`response` is redacted and retains unknown future fields. Inspect
+`status` and `errors`; receiving a result does not by itself mean the
+function succeeded.
 
 ## Details
 
@@ -174,8 +176,9 @@ parameters to 4 MB, and a function's return value to 30 MB. The default
 The 32 MiB client response cap leaves room for Fabric's envelope around
 a 30 MB output. Secret-named fields and bearer-token text are redacted
 recursively from errors, response metadata, and conditions. Function
-`output` is domain data and is returned unchanged, even when it contains
-secret-like field names.
+`output` is domain data and is not redacted, even when it contains
+secret-like field names. Unsafe whole-number JSON values are returned as
+exact character text; decimal JSON values use ordinary R doubles.
 
 ## References
 

@@ -122,9 +122,15 @@ fabric_job_cancel(
   values infer `Number` and are accepted only when exactly representable
   as a double, since Fabric may interpret numeric parameters as floating
   point. This check also applies to explicit `Number` and `Automatic`
-  types. For other exact integers or decimals, pass
-  `as.character(value)` with type `Text`; the receiving job must handle
-  them as text.
+  types, which also require finite numeric values. Fabric's decimal
+  parameter binder has a narrower range and scale than R doubles.
+  Numeric parameters are rejected if parsing their JSON token through
+  that binder would overflow or change the original double. For other
+  exact integers or decimals, pass character values with type `Text`;
+  for doubles, `sprintf("%.17g", value)` supplies reversible text. The
+  receiving job must handle these values as text. Fabric normalizes
+  numeric negative zero to zero; pass `"-0.0"` with type `Text` when its
+  sign must be retained.
 
 - parameter_types:
 

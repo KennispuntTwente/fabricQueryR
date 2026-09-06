@@ -37,6 +37,7 @@ fabric_kql_write_table(
   create_if_missing = FALSE,
   column_types = NULL,
   query_cluster = NULL,
+  numeric_policy = c("exact", "service"),
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -164,8 +165,9 @@ fabric_kql_write_table(
 
 - create_if_missing:
 
-  Whether to create a missing KQL table from the Arrow schema before
-  staging. Existing tables are left unchanged.
+  Whether to create a missing KQL table from the Arrow schema after
+  local validation and before upload. Existing tables are left
+  unchanged.
 
 - column_types:
 
@@ -183,6 +185,15 @@ fabric_kql_write_table(
   already carries this URI; a standard Microsoft ingestion URI is
   converted to its paired query URI. Supply this explicitly for a
   trusted custom ingestion endpoint.
+
+- numeric_policy:
+
+  Decimal ingestion policy. `"exact"` checks actual staged decimal
+  values before creation/upload and rejects coefficients requiring more
+  than 34 significant digits. `"service"` explicitly delegates
+  conversion to Kusto, including possible rounding or replacement by
+  null. Neither policy changes the source Parquet values or preserves
+  their precision, scale or trailing-zero spelling in Kusto.
 
 - .sleep, .now:
 
@@ -245,11 +256,26 @@ file sizes and Arrow buffer sizes remain available separately in the
 result.
 
 Set `create_if_missing = TRUE` to issue Kusto's idempotent
-`.create table` command before staging. A missing table is created from
-the Arrow schema; an existing table is returned unchanged, so this
-option never alters an existing schema. Common Arrow scalar and nested
-types are inferred as Kusto types. Supply a named `column_types` vector
-to override every column type.
+`.create table` command after local validation and before upload. A
+missing table is created from the Arrow schema; an existing table is
+returned unchanged, so this option never alters an existing schema.
+Common Arrow scalar and nested types are inferred as Kusto types. Supply
+a named `column_types` vector to override every column type.
+
+By default, decimal values are checked in every staged Parquet batch
+before table creation or upload. Kusto ingestion can replace decimals
+with more than 34 significant digits by null even when ingestion
+succeeds. Precision above 34 in an Arrow schema is allowed when the
+actual values fit; insignificant leading and trailing zeros do not
+count. The same check applies inside nested data and with explicit
+`column_types` or a named `mapping`. It does not certify arbitrary
+transformations in those user-selected mappings. Convert decimal columns
+explicitly to Arrow strings to transfer their full text, or select
+`numeric_policy = "service"` to accept service conversion, rounding and
+nulls. Kusto strings merge missing and empty values; preserve a separate
+null flag when that distinction matters. The check protects mathematical
+decimal values within the staged Parquet representation; Kusto can
+canonicalize their precision, scale and trailing-zero spelling.
 
 Service-owned Storage credentials are reacquired after local
 serialization. During a multipart upload, the writer honors the

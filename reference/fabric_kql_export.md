@@ -36,6 +36,7 @@ fabric_kql_export(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
+  numeric_policy = c("exact", "service"),
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -129,8 +130,9 @@ fabric_kql_export(
 
 - timeout:
 
-  Positive total client-side limit in seconds, shared by submission,
-  status polling, and retrieval of artifact details.
+  Positive total client-side limit in seconds, shared by schema
+  preflight, submission, status polling, and retrieval of artifact
+  details.
 
 - poll_interval:
 
@@ -155,6 +157,13 @@ fabric_kql_export(
 
   Additional sign-in options passed to
   [`AzureAuth::get_azure_token()`](https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html)
+
+- numeric_policy:
+
+  Decimal Parquet policy. `"exact"` refuses queries with decimal output
+  before export. `"service"` explicitly accepts service conversion,
+  which can change decimal values even on successful exports. This
+  option does not change other export formats.
 
 - .sleep, .now:
 
@@ -194,6 +203,30 @@ header and encoding options, and Parquet row-group and
 datetime-precision options, are accepted only for their applicable
 formats.
 
+## Decimal Parquet safety
+
+By default, Parquet exports first request the query's output schemas
+without changing its text. Any decimal output raises
+`fabric_kql_export_decimal_error` before export submission, including an
+empty decimal result. Kusto can silently replace large decimals with
+zero and truncate fractional digits when exporting to Parquet;
+`Completed` only confirms the operation completed. Failed or
+unrecognized schema responses also stop the export. The schema check
+does not lock a query's schema against changes between the check and
+export requests.
+
+To retain decimal values, explicitly project them as strings in your
+query, for example
+`| project value_text=tostring(value), value_is_null=isnull(value)`. The
+companion null flag is necessary because `tostring()` turns a null into
+an empty string. This preserves Kusto's decimal value text, including
+any canonicalization already applied by the service, rather than its
+original input precision or scale. Alternatively, explicitly select
+`numeric_policy = "service"` to accept Kusto's Parquet conversion. The
+policy is also forwarded by an Eventhouse or KQLDatabase item's
+`$export()` method. Other export formats retain their service-defined
+conversion behavior.
+
 ## Permissions
 
 The caller needs at least Kusto Database Viewer permission. OneLake
@@ -213,6 +246,9 @@ request](https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft
 
 [Show Kusto
 operations](https://learn.microsoft.com/en-us/kusto/management/show-operations?view=microsoft-fabric)
+
+[Kusto request
+properties](https://learn.microsoft.com/en-us/kusto/api/rest/request-properties?view=microsoft-fabric)
 
 ## Examples
 

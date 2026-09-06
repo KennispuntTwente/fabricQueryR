@@ -122,7 +122,10 @@ Tibbles preserve decimals as character strings. Signed 64-bit integers use
 <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, or character if the column contains the minimum signed
 value (reserved for missing values by bit64). Int32 columns containing
 <code>-2147483648</code> use exact R doubles. Nested lists retain character 64-bit
-integers and decimals, and double 32-bit integers.</p></dd>
+integers and decimals, and double 32-bit integers.
+Structs with null parents require <code>result = "arrow_stream"</code>: tibble
+collection cannot distinguish them from valid structs with all-null fields
+and raises <code>fabric_arrow_null_struct_error</code> before discarding that distinction.</p></dd>
 
 
 <dt id="arg-item-type">item_type<a class="anchor" aria-label="anchor" href="#arg-item-type"></a></dt>

@@ -81,6 +81,7 @@ can also be supplied.</p>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
 <span>  token <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exact"</span>, <span class="st">"service"</span><span class="op">)</span>,</span>
 <span>  .sleep <span class="op">=</span> <span class="va">Sys.sleep</span>,</span>
 <span>  .now <span class="op">=</span> <span class="va">Sys.time</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -177,7 +178,8 @@ and <code>"zstd"</code>.</p></dd>
 
 <dt id="arg-timeout">timeout<a class="anchor" aria-label="anchor" href="#arg-timeout"></a></dt>
 <dd><p>Positive total client-side limit in seconds, shared by
-submission, status polling, and retrieval of artifact details.</p></dd>
+schema preflight, submission, status polling, and retrieval of artifact
+details.</p></dd>
 
 
 <dt id="arg-poll-interval">poll_interval<a class="anchor" aria-label="anchor" href="#arg-poll-interval"></a></dt>
@@ -202,6 +204,13 @@ to let 'fabricQueryR' use its normal sign-in flow</p></dd>
 <dt id="arg-auth-args">auth_args<a class="anchor" aria-label="anchor" href="#arg-auth-args"></a></dt>
 <dd><p>Additional sign-in options passed to
 <code><a href="https://rdrr.io/pkg/AzureAuth/man/get_azure_token.html" class="external-link">AzureAuth::get_azure_token()</a></code></p></dd>
+
+
+<dt id="arg-numeric-policy">numeric_policy<a class="anchor" aria-label="anchor" href="#arg-numeric-policy"></a></dt>
+<dd><p>Decimal Parquet policy. <code>"exact"</code> refuses queries with
+decimal output before export. <code>"service"</code> explicitly accepts service
+conversion, which can change decimal values even on successful exports.
+This option does not change other export formats.</p></dd>
 
 
 <dt id="arg--sleep-now">.sleep, .now<a class="anchor" aria-label="anchor" href="#arg--sleep-now"></a></dt>
@@ -245,6 +254,28 @@ encoding options, and Parquet row-group and datetime-precision options, are
 accepted only for their applicable formats.</p>
     </div>
     <div class="section level2">
+    <h2 id="decimal-parquet-safety">Decimal Parquet safety<a class="anchor" aria-label="anchor" href="#decimal-parquet-safety"></a></h2>
+
+
+<p>By default, Parquet exports first request the query's output schemas without
+changing its text. Any decimal output raises
+<code>fabric_kql_export_decimal_error</code> before export submission, including an
+empty decimal result. Kusto can silently replace large decimals with zero
+and truncate fractional digits when exporting to Parquet; <code>Completed</code> only
+confirms the operation completed. Failed or unrecognized schema responses
+also stop the export. The schema check does not lock a query's schema against
+changes between the check and export requests.</p>
+<p>To retain decimal values, explicitly project them as strings in your query,
+for example <code>| project value_text=tostring(value), value_is_null=isnull(value)</code>.
+The companion null flag is necessary because <code>tostring()</code> turns a null into
+an empty string. This preserves Kusto's decimal value text, including any
+canonicalization already applied by the service, rather than its original
+input precision or scale. Alternatively, explicitly select
+<code>numeric_policy = "service"</code> to accept Kusto's Parquet conversion. The policy
+is also forwarded by an Eventhouse or KQLDatabase item's <code>$export()</code> method.
+Other export formats retain their service-defined conversion behavior.</p>
+    </div>
+    <div class="section level2">
     <h2 id="permissions">Permissions<a class="anchor" aria-label="anchor" href="#permissions"></a></h2>
 
 
@@ -258,6 +289,7 @@ Data Contributor on the destination.</p>
 <p><a href="https://learn.microsoft.com/en-us/kusto/api/connection-strings/storage-connection-strings?view=microsoft-fabric" class="external-link">Kusto storage connection strings</a></p>
 <p><a href="https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric" class="external-link">Kusto management HTTP request</a></p>
 <p><a href="https://learn.microsoft.com/en-us/kusto/management/show-operations?view=microsoft-fabric" class="external-link">Show Kusto operations</a></p>
+<p><a href="https://learn.microsoft.com/en-us/kusto/api/rest/request-properties?view=microsoft-fabric" class="external-link">Kusto request properties</a></p>
     </div>
 
     <div class="section level2">

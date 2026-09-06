@@ -159,9 +159,15 @@ configured in Fabric. Advanced callers can instead supply records with
 not accept parameters. <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code> values infer <code>Number</code> and are
 accepted only when exactly representable as a double, since Fabric may
 interpret numeric parameters as floating point. This check also applies
-to explicit <code>Number</code> and <code>Automatic</code> types. For other exact integers or
-decimals, pass <code>as.character(value)</code> with type <code>Text</code>; the receiving job
-must handle them as text.</p></dd>
+to explicit <code>Number</code> and <code>Automatic</code> types, which also require finite
+numeric values. Fabric's decimal parameter binder has a narrower range and
+scale than R doubles. Numeric parameters are rejected if parsing their JSON
+token through that binder would overflow or change the original double.
+For other exact integers or decimals, pass character values with type
+<code>Text</code>; for doubles, <code>sprintf("%.17g", value)</code> supplies reversible text.
+The receiving job must handle these values as text.
+Fabric normalizes numeric negative zero to zero;
+pass <code>"-0.0"</code> with type <code>Text</code> when its sign must be retained.</p></dd>
 
 
 <dt id="arg-parameter-types">parameter_types<a class="anchor" aria-label="anchor" href="#arg-parameter-types"></a></dt>
