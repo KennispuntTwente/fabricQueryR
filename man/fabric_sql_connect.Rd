@@ -99,7 +99,10 @@ excludes raw \code{.connection_string}, \code{DSN}, and \code{FileDSN} arguments
 ADBC defaults to \code{bigint = "integer64"}, so ordinary BIGINT values do not
 have to fit an R 32-bit integer. Supply another \code{bigint} policy explicitly
 through \code{...} if needed. Direct DBI reads with \code{integer64} cannot represent
-the minimum signed BIGINT because 'bit64' reserves that value for \code{NA}.}
+the minimum signed BIGINT because 'bit64' reserves that value for \code{NA}.
+Direct ODBC binding can misinterpret \code{integer64} parameters as doubles.
+Use \code{\link[=fabric_sql_query]{fabric_sql_query()}} for its exact parameter handling, use ADBC, or
+supply character parameters with explicit SQL \code{bigint} casts.}
 }
 \value{
 A live \code{DBIConnection}. Close it with \code{\link[DBI:dbDisconnect]{DBI::dbDisconnect()}} when

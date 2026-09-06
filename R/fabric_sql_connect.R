@@ -241,6 +241,9 @@ fabric_sql_connection_info <- function(
 #'   have to fit an R 32-bit integer. Supply another `bigint` policy explicitly
 #'   through `...` if needed. Direct DBI reads with `integer64` cannot represent
 #'   the minimum signed BIGINT because 'bit64' reserves that value for `NA`.
+#'   Direct ODBC binding can misinterpret `integer64` parameters as doubles.
+#'   Use [fabric_sql_query()] for its exact parameter handling, use ADBC, or
+#'   supply character parameters with explicit SQL `bigint` casts.
 #'
 #' @return A live `DBIConnection`. Close it with [DBI::dbDisconnect()] when
 #'   finished. For an ADBC connection with child results still registered,
@@ -509,7 +512,11 @@ fabric_sql_connect <- function(
 #' @param params Optional list of values for `?` placeholders in `sql`. Values
 #'   are sent separately from the SQL text, which is safer and easier to quote
 #'   correctly than building a query with `paste()`. Factors are bound as their
-#'   character labels on both backends.
+#'   character labels on both backends. For ODBC, `bit64::integer64` parameters
+#'   are sent as exact decimal text and their placeholders are cast to `bigint`
+#'   in SQL, preserving numeric operations and missing values. ADBC binds them
+#'   natively. This normalization applies to this query helper; direct DBI
+#'   calls on [fabric_sql_connect()] use the driver's parameter conversion.
 #' @param result Return a `"tibble"` for ordinary R analysis, or a single-use
 #'   `"arrow_stream"`. ADBC streams retain native Arrow types. ODBC streams are
 #'   converted from R data frames and cannot recover values lost by the driver.
@@ -1252,9 +1259,15 @@ fabric_sql_adbc_encrypt <- function(value) {
 # Replace top-level positional placeholders in `sql` with named ADBC parameters
 # Returns rewritten SQL while leaving quoted text and comments untouched
 fabric_sql_adbc_parameter_sql <- function(sql, params) {
+  .fabric_sql_parameter_sql(sql, sprintf("@p%d", seq_along(params)), "ADBC")
+}
+
+# Replace positional placeholders without changing literals, identifiers or
+# comments. The caller controls SQL parameter types and sends values separately.
+.fabric_sql_parameter_sql <- function(sql, replacements, backend) {
   # 1 Prepare placeholder parsing ------------------------------------------------------------------
 
-  # Only question marks in executable SQL should become named parameters
+  # Only question marks in executable SQL should become parameter expressions
 
   chars <- strsplit(sql, "", fixed = TRUE)[[1L]]
   output <- character()
@@ -1301,7 +1314,9 @@ fabric_sql_adbc_parameter_sql <- function(sql, params) {
         next
       } else if (identical(current, "?")) {
         marker <- marker + 1L
-        append_chars(paste0("@p", marker))
+        append_chars(
+          if (marker <= length(replacements)) replacements[[marker]] else "?"
+        )
         position <- position + 1L
         next
       }
@@ -1385,14 +1400,15 @@ fabric_sql_adbc_parameter_sql <- function(sql, params) {
 
   # Check and return rewritten SQL now so later code can rely on safe input
 
-  if (marker != length(params)) {
+  if (marker != length(replacements)) {
     .fabric_abort(
       sprintf(
-        "ADBC parameter binding found %d SQL placeholder%s for %d value%s",
+        "%s parameter binding found %d SQL placeholder%s for %d value%s",
+        backend,
         marker,
         if (marker == 1L) "" else "s",
-        length(params),
-        if (length(params) == 1L) "" else "s"
+        length(replacements),
+        if (length(replacements) == 1L) "" else "s"
       ),
       class = "fabric_sql_execution_error"
     )
@@ -1960,6 +1976,11 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
 ) {
   result <- match.arg(result)
   numeric_policy <- match.arg(numeric_policy)
+  if (inherits(con, "OdbcConnection") && !is.null(params)) {
+    binding <- .fabric_sql_odbc_query_params(sql, params)
+    sql <- binding$sql
+    params <- binding$params
+  }
   exact <- identical(numeric_policy, "exact")
   native <- inherits(con, "AdbiConnection")
   if (exact && native && identical(result, "tibble")) {
@@ -2036,6 +2057,19 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
     return(.fabric_sql_db_fetch(query_result, result))
   }
   DBI::dbGetQuery(con, sql, params = params)
+}
+
+.fabric_sql_odbc_query_params <- function(sql, params) {
+  integer64 <- vapply(params, inherits, logical(1), "integer64")
+  if (any(integer64)) {
+    replacements <- rep("?", length(params))
+    replacements[integer64] <- "CAST(? AS bigint)"
+    sql <- .fabric_sql_parameter_sql(sql, replacements, "ODBC")
+    # ODBC can bind the storage bits of integer64 as doubles. Text preserves
+    # the values, while the SQL cast retains bigint arithmetic and comparison.
+    params[integer64] <- lapply(params[integer64], as.character)
+  }
+  list(sql = sql, params = params)
 }
 
 .fabric_sql_validate_odbc_numeric <- function(result) {

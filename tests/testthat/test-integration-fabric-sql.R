@@ -1057,3 +1057,90 @@ test_that("SQL exact reads preserve numeric boundaries or reject unsafe ODBC con
     expect_identical(cast$v, "-9223372036854775808")
   }
 })
+
+test_that("SQL integer64 parameters preserve values, nulls and bigint operations", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  warehouse <- fabric_item(
+    manifest$workspace_id,
+    fabric_test_manifest_item(manifest, "TestWarehouse")$id,
+    type = "Warehouse",
+    token = token
+  )
+  expected <- c(
+    "-9223372036854775807",
+    "-9007199254740993",
+    "-2147483648",
+    "-1",
+    "0",
+    "1",
+    "2147483648",
+    "9007199254740993",
+    "9223372036854775807",
+    NA_character_
+  )
+  values <- bit64::as.integer64(expected)
+  for (backend in fabric_test_sql_backends()) {
+    for (shape in c("tibble", "arrow_stream")) {
+      result <- fabric_sql_query(
+        warehouse,
+        "SELECT CAST(? AS varchar(20)) AS value",
+        params = list(value = values),
+        backend = backend,
+        result = shape,
+        token = token,
+        verbose = FALSE
+      )
+      if (shape == "arrow_stream") {
+        stream <- result
+        result <- .fabric_arrow_exact_tibble(stream)
+        nanoarrow::nanoarrow_pointer_release(stream)
+      }
+      expect_identical(result$value, expected)
+    }
+    result <- fabric_sql_query(
+      warehouse,
+      paste0(
+        "SELECT CAST(? + CAST(1 AS bigint) AS varchar(20)) AS incremented, ",
+        "CAST(? / CAST(2 AS bigint) AS varchar(20)) AS divided, ",
+        "CAST(CASE WHEN ? = CAST('9007199254740993' AS bigint) ",
+        "THEN 'equal' ELSE 'different' END AS varchar(10)) AS compared"
+      ),
+      params = list(
+        bit64::as.integer64("9223372036854775806"),
+        bit64::as.integer64("3"),
+        bit64::as.integer64("9007199254740993")
+      ),
+      backend = backend,
+      token = token,
+      verbose = FALSE
+    )
+    expect_identical(result$incremented, "9223372036854775807")
+    expect_identical(result$divided, "1")
+    expect_identical(result$compared, "equal")
+    if (backend == "odbc") {
+      type <- local({
+        con <- fabric_sql_connect(
+          warehouse,
+          backend = backend,
+          token = token,
+          verbose = FALSE
+        )
+        on.exit(DBI::dbDisconnect(con), add = TRUE)
+        binding <- .fabric_sql_odbc_query_params(
+          "SELECT ? AS value",
+          list(bit64::as.integer64(3))
+        )
+        query_result <- .fabric_sql_db_send_query(con, binding$sql, "tibble")
+        on.exit(
+          .fabric_sql_db_clear_result(query_result),
+          add = TRUE,
+          after = FALSE
+        )
+        .fabric_sql_db_bind(query_result, binding$params)
+        DBI::dbColumnInfo(query_result)$type
+      })
+      expect_identical(as.character(type), "-5")
+    }
+  }
+})

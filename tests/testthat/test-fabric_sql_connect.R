@@ -1068,6 +1068,168 @@ test_that("SQL factor parameters preserve labels and nulls for both backends", {
   expect_identical(as.character(bound$value), expected$value)
 })
 
+test_that("ODBC query bindings preserve integer64 values and bigint semantics", {
+  expected <- c(
+    "-9223372036854775807",
+    "-9007199254740993",
+    "-2147483648",
+    "-1",
+    "0",
+    "1",
+    "2147483648",
+    "9007199254740993",
+    "9223372036854775807",
+    NA_character_
+  )
+  values <- bit64::as.integer64(expected)
+  con <- structure(list(), class = "OdbcConnection")
+  query_result <- structure(list(), class = "OdbcResult")
+  sent_sql <- NULL
+  bound <- NULL
+  local_mocked_bindings(
+    .fabric_sql_db_send_query = function(con, sql, result, immediate) {
+      sent_sql <<- sql
+      expect_identical(immediate, FALSE)
+      query_result
+    },
+    .fabric_sql_db_fetch = function(...) tibble::tibble(value = expected),
+    .fabric_sql_validate_odbc_numeric = function(...) invisible(NULL),
+    .fabric_sql_db_clear_result = function(...) invisible(TRUE),
+    .fabric_sql_own_arrow_stream = function(stream, ...) stream
+  )
+  local_mocked_bindings(
+    dbBind = function(result, params) bound <<- params,
+    dbGetQuery = function(con, sql, params) {
+      sent_sql <<- sql
+      bound <<- params
+      tibble::tibble(value = expected)
+    },
+    .package = "DBI"
+  )
+  for (params in list(
+    list(values),
+    list(value = values),
+    data.frame(value = values)
+  )) {
+    for (shape in c("tibble", "arrow_stream")) {
+      for (policy in c("exact", "driver")) {
+        out <- .fabric_sql_db_get_query(
+          con,
+          "SELECT CAST(? AS varchar(20)) AS value",
+          params = params,
+          result = shape,
+          numeric_policy = policy
+        )
+        expect_identical(
+          sent_sql,
+          "SELECT CAST(CAST(? AS bigint) AS varchar(20)) AS value"
+        )
+        expect_identical(bound[[1L]], expected)
+        expect_identical(names(bound), names(params))
+        expect_identical(class(bound), class(params))
+        expect_identical(out$value, expected)
+      }
+    }
+  }
+})
+
+test_that("ODBC integer64 rewriting ignores quoted and commented question marks", {
+  con <- structure(list(), class = "OdbcConnection")
+  sent <- NULL
+  local_mocked_bindings(
+    dbGetQuery = function(con, sql, params) {
+      sent <<- list(sql = sql, params = params)
+      data.frame()
+    },
+    .package = "DBI"
+  )
+  sql <- paste0(
+    "SELECT '?' AS [bracket?]],name], \"quoted?\" AS quoted_name, ",
+    "'escaped''?' AS text, ? AS first, ? AS second, ? AS third ",
+    "/* ? /* nested ? */ ? */ -- ?\n"
+  )
+  params <- list(
+    first = bit64::as.integer64(c("9223372036854775807", NA)),
+    second = c(pi, NA_real_),
+    third = bit64::as.integer64(c(NA, NA))
+  )
+  .fabric_sql_db_get_query(con, sql, params, numeric_policy = "driver")
+  expect_identical(
+    sent$sql,
+    sub(
+      "? AS third",
+      "CAST(? AS bigint) AS third",
+      sub(
+        "? AS first",
+        "CAST(? AS bigint) AS first",
+        sql,
+        fixed = TRUE
+      ),
+      fixed = TRUE
+    )
+  )
+  expect_identical(
+    sent$params,
+    list(
+      first = c("9223372036854775807", NA_character_),
+      second = c(pi, NA_real_),
+      third = c(NA_character_, NA_character_)
+    )
+  )
+  expect_identical(
+    as.character(params$first),
+    c("9223372036854775807", NA_character_)
+  )
+})
+
+test_that("ODBC ordinary parameters and ADBC integer64 bindings keep their types", {
+  con <- structure(list(), class = "OdbcConnection")
+  params <- list(a = pi, b = "12345678901234567890.1234", c = 1L)
+  local_mocked_bindings(
+    dbGetQuery = function(con, sql, params) list(sql = sql, params = params),
+    .package = "DBI"
+  )
+  out <- .fabric_sql_db_get_query(
+    con,
+    "SELECT ?, ?, ?",
+    params,
+    numeric_policy = "driver"
+  )
+  expect_identical(out, list(sql = "SELECT ?, ?, ?", params = params))
+  values <- bit64::as.integer64(c("9223372036854775807", NA))
+  bound <- NULL
+  local_mocked_bindings(
+    dbBind = function(result, params) bound <<- params,
+    .package = "DBI"
+  )
+  .fabric_sql_db_bind(
+    structure(list(), class = "AdbiResult"),
+    list("@p1" = values)
+  )
+  expect_identical(bound[["@p1"]], I(values))
+})
+
+test_that("integer64 bind translation validates parameter counts before sending", {
+  con <- structure(list(), class = "OdbcConnection")
+  local_mocked_bindings(
+    .fabric_sql_db_send_query = function(...) stop("must not send")
+  )
+  expect_snapshot(error = TRUE, {
+    .fabric_sql_db_get_query(
+      con,
+      "SELECT '?', ?, ?",
+      list(bit64::as.integer64(1))
+    )
+  })
+  expect_snapshot(error = TRUE, {
+    .fabric_sql_db_get_query(con, "SELECT '?'", list(bit64::as.integer64(1)))
+  })
+  expect_identical(
+    fabric_sql_adbc_parameter_sql("SELECT '?'", list()),
+    "SELECT '?'"
+  )
+})
+
 test_that("SQL connection adapters construct ODBC and ADBC connections", {
   skip_if_not_installed("odbc")
   skip_if_not_installed("adbi")

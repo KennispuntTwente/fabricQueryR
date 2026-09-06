@@ -48,7 +48,11 @@ Lakehouse SQL analytics endpoint is read-only and does not support
 \item{params}{Optional list of values for \verb{?} placeholders in \code{sql}. Values
 are sent separately from the SQL text, which is safer and easier to quote
 correctly than building a query with \code{paste()}. Factors are bound as their
-character labels on both backends.}
+character labels on both backends. For ODBC, \code{bit64::integer64} parameters
+are sent as exact decimal text and their placeholders are cast to \code{bigint}
+in SQL, preserving numeric operations and missing values. ADBC binds them
+natively. This normalization applies to this query helper; direct DBI
+calls on \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} use the driver's parameter conversion.}
 
 \item{result}{Return a \code{"tibble"} for ordinary R analysis, or a single-use
 \code{"arrow_stream"}. ADBC streams retain native Arrow types. ODBC streams are
@@ -141,7 +145,10 @@ excludes raw \code{.connection_string}, \code{DSN}, and \code{FileDSN} arguments
 ADBC defaults to \code{bigint = "integer64"}, so ordinary BIGINT values do not
 have to fit an R 32-bit integer. Supply another \code{bigint} policy explicitly
 through \code{...} if needed. Direct DBI reads with \code{integer64} cannot represent
-the minimum signed BIGINT because 'bit64' reserves that value for \code{NA}.}
+the minimum signed BIGINT because 'bit64' reserves that value for \code{NA}.
+Direct ODBC binding can misinterpret \code{integer64} parameters as doubles.
+Use \code{\link[=fabric_sql_query]{fabric_sql_query()}} for its exact parameter handling, use ADBC, or
+supply character parameters with explicit SQL \code{bigint} casts.}
 }
 \value{
 With \code{result = "tibble"}, a tibble containing the returned rows and
