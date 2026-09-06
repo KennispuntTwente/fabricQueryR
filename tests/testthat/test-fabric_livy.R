@@ -2348,13 +2348,117 @@ test_that("session wait continues through an Uncertain intermediate result", {
   expect_length(responses, 0L)
   session$close()
 })
-test_that("generic Livy JSON preserves fractional and tiny numbers", {
-  value <- list(
-    value = 1.23456789012345,
-    tiny = 0.0000123456789,
-    nested = list(value = 1.23456789012345)
+test_that("generic Livy JSON preserves doubles throughout their finite range", {
+  values <- c(
+    0,
+    1,
+    pi,
+    1 / 3,
+    1 - .Machine$double.eps / 2,
+    1 + .Machine$double.eps,
+    2^53 - 1,
+    2^53,
+    2^53 + 2,
+    1.2345678901234567e-100,
+    1.2345678901234567e100,
+    .Machine$double.xmin,
+    .Machine$double.xmin * (1 - .Machine$double.eps),
+    .Machine$double.xmin * .Machine$double.eps,
+    .Machine$double.xmax
   )
-  expect_equal(fabric_livy_parse_json(value), value, tolerance = 1e-15)
+  values <- c(values, -values)
+
+  expect_identical(fabric_livy_parse_json(values), values)
+  expect_identical(fabric_livy_parse_json(as.list(values)), values)
+  for (value in values) {
+    expect_identical(fabric_livy_parse_json(value), value)
+  }
+})
+
+test_that("generic Livy JSON preserves doubles across exponents", {
+  exponents <- seq(-1000, 1000, by = 20)
+  values <- c(
+    pi / 4 * 2^exponents,
+    (1 + .Machine$double.eps) * 2^exponents,
+    -(1 - .Machine$double.eps / 2) * 2^exponents
+  )
+
+  expect_identical(fabric_livy_parse_json(values), values)
+})
+
+test_that("generic Livy JSON preserves nested numeric and exact text values", {
+  value <- list(
+    fraction = pi,
+    nested = list(
+      adjacent = c(1 - .Machine$double.eps / 2, 1 + .Machine$double.eps),
+      large = 2^53 + 2,
+      smallest = .Machine$double.xmin * .Machine$double.eps,
+      largest = .Machine$double.xmax,
+      missing = NULL
+    ),
+    integer = 1L,
+    integer_limits = c(-2147483647L, 2147483647L),
+    decimal = "12345678901234567890.123456789012345",
+    bigint = "9223372036854775807",
+    special = c(pi, NA_real_, Inf, -Inf, NaN)
+  )
+
+  expect_identical(fabric_livy_parse_json(value), value)
+})
+
+test_that("generic Livy JSON retains integer64 values as exact text", {
+  skip_if_not_installed("bit64")
+  value <- list(
+    id = bit64::as.integer64("9223372036854775807"),
+    negative_id = bit64::as.integer64("-9223372036854775807"),
+    number = pi
+  )
+
+  expect_identical(
+    fabric_livy_parse_json(value),
+    list(
+      id = "9223372036854775807",
+      negative_id = "-9223372036854775807",
+      number = pi
+    )
+  )
+})
+
+test_that("generic Livy MIME output preserves tabular double precision", {
+  values <- c(
+    pi,
+    1 / 3,
+    1 + .Machine$double.eps,
+    2^53 + 2,
+    .Machine$double.xmin * .Machine$double.eps,
+    .Machine$double.xmax
+  )
+  rows <- lapply(seq_along(values), function(index) {
+    list(id = index, value = values[[index]], opposite = -values[[index]])
+  })
+  expected <- tibble::tibble(
+    id = seq_along(values),
+    value = values,
+    opposite = -values
+  )
+
+  for (mime in c("application/json", "application/vnd.test+json")) {
+    result <- fabric_livy_output(
+      response = list(
+        id = 4L,
+        state = "available",
+        output = list(
+          status = "ok",
+          data = stats::setNames(list(rows), mime)
+        )
+      ),
+      started_local = as.POSIXct("2026-01-01", tz = "UTC"),
+      completed_local = as.POSIXct("2026-01-01 00:00:01", tz = "UTC"),
+      url = "https://example.test/statements/4"
+    )
+
+    expect_identical(result$output$parsed, expected)
+  }
 })
 test_that("Livy retains application flow through stored credentials", {
   credential <- fabric_credential(

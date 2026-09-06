@@ -180,6 +180,43 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   expect_identical(exact_numbers$output$parsed$id, "1000000000000001")
   expect_identical(exact_numbers$output$parsed$ratio, 1.2345678901234567)
 
+  generic_numbers <- session$run(
+    paste(
+      "import math, sys",
+      "fabricqueryr_precise_values = [",
+      "    math.pi, 1 / 3,",
+      "    math.nextafter(1.0, 0.0), math.nextafter(1.0, math.inf),",
+      "    float(2**53 - 1), float(2**53 + 2),",
+      "    1.2345678901234567e-100, 1.2345678901234567e100,",
+      "    sys.float_info.min, math.nextafter(sys.float_info.min, 0.0),",
+      "    math.nextafter(0.0, 1.0), sys.float_info.max]",
+      "%json fabricqueryr_precise_values",
+      sep = "\n"
+    ),
+    kind = "pyspark",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_identical(generic_numbers$output$status, "ok")
+  expect_contains(names(generic_numbers$output$data), "application/json")
+  expect_identical(
+    generic_numbers$output$parsed,
+    c(
+      pi,
+      1 / 3,
+      1 - .Machine$double.eps / 2,
+      1 + .Machine$double.eps,
+      2^53 - 1,
+      2^53 + 2,
+      1.2345678901234567e-100,
+      1.2345678901234567e100,
+      .Machine$double.xmin,
+      .Machine$double.xmin * (1 - .Machine$double.eps),
+      .Machine$double.xmin * .Machine$double.eps,
+      .Machine$double.xmax
+    )
+  )
+
   nested_decimal <- session$run(
     paste(
       "SELECT array(d, CAST(NULL AS DECIMAL(38,15))) AS a,",

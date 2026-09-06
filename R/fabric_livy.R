@@ -1112,9 +1112,16 @@ fabric_livy_parse_json <- function(value) {
   if (!is.null(table)) {
     return(table)
   }
+  # Keep whole-number doubles distinct from exact bigint tokens.
   obj <- try(
     jsonlite::fromJSON(
-      jsonlite::toJSON(value, auto_unbox = TRUE, null = "null", digits = NA),
+      jsonlite::toJSON(
+        value,
+        auto_unbox = TRUE,
+        null = "null",
+        digits = 22,
+        always_decimal = TRUE
+      ),
       simplifyVector = TRUE,
       bigint_as_char = TRUE
     ),
