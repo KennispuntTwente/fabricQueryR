@@ -525,7 +525,7 @@ test_that("Eventhouse writer requires a Storage credential for fixed tokens", {
   )
 })
 
-test_that("Eventhouse writer creates a missing table before staging", {
+test_that("Eventhouse writer creates a missing table before upload", {
   skip_if_not_installed("arrow")
   calls <- character()
   management <- NULL
@@ -605,9 +605,9 @@ test_that("Eventhouse writer creates a missing table before staging", {
   expect_equal(
     calls[1:5],
     c(
-      "management",
-      "management",
       "configuration",
+      "management",
+      "management",
       "configuration",
       "upload"
     )
@@ -786,7 +786,7 @@ test_that("KQL table creation rejects unsupported Parquet temporal mappings", {
   }
 })
 
-test_that("KQL table creation fails before staging or upload", {
+test_that("KQL table creation fails after local staging but before upload", {
   skip_if_not_installed("arrow")
   configuration_calls <- 0L
   upload_calls <- 0L
@@ -814,8 +814,193 @@ test_that("KQL table creation fails before staging or upload", {
     ),
     class = "fabric_kql_table_create_error"
   )
-  expect_equal(configuration_calls, 0L)
+  expect_equal(configuration_calls, 1L)
   expect_equal(upload_calls, 0L)
+})
+
+test_that("KQL decimal validation permits exact values in wide schemas", {
+  skip_if_not_installed("arrow")
+  values <- c(
+    "1234567890123456789.123456789012345",
+    "-1234567890123456789.123456789012345",
+    "1.230000000000000",
+    "0.000000000000001",
+    "0.000000000000000",
+    NA_character_
+  )
+  decimal <- arrow::Array$create(values)$cast(arrow::decimal128(38, 15))
+  expect_null(kusto_write_validate_decimal_array(decimal, "value"))
+  expect_identical(
+    decimal$cast(arrow::utf8())$as_vector(),
+    c(values[1:3], "1E-15", "0E-15", NA_character_)
+  )
+
+  large <- arrow::Array$create(c(
+    "10000000000000000000000000000000000000",
+    "12345678901234567890123456789012340000"
+  ))$cast(arrow::decimal128(38, 0))
+  tiny <- arrow::Array$create(
+    "0.00000000000000000000000000000000000001"
+  )$cast(arrow::decimal128(38, 38))
+  expect_null(kusto_write_validate_decimal_array(large, "large"))
+  expect_null(kusto_write_validate_decimal_array(tiny, "tiny"))
+})
+
+test_that("KQL decimal validation checks referenced nested and dictionary values", {
+  skip_if_not_installed("arrow")
+  decimal <- arrow::Array$create(c(
+    "12345678901234567890.123456789012345",
+    "1234567890123456789.123456789012345",
+    NA_character_
+  ))$cast(arrow::decimal128(38, 15))
+  expect_null(kusto_write_validate_decimal_array(decimal$Slice(1L), "sliced"))
+
+  dictionary <- arrow::DictionaryArray$create(
+    arrow::Array$create(c(1L, NA_integer_)),
+    decimal
+  )
+  expect_null(kusto_write_validate_decimal_array(dictionary, "dictionary"))
+  referenced <- arrow::DictionaryArray$create(arrow::Array$create(0L), decimal)
+  error <- rlang::catch_cnd(kusto_write_validate_decimal_array(
+    referenced,
+    "dictionary"
+  ))
+  expect_s3_class(error, "fabric_kql_decimal_precision_error")
+
+  expect_snapshot(
+    kusto_write_validate_decimal_array(referenced, "dictionary"),
+    error = TRUE
+  )
+
+  struct <- arrow::StructArray$create(value = decimal)
+  error <- rlang::catch_cnd(kusto_write_validate_decimal_array(
+    struct,
+    "payload"
+  ))
+  expect_s3_class(error, "fabric_kql_decimal_precision_error")
+  expect_identical(error$column, "payload.value")
+  expect_null(kusto_write_validate_decimal_array(struct$Slice(1L), "payload"))
+  masked <- nanoarrow::nanoarrow_array_modify(
+    nanoarrow::as_nanoarrow_array(struct),
+    list(buffers = list(as.raw(6L)), null_count = 1L)
+  )
+  expect_null(kusto_write_validate_decimal_array(
+    arrow::as_arrow_array(masked),
+    "masked"
+  ))
+
+  nested <- arrow::Array$create(
+    list("12345678901234567890.123456789012345", NULL),
+    type = arrow::list_of(arrow::utf8())
+  )$cast(arrow::list_of(arrow::decimal128(38, 15)))
+  error <- rlang::catch_cnd(kusto_write_validate_decimal_array(
+    nested,
+    "values"
+  ))
+  expect_s3_class(error, "fabric_kql_decimal_precision_error")
+  expect_identical(error$column, "values[]")
+  expect_null(kusto_write_validate_decimal_array(nested$Slice(1L), "values"))
+})
+
+test_that("KQL writer rejects later decimal batches before creation or upload", {
+  skip_if_not_installed("arrow")
+  directory <- withr::local_tempdir()
+  type <- arrow::decimal128(38, 15)
+  for (index in 1:2) {
+    value <- c(
+      "1234567890123456789.123456789012345",
+      "12345678901234567890.123456789012345"
+    )[[index]]
+    arrow::write_parquet(
+      arrow::Table$create(value = arrow::Array$create(value)$cast(type)),
+      file.path(directory, paste0(index, ".parquet"))
+    )
+  }
+  requests <- character()
+  local_mocked_bindings(.httr2_perform = function(req, ...) {
+    requests <<- c(requests, req$url)
+    if (!endsWith(req$url, "/v1/rest/ingestion/configuration")) {
+      stop("No mutation should be submitted")
+    }
+    httr2::response(
+      status_code = 200L,
+      url = req$url,
+      headers = list(`content-type` = "application/json"),
+      body = charToRaw(jsonlite::toJSON(
+        list(
+          containerSettings = list(
+            containers = list(list(
+              path = "https://account.blob.core.windows.net/staging?sig=test"
+            )),
+            preferredUploadMethod = "Storage"
+          ),
+          ingestionSettings = list(
+            maxBlobsPerBatch = 20L,
+            maxDataSize = "6442450944"
+          )
+        ),
+        auto_unbox = TRUE
+      ))
+    )
+  })
+  for (args in list(
+    list(),
+    list(mapping = "custom"),
+    list(column_types = c(value = "string"))
+  )) {
+    error <- rlang::catch_cnd(do.call(
+      fabric_kql_write_table,
+      c(
+        list(
+          cluster = "https://ingest-cluster.kusto.fabric.microsoft.com",
+          table = "Audit",
+          data = arrow::open_dataset(directory),
+          database = "Telemetry",
+          create_if_missing = TRUE,
+          max_rows_per_file = 1L,
+          token = "test-token"
+        ),
+        args
+      )
+    ))
+    expect_s3_class(error, "fabric_kql_decimal_precision_error")
+    expect_identical(error$column, "value")
+  }
+  expect_length(requests, 3L)
+  expect_identical(
+    all(endsWith(requests, "/v1/rest/ingestion/configuration")),
+    TRUE
+  )
+})
+
+test_that("KQL writer service policy explicitly bypasses the decimal guard", {
+  skip_if_not_installed("arrow")
+  reached_creation <- FALSE
+  local_mocked_bindings(
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration()
+    },
+    kusto_export_management = function(...) {
+      reached_creation <<- TRUE
+      rlang::abort("Creation reached")
+    }
+  )
+  data <- arrow::Table$create(
+    value = arrow::Array$create(
+      "12345678901234567890.123456789012345"
+    )$cast(arrow::decimal128(38, 15))
+  )
+  error <- rlang::catch_cnd(fabric_kql_write_table(
+    "https://ingest-cluster.kusto.fabric.microsoft.com",
+    "Audit",
+    data,
+    database = "Telemetry",
+    create_if_missing = TRUE,
+    numeric_policy = "service",
+    token = "test-token"
+  ))
+  expect_s3_class(error, "fabric_kql_table_create_error")
+  expect_identical(reached_creation, TRUE)
 })
 
 test_that("KQL table creation protects management endpoint and identifiers", {

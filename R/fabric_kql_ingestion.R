@@ -1775,10 +1775,25 @@ kusto_ingestion_time_vector <- function(records, field) {
 #' Arrow buffer sizes remain available separately in the result.
 #'
 #' Set `create_if_missing = TRUE` to issue Kusto's idempotent `.create table`
-#' command before staging. A missing table is created from the Arrow schema; an
-#' existing table is returned unchanged, so this option never alters an
-#' existing schema. Common Arrow scalar and nested types are inferred as Kusto
-#' types. Supply a named `column_types` vector to override every column type.
+#' command after local validation and before upload. A missing table is created
+#' from the Arrow schema; an existing table is returned unchanged, so this option
+#' never alters an existing schema. Common Arrow scalar and nested types are
+#' inferred as Kusto types. Supply a named `column_types` vector to override every
+#' column type.
+#'
+#' By default, decimal values are checked in every staged Parquet batch before
+#' table creation or upload. Kusto ingestion can replace decimals with more than
+#' 34 significant digits by null even when ingestion succeeds. Precision above
+#' 34 in an Arrow schema is allowed when the actual values fit; insignificant
+#' leading and trailing zeros do not count. The same check applies inside nested
+#' data and with explicit `column_types` or a named `mapping`. It does not certify
+#' arbitrary transformations in those user-selected mappings. Convert decimal
+#' columns explicitly to Arrow strings to transfer their full text, or select
+#' `numeric_policy = "service"` to accept service conversion, rounding and nulls.
+#' Kusto strings merge missing and empty values; preserve a separate null flag
+#' when that distinction matters. The check protects mathematical decimal
+#' values within the staged Parquet representation; Kusto can canonicalize
+#' their precision, scale and trailing-zero spelling.
 #'
 #' Service-owned Storage credentials are reacquired after local serialization.
 #' During a multipart upload, the writer honors the advertised configuration
@@ -1836,7 +1851,8 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'   canceled ingestion. Set `FALSE` to return the failed result and its staging
 #'   disposition.
 #' @param create_if_missing Whether to create a missing KQL table from the
-#'   Arrow schema before staging. Existing tables are left unchanged.
+#'   Arrow schema after local validation and before upload. Existing tables are
+#'   left unchanged.
 #' @param column_types Optional named character vector giving one Kusto scalar
 #'   type for every data column when `create_if_missing = TRUE`. Supported
 #'   canonical types are `bool`, `datetime`, `decimal`, `dynamic`, `guid`,
@@ -1848,6 +1864,12 @@ kusto_ingestion_time_vector <- function(records, field) {
 #'   `cluster` already carries this URI; a standard Microsoft ingestion URI is
 #'   converted to its paired query URI. Supply this explicitly for a trusted
 #'   custom ingestion endpoint.
+#' @param numeric_policy Decimal ingestion policy. `"exact"` checks actual
+#'   staged decimal values before creation/upload and rejects coefficients
+#'   requiring more than 34 significant digits. `"service"` explicitly delegates
+#'   conversion to Kusto, including possible rounding or replacement by null.
+#'   Neither policy changes the source Parquet values or preserves their
+#'   precision, scale or trailing-zero spelling in Kusto.
 #' @param tenant_id Microsoft Entra tenant ID.
 #' @param client_id Microsoft Entra application/client ID.
 #' @param token Optional access token or audience-aware token-provider function.
@@ -1930,6 +1952,7 @@ fabric_kql_write_table <- function(
   create_if_missing = FALSE,
   column_types = NULL,
   query_cluster = NULL,
+  numeric_policy = c("exact", "service"),
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -1938,6 +1961,7 @@ fabric_kql_write_table <- function(
   if (missing(data)) {
     .fabric_abort("data is required")
   }
+  numeric_policy <- match.arg(numeric_policy)
   target <- kusto_resolve_ingestion_target(
     cluster,
     database,
@@ -2033,32 +2057,8 @@ fabric_kql_write_table <- function(
       prepared$names,
       column_types
     )
-    tryCatch(
-      kusto_export_management(
-        management_target,
-        command,
-        credential,
-        deadline = .now() + min(timeout, 60),
-        idempotent = TRUE,
-        operation = "CreateTable"
-      ),
-      error = function(error) {
-        .fabric_abort(
-          paste0(
-            "Kusto could not create or confirm target table '",
-            table,
-            "' before staging"
-          ),
-          class = c(
-            "fabric_kql_table_create_error",
-            "fabric_kql_write_error"
-          ),
-          parent = error
-        )
-      }
-    )
   }
-  if (is.null(mapping)) {
+  if (is.null(mapping) && !isTRUE(create_if_missing)) {
     actual_schema <- kusto_write_table_schema(
       management_target,
       table,
@@ -2097,6 +2097,50 @@ fabric_kql_write_table <- function(
     caller = "fabric_kql_write_table()",
     error_class = c("fabric_kql_arrow_error", "fabric_kql_write_error")
   )
+  if (identical(numeric_policy, "exact")) {
+    kusto_write_validate_decimals(serialized$paths, prepared$schema)
+  }
+
+  if (isTRUE(create_if_missing)) {
+    tryCatch(
+      kusto_export_management(
+        management_target,
+        command,
+        credential,
+        deadline = .now() + min(timeout, 60),
+        idempotent = TRUE,
+        operation = "CreateTable"
+      ),
+      error = function(error) {
+        .fabric_abort(
+          paste0(
+            "Kusto could not create or confirm target table '",
+            table,
+            "' before upload"
+          ),
+          class = c(
+            "fabric_kql_table_create_error",
+            "fabric_kql_write_error"
+          ),
+          parent = error
+        )
+      }
+    )
+    if (is.null(mapping)) {
+      actual_schema <- kusto_write_table_schema(
+        management_target,
+        table,
+        credential,
+        deadline = .now() + min(timeout, 60)
+      )
+      kusto_write_assert_identity_schema(
+        actual_schema,
+        prepared$schema,
+        prepared$names,
+        column_types
+      )
+    }
+  }
 
   # Reacquire configuration after local serialization so service-owned SAS
   # credentials and limits are current immediately before remote staging
@@ -2903,6 +2947,107 @@ kusto_write_arrow_type <- function(type, column) {
     )
   }
   inferred
+}
+
+# Inspect the actual local artifacts before allowing any remote upload. Reading
+# batches from each part bounds memory and covers single-use and lazy inputs.
+kusto_write_validate_decimals <- function(paths, schema) {
+  if (!kusto_write_contains_decimal(schema$ToString())) {
+    return(invisible(NULL))
+  }
+  for (path in paths) {
+    reader <- arrow::as_record_batch_reader(arrow::open_dataset(
+      path,
+      format = "parquet"
+    ))
+    tryCatch(
+      repeat {
+        batch <- reader$read_next_batch()
+        if (is.null(batch)) {
+          break
+        }
+        for (index in seq_along(batch$schema$names)) {
+          kusto_write_validate_decimal_array(
+            batch$column(index - 1L),
+            batch$schema$names[[index]]
+          )
+        }
+      },
+      finally = reader$Close()
+    )
+  }
+  invisible(NULL)
+}
+
+kusto_write_contains_decimal <- function(type) {
+  grepl("decimal(?:32|64|128|256)?\\(", type, perl = TRUE)
+}
+
+# Follow only visible values. Filtering nullable containers before flattening
+# excludes unreachable child storage, including sliced arrays and dictionaries.
+kusto_write_validate_decimal_array <- function(value, column) {
+  type <- value$type
+  type_text <- type$ToString()
+  if (!kusto_write_contains_decimal(type_text)) {
+    return(invisible(NULL))
+  }
+  if (inherits(type, "DictionaryType")) {
+    return(kusto_write_validate_decimal_array(
+      value$cast(type$value_type),
+      column
+    ))
+  }
+  if (grepl("^decimal(?:32|64|128|256)?\\(", type_text, perl = TRUE)) {
+    text <- value$cast(arrow::utf8())$as_vector()
+    coefficient <- sub("[eE].*$", "", text)
+    coefficient <- gsub("[-.]", "", coefficient)
+    coefficient <- sub("^0+", "", coefficient)
+    coefficient <- sub("0+$", "", coefficient)
+    if (any(nchar(coefficient) > 34L, na.rm = TRUE)) {
+      .fabric_abort(
+        c(
+          "KQL decimal column {.val {column}} contains values requiring more than 34 significant digits",
+          "i" = "Kusto may replace these values with null even when ingestion succeeds",
+          "i" = "Convert the decimal column to Arrow strings, or explicitly use {.code numeric_policy = \"service\"}"
+        ),
+        .format = TRUE,
+        class = c(
+          "fabric_kql_decimal_precision_error",
+          "fabric_kql_write_error"
+        ),
+        column = column
+      )
+    }
+    return(invisible(NULL))
+  }
+  value <- value$Filter(arrow::call_function("is_valid", value))
+  if (inherits(type, "StructType")) {
+    fields <- value$Flatten()
+    for (index in seq_along(fields)) {
+      kusto_write_validate_decimal_array(
+        fields[[index]],
+        paste0(column, ".", names(value)[[index]])
+      )
+    }
+    return(invisible(NULL))
+  }
+  if (inherits(type, c("ListType", "LargeListType", "FixedSizeListType"))) {
+    return(kusto_write_validate_decimal_array(
+      value$values(),
+      paste0(column, "[]")
+    ))
+  }
+  .fabric_abort(
+    paste0(
+      "Cannot validate nested decimals in KQL column '",
+      column,
+      "' with Arrow type '",
+      type_text,
+      "'; convert the decimal values to strings or explicitly use numeric_policy = \"service\""
+    ),
+    class = c("fabric_kql_decimal_precision_error", "fabric_kql_write_error"),
+    column = column
+  )
 }
 
 # Read and strictly normalize the preview ingestion configuration

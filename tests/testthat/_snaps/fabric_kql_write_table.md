@@ -7,6 +7,16 @@
       Error in `fabric_kql_write_table()`:
       ! OneLake staging requires an audience-aware token provider or a separate storage_token
 
+# KQL decimal validation checks referenced nested and dictionary values
+
+    Code
+      kusto_write_validate_decimal_array(referenced, "dictionary")
+    Condition
+      Error in `kusto_write_validate_decimal_array()`:
+      ! KQL decimal column "dictionary" contains values requiring more than 34 significant digits
+      i Kusto may replace these values with null even when ingestion succeeds
+      i Convert the decimal column to Arrow strings, or explicitly use `numeric_policy = "service"`
+
 # Eventhouse writer rejects unsafe multi-file idempotency
 
     Code
