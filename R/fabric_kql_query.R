@@ -907,7 +907,8 @@ kusto_execute_query <- function(
   request_properties,
   timeout,
   credential,
-  retain_raw_frames = FALSE
+  retain_raw_frames = FALSE,
+  deadline = NULL
 ) {
   # 1 Build request metadata -----------------------------------------------------------------------
 
@@ -955,7 +956,8 @@ kusto_execute_query <- function(
     credential = credential,
     audience = .fabric_audience$kusto,
     idempotent = TRUE,
-    request_timeout = timeout
+    request_timeout = timeout,
+    deadline = deadline
   )
 
   # 3 Parse and return response frames -------------------------------------------------------------

@@ -60,6 +60,7 @@ test_that("KQL export submits once, polls, and returns authoritative details", {
       )
     ),
     query = "Events | project id, observed_at",
+    numeric_policy = "service",
     destination = kusto_export_test_target(),
     path = "Files/exports",
     name_prefix = 'events"daily',
@@ -157,6 +158,7 @@ test_that("KQL export fails safely without accepting partial artifacts", {
     fabric_kql_export(
       "https://cluster.z1.kusto.fabric.microsoft.com",
       query = "Events",
+      numeric_policy = "service",
       database = "Telemetry",
       destination = paste0(
         "https://storageacct.blob.core.windows.net/container/export?sig=",
@@ -199,6 +201,7 @@ test_that("KQL export timeout retains its operation ID without replay", {
     fabric_kql_export(
       "https://cluster.z1.kusto.fabric.microsoft.com",
       query = "Events",
+      numeric_policy = "service",
       database = "Telemetry",
       destination = kusto_export_test_target(),
       path = "Files/timeout",
@@ -247,6 +250,7 @@ test_that("KQL export distinguishes a completed artifact-details timeout", {
     fabric_kql_export(
       "https://cluster.z1.kusto.fabric.microsoft.com",
       query = "Events",
+      numeric_policy = "service",
       database = "Telemetry",
       destination = kusto_export_test_target(),
       path = "Files/details-timeout",
@@ -282,6 +286,7 @@ test_that("KQL export treats a missing tracking ID as ambiguous", {
     fabric_kql_export(
       "https://cluster.z1.kusto.fabric.microsoft.com",
       query = "Events",
+      numeric_policy = "service",
       database = "Telemetry",
       destination = kusto_export_test_target(),
       path = "Files/ambiguous",
@@ -319,6 +324,7 @@ test_that("KQL export submission errors redact storage credentials", {
     fabric_kql_export(
       "https://cluster.z1.kusto.fabric.microsoft.com",
       query = "Events",
+      numeric_policy = "service",
       database = "Telemetry",
       destination = locations[[1L]],
       token = "token"

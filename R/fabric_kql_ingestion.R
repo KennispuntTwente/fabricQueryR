@@ -3808,6 +3808,26 @@ kusto_write_result <- function(
 #' encoding options, and Parquet row-group and datetime-precision options, are
 #' accepted only for their applicable formats.
 #'
+#' @section Decimal Parquet safety:
+#' By default, Parquet exports first request the query's output schemas without
+#' changing its text. Any decimal output raises
+#' `fabric_kql_export_decimal_error` before export submission, including an
+#' empty decimal result. Kusto can silently replace large decimals with zero
+#' and truncate fractional digits when exporting to Parquet; `Completed` only
+#' confirms the operation completed. Failed or unrecognized schema responses
+#' also stop the export. The schema check does not lock a query's schema against
+#' changes between the check and export requests.
+#'
+#' To retain decimal values, explicitly project them as strings in your query,
+#' for example `| project value_text=tostring(value), value_is_null=isnull(value)`.
+#' The companion null flag is necessary because `tostring()` turns a null into
+#' an empty string. This preserves Kusto's decimal value text, including any
+#' canonicalization already applied by the service, rather than its original
+#' input precision or scale. Alternatively, explicitly select
+#' `numeric_policy = "service"` to accept Kusto's Parquet conversion. The policy
+#' is also forwarded by an Eventhouse or KQLDatabase item's `$export()` method.
+#' Other export formats retain their service-defined conversion behavior.
+#'
 #' @section Permissions:
 #' The caller needs at least Kusto Database Viewer permission. OneLake caller
 #' impersonation additionally needs write access equivalent to Storage Blob
@@ -3845,8 +3865,13 @@ kusto_write_result <- function(
 #' @param parquet_datetime_precision Optional `"millisecond"` or
 #'   `"microsecond"` precision for Parquet datetime values.
 #' @param timeout Positive total client-side limit in seconds, shared by
-#'   submission, status polling, and retrieval of artifact details.
+#'   schema preflight, submission, status polling, and retrieval of artifact
+#'   details.
 #' @param poll_interval Positive seconds between operation status requests.
+#' @param numeric_policy Decimal Parquet policy. `"exact"` refuses queries with
+#'   decimal output before export. `"service"` explicitly accepts service
+#'   conversion, which can change decimal values even on successful exports.
+#'   This option does not change other export formats.
 #' @inheritParams fabric_kql_query
 #' @param .sleep,.now Internal hooks for deterministic polling tests.
 #'
@@ -3861,6 +3886,8 @@ kusto_write_result <- function(
 #' [Kusto management HTTP request](https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric)
 #'
 #' [Show Kusto operations](https://learn.microsoft.com/en-us/kusto/management/show-operations?view=microsoft-fabric)
+#'
+#' [Kusto request properties](https://learn.microsoft.com/en-us/kusto/api/rest/request-properties?view=microsoft-fabric)
 #' @export
 #'
 #' @examples
@@ -3911,6 +3938,7 @@ fabric_kql_export <- function(
   ),
   token = NULL,
   auth_args = list(),
+  numeric_policy = c("exact", "service"),
   .sleep = Sys.sleep,
   .now = Sys.time
 ) {
@@ -3932,6 +3960,7 @@ fabric_kql_export <- function(
     item_type = item_type
   )
   format <- match.arg(format)
+  numeric_policy <- match.arg(numeric_policy)
   distribution <- match.arg(distribution)
   properties <- kusto_export_properties(
     format = format,
@@ -3968,6 +3997,16 @@ fabric_kql_export <- function(
   )
   started <- .now()
   deadline <- started + timeout
+
+  if (identical(format, "parquet") && identical(numeric_policy, "exact")) {
+    kusto_export_validate_decimal_schema(
+      target,
+      query,
+      credential,
+      deadline,
+      .now
+    )
+  }
 
   # 2 Submit exactly once and recover the asynchronous operation ID -------------------------------
 
@@ -4138,6 +4177,7 @@ fabric_kql_export <- function(
       status = last$status,
       destination = destination$display,
       format = properties$format,
+      numeric_policy = numeric_policy,
       artifacts = artifacts,
       file_count = nrow(artifacts),
       records = sum(artifacts$num_records),
@@ -4170,6 +4210,141 @@ print.fabric_kql_export_result <- function(x, ...) {
     )
   )
   invisible(x)
+}
+
+# Refuse known lossy Parquet decimal export before submitting any write.
+kusto_export_validate_decimal_schema <- function(
+  target,
+  query,
+  credential,
+  deadline,
+  .now
+) {
+  schema_error <- function(parent = NULL) {
+    .fabric_abort(
+      c(
+        "Cannot verify the KQL query's output schema before Parquet export",
+        "i" = "No export was submitted",
+        "i" = "Resolve the schema error, or explicitly use {.code numeric_policy = \"service\"} to accept service conversion"
+      ),
+      .format = TRUE,
+      class = c("fabric_kql_export_schema_error", "fabric_kql_export_error"),
+      parent = if (is.null(parent)) {
+        NULL
+      } else {
+        kusto_storage_redact_condition(parent)
+      }
+    )
+  }
+  remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
+  if (!is.finite(remaining) || remaining <= 0) {
+    schema_error()
+  }
+  # This request property preserves let statements, trailing comments, and
+  # multiple result sets without wrapping or otherwise rewriting the query.
+  schemas <- tryCatch(
+    kusto_execute_query(
+      url = target$url,
+      database = target$database,
+      query = query,
+      parameters = list(),
+      request_properties = list(query_results_apply_getschema = TRUE),
+      timeout = remaining,
+      credential = credential,
+      deadline = deadline
+    ),
+    error = function(error) schema_error(error)
+  )
+  if (is.data.frame(schemas)) {
+    schemas <- list(schemas)
+  }
+  if (!is.list(schemas) || !length(schemas)) {
+    schema_error()
+  }
+  scalar_types <- c(
+    "bool",
+    "datetime",
+    "decimal",
+    "dynamic",
+    "guid",
+    "int",
+    "long",
+    "real",
+    "string",
+    "timespan"
+  )
+  storage_type_names <- c(
+    bool = "System.Boolean",
+    datetime = "System.DateTime",
+    decimal = "System.Data.SqlTypes.SqlDecimal",
+    dynamic = "System.Object",
+    guid = "System.Guid",
+    int = "System.Int32",
+    long = "System.Int64",
+    real = "System.Double",
+    string = "System.String",
+    timespan = "System.TimeSpan"
+  )
+  for (schema in schemas) {
+    required <- c("ColumnName", "ColumnType", "DataType", "ColumnOrdinal")
+    if (
+      !is.data.frame(schema) ||
+        anyDuplicated(names(schema)) ||
+        !setequal(required, names(schema)) ||
+        !nrow(schema)
+    ) {
+      schema_error()
+    }
+    names <- schema$ColumnName
+    types <- schema$ColumnType
+    storage_types <- schema$DataType
+    ordinals <- schema$ColumnOrdinal
+    if (
+      !is.character(names) ||
+        anyNA(names) ||
+        any(!nzchar(names)) ||
+        !is.character(types) ||
+        anyNA(types) ||
+        !is.character(storage_types) ||
+        anyNA(storage_types) ||
+        any(!nzchar(storage_types)) ||
+        any(!types %in% scalar_types)
+    ) {
+      schema_error()
+    }
+    decimal <- types == "decimal" |
+      storage_types == "System.Data.SqlTypes.SqlDecimal"
+    if (any(decimal)) {
+      .fabric_abort(
+        c(
+          "KQL Parquet export can change decimal values in {.val {names[decimal]}}",
+          "i" = "No export was submitted",
+          "i" = "Project decimal values as strings with a companion isnull() flag, or explicitly use {.code numeric_policy = \"service\"}"
+        ),
+        .format = TRUE,
+        class = c("fabric_kql_export_decimal_error", "fabric_kql_export_error"),
+        columns = names[decimal]
+      )
+    }
+    if (
+      !is.numeric(ordinals) ||
+        anyNA(ordinals) ||
+        anyDuplicated(ordinals) ||
+        !setequal(ordinals, seq_len(nrow(schema)) - 1L) ||
+        anyDuplicated(names) ||
+        any(
+          storage_types != unname(storage_type_names[types]) &
+            !(types == "bool" & storage_types == "System.SByte")
+        )
+    ) {
+      schema_error()
+    }
+  }
+  remaining <- as.numeric(difftime(deadline, .now(), units = "secs"))
+  if (!is.finite(remaining) || remaining <= 0) {
+    schema_error()
+  }
+  invisible(NULL)
 }
 
 # Normalize a discovered OneLake directory or complete storage connection

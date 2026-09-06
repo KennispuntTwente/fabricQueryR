@@ -30,6 +30,7 @@ fabric_kql_export(
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
   token = NULL,
   auth_args = list(),
+  numeric_policy = c("exact", "service"),
   .sleep = Sys.sleep,
   .now = Sys.time
 )
@@ -85,7 +86,8 @@ and \code{"zstd"}.}
 \code{"microsecond"} precision for Parquet datetime values.}
 
 \item{timeout}{Positive total client-side limit in seconds, shared by
-submission, status polling, and retrieval of artifact details.}
+schema preflight, submission, status polling, and retrieval of artifact
+details.}
 
 \item{poll_interval}{Positive seconds between operation status requests.}
 
@@ -100,6 +102,11 @@ to let 'fabricQueryR' use its normal sign-in flow}
 
 \item{auth_args}{Additional sign-in options passed to
 \code{\link[AzureAuth:get_azure_token]{AzureAuth::get_azure_token()}}}
+
+\item{numeric_policy}{Decimal Parquet policy. \code{"exact"} refuses queries with
+decimal output before export. \code{"service"} explicitly accepts service
+conversion, which can change decimal values even on successful exports.
+This option does not change other export formats.}
 
 \item{.sleep, .now}{Internal hooks for deterministic polling tests.}
 }
@@ -145,6 +152,28 @@ encoding options, and Parquet row-group and datetime-precision options, are
 accepted only for their applicable formats.
 }
 
+\section{Decimal Parquet safety}{
+
+By default, Parquet exports first request the query's output schemas without
+changing its text. Any decimal output raises
+\code{fabric_kql_export_decimal_error} before export submission, including an
+empty decimal result. Kusto can silently replace large decimals with zero
+and truncate fractional digits when exporting to Parquet; \code{Completed} only
+confirms the operation completed. Failed or unrecognized schema responses
+also stop the export. The schema check does not lock a query's schema against
+changes between the check and export requests.
+
+To retain decimal values, explicitly project them as strings in your query,
+for example \verb{| project value_text=tostring(value), value_is_null=isnull(value)}.
+The companion null flag is necessary because \code{tostring()} turns a null into
+an empty string. This preserves Kusto's decimal value text, including any
+canonicalization already applied by the service, rather than its original
+input precision or scale. Alternatively, explicitly select
+\code{numeric_policy = "service"} to accept Kusto's Parquet conversion. The policy
+is also forwarded by an Eventhouse or KQLDatabase item's \verb{$export()} method.
+Other export formats retain their service-defined conversion behavior.
+}
+
 \section{Permissions}{
 
 The caller needs at least Kusto Database Viewer permission. OneLake caller
@@ -181,4 +210,6 @@ exported$artifacts
 \href{https://learn.microsoft.com/en-us/kusto/api/rest/request?view=microsoft-fabric}{Kusto management HTTP request}
 
 \href{https://learn.microsoft.com/en-us/kusto/management/show-operations?view=microsoft-fabric}{Show Kusto operations}
+
+\href{https://learn.microsoft.com/en-us/kusto/api/rest/request-properties?view=microsoft-fabric}{Kusto request properties}
 }
