@@ -15,7 +15,8 @@ fabric_graphql_schema(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  numeric_policy = c("exact", "double")
 )
 }
 \arguments{
@@ -54,6 +55,11 @@ for a custom token provider or unusual identity flow}
 
 \item{api_base}{Fabric REST API base URL used to derive endpoints from IDs
 Most users should keep the default}
+
+\item{numeric_policy}{Numeric response policy. \code{"exact"} preserves decimal
+and exponent JSON numbers in GraphQL \code{data} as character source text;
+\code{"double"} decodes them as ordinary R doubles and can lose precision or
+lexical scale. Whole-number handling is unchanged}
 }
 \value{
 A \code{fabric_graphql_schema} list containing the standard \verb{__schema}

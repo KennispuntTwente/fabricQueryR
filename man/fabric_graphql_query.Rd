@@ -19,7 +19,8 @@ fabric_graphql_query(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  numeric_policy = c("exact", "double")
 )
 }
 \arguments{
@@ -73,6 +74,11 @@ for a custom token provider or unusual identity flow}
 
 \item{api_base}{Fabric REST API base URL used to derive endpoints from IDs
 Most users should keep the default}
+
+\item{numeric_policy}{Numeric response policy. \code{"exact"} preserves decimal
+and exponent JSON numbers in GraphQL \code{data} as character source text;
+\code{"double"} decodes them as ordinary R doubles and can lose precision or
+lexical scale. Whole-number handling is unchanged}
 }
 \value{
 A \code{fabric_graphql_result} list with \code{data}, \code{errors}, \code{extensions},
@@ -138,7 +144,10 @@ for a single large source
 
 Large integers outside R's exact numeric range are returned as
 character values so identifiers and other large integer fields are not
-rounded
+rounded. By default, JSON numbers containing a decimal point or exponent are
+also returned as their exact source text, retaining precision, scale,
+trailing zeros, and exponent spelling. Set \code{numeric_policy = "double"} to
+decode those values as ordinary R doubles instead
 }
 
 \examples{

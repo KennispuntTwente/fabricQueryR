@@ -128,7 +128,10 @@
 #'
 #' Large integers outside R's exact numeric range are returned as
 #' character values so identifiers and other large integer fields are not
-#' rounded
+#' rounded. By default, JSON numbers containing a decimal point or exponent are
+#' also returned as their exact source text, retaining precision, scale,
+#' trailing zeros, and exponent spelling. Set `numeric_policy = "double"` to
+#' decode those values as ordinary R doubles instead
 #'
 #' @param api GraphQL endpoint, API ID, or one discovered GraphQLApi object. An
 #'   item from [fabric_graphql_apis()] is usually easiest
@@ -167,6 +170,10 @@
 #'   for a custom token provider or unusual identity flow
 #' @param api_base Fabric REST API base URL used to derive endpoints from IDs
 #'   Most users should keep the default
+#' @param numeric_policy Numeric response policy. `"exact"` preserves decimal
+#'   and exponent JSON numbers in GraphQL `data` as character source text;
+#'   `"double"` decodes them as ordinary R doubles and can lose precision or
+#'   lexical scale. Whole-number handling is unchanged
 #'
 #' @return A `fabric_graphql_result` list with `data`, `errors`, `extensions`,
 #'   and `response` (the complete parsed response). `data` follows the nested
@@ -224,7 +231,8 @@ fabric_graphql_query <- function(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  numeric_policy = c("exact", "double")
 ) {
   # 1 Prepare the request --------------------------------------------------------------------------
 
@@ -245,7 +253,8 @@ fabric_graphql_query <- function(
     token = token,
     auth_args = auth_args,
     audience = audience,
-    api_base = api_base
+    api_base = api_base,
+    numeric_policy = numeric_policy
   )
 
   # 2 Execute and return the query -----------------------------------------------------------------
@@ -301,7 +310,8 @@ fabric_graphql_schema <- function(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  numeric_policy = c("exact", "double")
 ) {
   # 1 Request the standard schema -----------------------------------------------------------------
 
@@ -321,7 +331,8 @@ fabric_graphql_schema <- function(
     token = token,
     auth_args = auth_args,
     audience = audience,
-    api_base = api_base
+    api_base = api_base,
+    numeric_policy = numeric_policy
   )
 
   # 2 Reject unavailable or partial introspection --------------------------------------------------
@@ -410,7 +421,8 @@ fabric_graphql_paginate <- function(
   token = NULL,
   auth_args = list(),
   audience = NULL,
-  api_base = .fabric_api_base
+  api_base = .fabric_api_base,
+  numeric_policy = c("exact", "double")
 ) {
   # 1 Validate pagination inputs -------------------------------------------------------------------
 
@@ -455,7 +467,8 @@ fabric_graphql_paginate <- function(
     token = token,
     auth_args = auth_args,
     audience = audience,
-    api_base = api_base
+    api_base = api_base,
+    numeric_policy = numeric_policy
   )
   pages <- list()
   initial_cursor <- variables[[cursor_variable]]
@@ -749,7 +762,8 @@ graphql_request_context <- function(
   token,
   auth_args,
   audience,
-  api_base
+  api_base,
+  numeric_policy
 ) {
   # 1 Validate query settings ----------------------------------------------------------------------
 
@@ -760,6 +774,7 @@ graphql_request_context <- function(
     operation_name <- graphql_required_string(operation_name, "operation_name")
   }
   error_policy <- match.arg(error_policy, c("return", "warn", "error"))
+  numeric_policy <- match.arg(numeric_policy, c("exact", "double"))
   graphql_validate_scalar(
     timeout,
     is.numeric,
@@ -806,7 +821,8 @@ graphql_request_context <- function(
     timeout = timeout,
     idempotent = idempotent,
     credential = credential,
-    audience = audience
+    audience = audience,
+    numeric_policy = numeric_policy
   )
 }
 
@@ -822,7 +838,8 @@ graphql_execute_context <- function(context, variables) {
     timeout = context$timeout,
     idempotent = context$idempotent,
     credential = context$credential,
-    audience = context$audience
+    audience = context$audience,
+    numeric_policy = context$numeric_policy
   )
 }
 
@@ -856,7 +873,8 @@ graphql_execute <- function(
   timeout,
   idempotent,
   credential,
-  audience
+  audience,
+  numeric_policy
 ) {
   body <- list(query = query)
   if (length(variables)) {
@@ -870,15 +888,38 @@ graphql_execute <- function(
   req <- httr2::req_headers(req, Accept = "application/graphql-response+json")
   req <- httr2::req_body_json(req, body, auto_unbox = TRUE, null = "null")
   req <- httr2::req_timeout(req, timeout)
-  response <- .httr2_json(
+  response <- .httr2_perform(
     req,
-    simplifyVector = FALSE,
-    bigint_as_char = TRUE,
     credential = credential,
     audience = audience,
     idempotent = idempotent
   )
+  response <- graphql_decode_response(response, numeric_policy)
   graphql_parse_response(response, error_policy = error_policy)
+}
+
+# Decode one GraphQL HTTP response according to the selected numeric policy.
+# Returns the normal response object with exact data tokens restored as needed
+graphql_decode_response <- function(response, numeric_policy) {
+  decoded <- httr2::resp_body_json(
+    response,
+    simplifyVector = FALSE,
+    bigint_as_char = TRUE
+  )
+  if (!identical(numeric_policy, "exact") || is.null(decoded$data)) {
+    return(decoded)
+  }
+  lexical <- jsonlite::fromJSON(
+    fabric_json_quote_numbers(
+      httr2::resp_body_string(response, encoding = "UTF-8")
+    ),
+    simplifyVector = FALSE
+  )
+  decoded["data"] <- list(fabric_json_restore_decimal_tokens(
+    decoded$data,
+    lexical$data
+  ))
+  decoded
 }
 
 # Validate a decoded GraphQL `response` and apply `error_policy`. Returns a
@@ -1132,7 +1173,7 @@ graphql_rows_column <- function(values, name) {
     }
     return(values)
   }
-  if (graphql_rows_mixed_integer_strings(non_null)) {
+  if (graphql_rows_mixed_numeric_strings(non_null)) {
     return(vapply(
       values,
       graphql_rows_numeric_character,
@@ -1169,8 +1210,8 @@ graphql_rows_column <- function(values, name) {
 }
 
 # Detect safe character promotion for finite JSON numbers mixed with exact
-# integer strings from jsonlite's large-integer protection.
-graphql_rows_mixed_integer_strings <- function(values) {
+# numeric source tokens. Returns one logical for collection type negotiation
+graphql_rows_mixed_numeric_strings <- function(values) {
   kinds <- vapply(
     values,
     function(value) {
@@ -1194,7 +1235,10 @@ graphql_rows_mixed_integer_strings <- function(values) {
     values,
     function(value) {
       if (is.character(value)) {
-        grepl("^[+-]?[0-9]+$", value)
+        grepl(
+          "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$",
+          value
+        )
       } else {
         is.finite(value)
       }

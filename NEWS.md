@@ -81,6 +81,10 @@ token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
 SQL and Livy is deprecated.
 
+* `fabric_graphql_query()` and `fabric_graphql_paginate()` now preserve decimal
+and exponent response numbers as exact source text by default. Set
+`numeric_policy = "double"` for the previous ordinary-double behavior.
+
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode

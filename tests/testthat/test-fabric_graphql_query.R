@@ -393,6 +393,49 @@ test_that("GraphQL responses preserve integers beyond double precision", {
   expect_identical(result$data$identifier, "9007199254740993")
 })
 
+test_that("GraphQL exact numeric policy preserves decimal source tokens", {
+  body <- charToRaw(paste0(
+    '{"data":{"ordinary":1.25,"trailing":10.50,',
+    '"large":12345678901234567890.125,',
+    '"scientific":9.007199254740993e15,',
+    '"overflow":1e400,"underflow":1e-400,',
+    '"negativeZero":-0.0,"integer":2}}'
+  ))
+  httr2::local_mocked_responses(function(req) {
+    graphql_test_response(body, url = req$url)
+  })
+
+  exact <- fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ values }",
+    token = "token"
+  )
+  double <- fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ values }",
+    token = "token",
+    numeric_policy = "double"
+  )
+
+  expect_identical(
+    exact$data,
+    list(
+      ordinary = "1.25",
+      trailing = "10.50",
+      large = "12345678901234567890.125",
+      scientific = "9.007199254740993e15",
+      overflow = "1e400",
+      underflow = "1e-400",
+      negativeZero = "-0.0",
+      integer = 2L
+    )
+  )
+  expect_identical(exact$response$data, exact$data)
+  expect_identical(double$data$trailing, 10.5)
+  expect_identical(double$data$overflow, Inf)
+  expect_identical(double$data$underflow, 0)
+})
+
 test_that("empty GraphQL variables are omitted instead of encoded as an array", {
   captured <- NULL
   httr2::local_mocked_responses(function(req) {

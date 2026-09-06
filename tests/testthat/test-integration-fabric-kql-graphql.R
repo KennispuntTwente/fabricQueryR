@@ -772,7 +772,7 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
     ),
     c("alpha", "gamma")
   )
-  expect_equal(result$data[[root_field]]$items[[1L]]$amount, 10.5)
+  expect_identical(result$data[[root_field]]$items[[1L]]$amount, "10.50")
   expect_null(result$data[[root_field]]$items[[2L]]$amount)
 })
 
@@ -859,6 +859,7 @@ test_that("Fabric GraphQL cursor pagination traverses every seeded row", {
   expect_s3_class(rows, "fabric_graphql_rows")
   expect_identical(rows$id, c(1L, 2L, 3L))
   expect_identical(rows$name, c("alpha", "beta", "gamma"))
+  expect_identical(rows$amount, c("10.50", "20.00", NA_character_))
   expect_true(attr(rows, "complete"))
   expect_identical(attr(rows, "page_count"), 2L)
   expect_length(attr(rows, "errors"), 0L)
