@@ -77,6 +77,13 @@ fabric_onelake_write_file(
 - result:
 
   Return a `"tibble"` or a disk-backed, single-use `"arrow_stream"`.
+  Tibbles preserve decimals as character strings. Signed 64-bit integers
+  use
+  [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
+  or character if the column contains the minimum signed value (reserved
+  for missing values by bit64). Int32 columns containing `-2147483648`
+  use exact R doubles. Nested lists retain character 64-bit integers and
+  decimals, and double 32-bit integers.
 
 - item_type:
 

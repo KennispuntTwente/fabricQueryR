@@ -71,12 +71,13 @@ fabric_warehouse_read_table(
 - result:
 
   Return a `"tibble"` for ordinary R analysis, or a single-use
-  `"arrow_stream"` to avoid data-frame conversion and retain
-  Arrow-native batches. The 'adbi' driver may fetch the complete result
-  before returning the stream, so this option does not guarantee
-  bounded-memory retrieval. An Arrow stream owns its DBI result and
-  connection until the stream is released; consume it promptly or
-  release it explicitly with
+  `"arrow_stream"`. ADBC streams retain native Arrow types. ODBC streams
+  are converted from R data frames and cannot recover values lost by the
+  driver. The 'adbi' driver may fetch the complete result before
+  returning the stream, so this option does not guarantee bounded-memory
+  retrieval. An Arrow stream owns its DBI result and connection until
+  the stream is released; consume it promptly or release it explicitly
+  with
   [`nanoarrow::nanoarrow_pointer_release()`](https://arrow.apache.org/nanoarrow/latest/r/reference/nanoarrow_pointer_is_valid.html)
 
 - backend:

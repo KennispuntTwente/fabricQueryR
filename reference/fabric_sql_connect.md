@@ -141,7 +141,12 @@ fabric_sql_connect(
   overridden. ODBC authentication, target, driver, and TLS options
   cannot be supplied through `...` because the package validates and
   constructs those settings before attaching the access token. This also
-  excludes raw `.connection_string`, `DSN`, and `FileDSN` arguments
+  excludes raw `.connection_string`, `DSN`, and `FileDSN` arguments ADBC
+  defaults to `bigint = "integer64"`, so ordinary BIGINT values do not
+  have to fit an R 32-bit integer. Supply another `bigint` policy
+  explicitly through `...` if needed. Direct DBI reads with `integer64`
+  cannot represent the minimum signed BIGINT because 'bit64' reserves
+  that value for `NA`.
 
 ## Value
 

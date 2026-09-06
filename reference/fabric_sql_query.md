@@ -35,6 +35,7 @@ fabric_sql_query(
   max_tries = 3L,
   retry_delay = 5,
   idempotent = FALSE,
+  numeric_policy = c("exact", "driver"),
   ...
 )
 ```
@@ -64,17 +65,19 @@ fabric_sql_query(
   Optional list of values for `?` placeholders in `sql`. Values are sent
   separately from the SQL text, which is safer and easier to quote
   correctly than building a query with
-  [`paste()`](https://rdrr.io/r/base/paste.html)
+  [`paste()`](https://rdrr.io/r/base/paste.html). Factors are bound as
+  their character labels on both backends.
 
 - result:
 
   Return a `"tibble"` for ordinary R analysis, or a single-use
-  `"arrow_stream"` to avoid data-frame conversion and retain
-  Arrow-native batches. The 'adbi' driver may fetch the complete result
-  before returning the stream, so this option does not guarantee
-  bounded-memory retrieval. An Arrow stream owns its DBI result and
-  connection until the stream is released; consume it promptly or
-  release it explicitly with
+  `"arrow_stream"`. ADBC streams retain native Arrow types. ODBC streams
+  are converted from R data frames and cannot recover values lost by the
+  driver. The 'adbi' driver may fetch the complete result before
+  returning the stream, so this option does not guarantee bounded-memory
+  retrieval. An Arrow stream owns its DBI result and connection until
+  the stream is released; consume it promptly or release it explicitly
+  with
   [`nanoarrow::nanoarrow_pointer_release()`](https://arrow.apache.org/nanoarrow/latest/r/reference/nanoarrow_pointer_is_valid.html)
 
 - database:
@@ -169,6 +172,22 @@ fabric_sql_query(
   time has no unwanted effect (usually a plain `SELECT`). This permits a
   retry when it is unclear whether Fabric executed the first attempt
 
+- numeric_policy:
+
+  `"exact"` (default) preserves ADBC decimals as character and BIGINT as
+  [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
+  using character for columns containing the minimum BIGINT. INT columns
+  containing `-2147483648` use exact doubles. Nested lists retain
+  character decimals and 64-bit integers, and double 32-bit integers.
+  ODBC rejects DECIMAL, NUMERIC, INT and BIGINT columns before fetching:
+  its conversion can round or truncate values or turn valid integer
+  boundaries into missing values. Cast these columns to `varchar` in SQL
+  or use ADBC. `"driver"` explicitly accepts the backend's conversions,
+  including possible rounding and missing values, for either output
+  format. This policy applies to this query helper; direct DBI calls on
+  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  use the selected driver's conversion settings.
+
 - ...:
 
   Additional arguments forwarded to
@@ -180,7 +199,12 @@ fabric_sql_query(
   overridden. ODBC authentication, target, driver, and TLS options
   cannot be supplied through `...` because the package validates and
   constructs those settings before attaching the access token. This also
-  excludes raw `.connection_string`, `DSN`, and `FileDSN` arguments
+  excludes raw `.connection_string`, `DSN`, and `FileDSN` arguments ADBC
+  defaults to `bigint = "integer64"`, so ordinary BIGINT values do not
+  have to fit an R 32-bit integer. Supply another `bigint` policy
+  explicitly through `...` if needed. Direct DBI reads with `integer64`
+  cannot represent the minimum signed BIGINT because 'bit64' reserves
+  that value for `NA`.
 
 ## Value
 

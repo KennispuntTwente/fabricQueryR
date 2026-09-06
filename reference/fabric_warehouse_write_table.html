@@ -104,7 +104,12 @@ data frame.</p>
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>A data frame, tibble, Arrow Table, RecordBatch, Dataset, Scanner,
-RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.</p></dd>
+RecordBatchReader, Arrow 'dplyr' query, or Arrow-compatible array stream.
+Timestamp columns are staged at microsecond resolution in UTC, so Fabric
+infers <code>datetime2</code>. Timezone-free timestamps retain their wall-clock values
+and are interpreted as UTC; timezone-aware timestamps retain their instant.
+Nanosecond timestamps are rejected before upload: explicitly cast them to
+microseconds first, choosing how to handle any sub-microsecond precision.</p></dd>
 
 
 <dt id="arg-staging-lakehouse">staging_lakehouse<a class="anchor" aria-label="anchor" href="#arg-staging-lakehouse"></a></dt>

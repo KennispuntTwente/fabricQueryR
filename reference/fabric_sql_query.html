@@ -74,6 +74,7 @@ than pasting them into the SQL text</p>
 <span>  max_tries <span class="op">=</span> <span class="fl">3L</span>,</span>
 <span>  retry_delay <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>  idempotent <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exact"</span>, <span class="st">"driver"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -100,13 +101,15 @@ Lakehouse SQL analytics endpoint is read-only and does not support
 <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
 <dd><p>Optional list of values for <code>?</code> placeholders in <code>sql</code>. Values
 are sent separately from the SQL text, which is safer and easier to quote
-correctly than building a query with <code><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste()</a></code></p></dd>
+correctly than building a query with <code><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste()</a></code>. Factors are bound as their
+character labels on both backends.</p></dd>
 
 
 <dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
 <dd><p>Return a <code>"tibble"</code> for ordinary R analysis, or a single-use
-<code>"arrow_stream"</code> to avoid data-frame conversion and retain Arrow-native
-batches. The 'adbi' driver may fetch the complete result before returning
+<code>"arrow_stream"</code>. ADBC streams retain native Arrow types. ODBC streams are
+converted from R data frames and cannot recover values lost by the driver.
+The 'adbi' driver may fetch the complete result before returning
 the stream, so this option does not guarantee bounded-memory retrieval.
 An Arrow stream owns its DBI result and connection until the stream is
 released; consume it promptly or release it explicitly with
@@ -208,6 +211,20 @@ permits a retry when it is unclear whether Fabric executed the first
 attempt</p></dd>
 
 
+<dt id="arg-numeric-policy">numeric_policy<a class="anchor" aria-label="anchor" href="#arg-numeric-policy"></a></dt>
+<dd><p><code>"exact"</code> (default) preserves ADBC decimals as
+character and BIGINT as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, using character for columns
+containing the minimum BIGINT. INT columns containing <code>-2147483648</code> use
+exact doubles. Nested lists retain character decimals and 64-bit integers,
+and double 32-bit integers. ODBC rejects DECIMAL, NUMERIC, INT and BIGINT
+columns before fetching: its conversion can round or truncate values
+or turn valid integer boundaries into missing values. Cast these columns
+to <code>varchar</code> in SQL or use ADBC. <code>"driver"</code> explicitly accepts the backend's
+conversions, including possible rounding and missing values, for either
+output format. This policy applies to this query helper; direct DBI calls
+on <code><a href="fabric_sql_connect.html">fabric_sql_connect()</a></code> use the selected driver's conversion settings.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Additional arguments forwarded to <code><a href="https://dbi.r-dbi.org/reference/dbConnect.html" class="external-link">DBI::dbConnect()</a></code>. The former
 named <code>access_token</code> argument is consumed here as a deprecated alias for
@@ -216,7 +233,11 @@ named list is merged with the package-managed <code>azure_token</code>; that pro
 attribute cannot be overridden. ODBC authentication, target, driver, and
 TLS options cannot be supplied through <code>...</code> because the package validates
 and constructs those settings before attaching the access token. This also
-excludes raw <code>.connection_string</code>, <code>DSN</code>, and <code>FileDSN</code> arguments</p></dd>
+excludes raw <code>.connection_string</code>, <code>DSN</code>, and <code>FileDSN</code> arguments
+ADBC defaults to <code>bigint = "integer64"</code>, so ordinary BIGINT values do not
+have to fit an R 32-bit integer. Supply another <code>bigint</code> policy explicitly
+through <code>...</code> if needed. Direct DBI reads with <code>integer64</code> cannot represent
+the minimum signed BIGINT because 'bit64' reserves that value for <code>NA</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
