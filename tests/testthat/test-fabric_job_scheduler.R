@@ -291,6 +291,35 @@ test_that("schedule listing normalizes common fields and preserves future data",
   expect_true(schedules[[1L]]$raw$futureProperty$kept)
 })
 
+test_that("schedule auto-disabled text markers normalize case and separators", {
+  response <- scheduler_test_response(enabled = FALSE)
+  local_mocked_bindings(.httr2_collection = function(...) list(response))
+  for (field in c("state", "status")) {
+    for (marker in c(
+      "AutoDisabled",
+      "AUTO_DISABLED",
+      "auto-disabled",
+      "auto disabled"
+    )) {
+      response[[field]] <- marker
+      schedule <- fabric_job_schedules(
+        scheduler_test_item(),
+        token = "test-token"
+      )[[1L]]
+      expect_identical(schedule$state, "AutoDisabled")
+      expect_identical(schedule$auto_disabled, TRUE)
+    }
+    response[[field]] <- NULL
+  }
+  response$state <- NA_character_
+  schedule <- fabric_job_schedules(
+    scheduler_test_item(),
+    token = "test-token"
+  )[[1L]]
+  expect_identical(schedule$auto_disabled, NA)
+  expect_identical(schedule$state, "Disabled")
+})
+
 test_that("schedule responses require a usable configuration object", {
   context <- list(
     workspace_id = "22222222-2222-2222-2222-222222222222",

@@ -931,7 +931,8 @@ print.fabric_job_schedule <- function(x, ...) {
   } else if (
     is.character(service_state) &&
       length(service_state) == 1L &&
-      tolower(gsub("[^a-z]", "", service_state)) == "autodisabled"
+      !is.na(service_state) &&
+      gsub("[^a-z]", "", tolower(service_state)) == "autodisabled"
   ) {
     TRUE
   } else {
