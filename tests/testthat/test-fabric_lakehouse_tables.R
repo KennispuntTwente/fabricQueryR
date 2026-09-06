@@ -1423,3 +1423,28 @@ test_that("Lakehouse writer streams a lazy Arrow Dataset", {
   expect_equal(uploaded$id, 1:5)
   expect_equal(uploaded$label, letters[1:5])
 })
+test_that("Lakehouse writes reject case-only duplicate columns before staging", {
+  data <- data.frame(Foo = 1L, foo = 2L)
+  calls <- 0L
+  local_mocked_bindings(fabric_onelake_upload = function(...) {
+    calls <<- calls + 1L
+    stop("Upload must not occur")
+  })
+  error <- rlang::catch_cnd(fabric_lakehouse_write_table(
+    "11111111-1111-4111-8111-111111111111",
+    "duplicates",
+    data,
+    workspace = "22222222-2222-4222-8222-222222222222",
+    token = "token"
+  ))
+  expect_match(
+    conditionMessage(error),
+    "Column names must be unique ignoring case",
+    fixed = TRUE
+  )
+  expect_identical(calls, 0L)
+  expect_identical(
+    .fabric_parquet_column_names(c("Foo", "foo")),
+    c("Foo", "foo")
+  )
+})

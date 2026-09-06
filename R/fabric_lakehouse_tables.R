@@ -1439,8 +1439,8 @@ fabric_lakehouse_write_table <- function(
       paste(value[invalid], collapse = ", ")
     ))
   }
-  if (anyDuplicated(value)) {
-    .fabric_abort("Column names must be unique")
+  if (anyDuplicated(tolower(value))) {
+    .fabric_abort("Column names must be unique ignoring case")
   }
   invisible(value)
 }
