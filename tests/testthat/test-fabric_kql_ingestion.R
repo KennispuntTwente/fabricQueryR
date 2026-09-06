@@ -145,6 +145,27 @@ test_that("source metadata validates URLs, GUIDs, sizes, and batch limits", {
     "known raw_sizes exceed",
     fixed = TRUE
   )
+  mixed_sources <- paste0(
+    "https://example.test/",
+    c("a.csv", "b.csv", "unknown.csv")
+  )
+  expect_error(
+    kusto_ingestion_sources(
+      mixed_sources,
+      NULL,
+      c(4 * 1024^3, 4 * 1024^3, NA)
+    ),
+    "known raw_sizes exceed",
+    fixed = TRUE
+  )
+  expect_length(
+    kusto_ingestion_sources(
+      mixed_sources,
+      NULL,
+      c(3 * 1024^3, 3 * 1024^3, NA)
+    ),
+    3L
+  )
   expect_error(
     kusto_ingestion_sources(
       list(list(

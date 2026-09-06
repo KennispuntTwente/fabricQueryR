@@ -742,7 +742,7 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
     function(record) record$raw_size %||% NA_real_,
     numeric(1)
   )
-  if (!anyNA(sizes) && sum(sizes) > .kusto_ingestion_max_size) {
+  if (sum(sizes, na.rm = TRUE) > .kusto_ingestion_max_size) {
     .fabric_abort("the known raw_sizes exceed the 6 GB ingestion limit")
   }
   normalized
