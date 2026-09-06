@@ -61,10 +61,12 @@ alternative, pass
 \value{
 A \code{fabric_function_result} list with \code{function_name},
 \code{invocation_id}, \code{status}, \code{output}, \code{errors}, \code{http_status}, and
-\code{response}. Function \code{output} is returned unchanged because field names
-such as \code{token} can be legitimate domain data. The rest of \code{response} is
-redacted and retains unknown future fields. Inspect \code{status} and \code{errors};
-receiving a result does not by itself mean the function succeeded.
+\code{response}. Function \code{output} is not redacted because field names such as
+\code{token} can be legitimate domain data. Unsafe whole-number JSON values are
+exact character text; decimal JSON values use ordinary R doubles. The rest
+of \code{response} is redacted and retains unknown future fields. Inspect
+\code{status} and \code{errors}; receiving a result does not by itself mean the
+function succeeded.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
@@ -148,7 +150,9 @@ client timeout allows the service timeout response to arrive. The 32 MiB
 client response cap leaves room for Fabric's envelope around a 30 MB output.
 Secret-named fields and bearer-token text are redacted recursively from
 errors, response metadata, and conditions. Function \code{output} is domain data
-and is returned unchanged, even when it contains secret-like field names.
+and is not redacted, even when it contains secret-like field names. Unsafe
+whole-number JSON values are returned as exact character text; decimal JSON
+values use ordinary R doubles.
 }
 
 \examples{

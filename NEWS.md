@@ -85,6 +85,10 @@ SQL and Livy is deprecated.
 and exponent response numbers as exact source text by default. Set
 `numeric_policy = "double"` for the previous ordinary-double behavior.
 
+* `fabric_function_invoke()`, `fabric_graphql_query()`, and Livy response
+decoding now preserve unsafe whole-number JSON tokens as exact character text,
+including the complete unsigned 64-bit range.
+
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode

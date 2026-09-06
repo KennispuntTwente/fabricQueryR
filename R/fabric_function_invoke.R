@@ -121,7 +121,9 @@
 #' client response cap leaves room for Fabric's envelope around a 30 MB output.
 #' Secret-named fields and bearer-token text are redacted recursively from
 #' errors, response metadata, and conditions. Function `output` is domain data
-#' and is returned unchanged, even when it contains secret-like field names.
+#' and is not redacted, even when it contains secret-like field names. Unsafe
+#' whole-number JSON values are returned as exact character text; decimal JSON
+#' values use ordinary R doubles.
 #'
 #' @param function_url Complete public URL copied from the published function's
 #'   properties in Fabric. A discovered UserDataFunction item is not sufficient
@@ -155,10 +157,12 @@
 #'
 #' @return A `fabric_function_result` list with `function_name`,
 #'   `invocation_id`, `status`, `output`, `errors`, `http_status`, and
-#'   `response`. Function `output` is returned unchanged because field names
-#'   such as `token` can be legitimate domain data. The rest of `response` is
-#'   redacted and retains unknown future fields. Inspect `status` and `errors`;
-#'   receiving a result does not by itself mean the function succeeded.
+#'   `response`. Function `output` is not redacted because field names such as
+#'   `token` can be legitimate domain data. Unsafe whole-number JSON values are
+#'   exact character text; decimal JSON values use ordinary R doubles. The rest
+#'   of `response` is redacted and retains unknown future fields. Inspect
+#'   `status` and `errors`; receiving a result does not by itself mean the
+#'   function succeeded.
 #' @references
 #' [Invoke user data functions from a Python application](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/tutorial-invoke-from-python-app)
 #'
@@ -431,11 +435,18 @@ function_parse_response <- function(
     )
   }
   payload <- try(
-    httr2::resp_body_json(
-      response,
-      simplifyVector = FALSE,
-      bigint_as_char = TRUE
-    ),
+    {
+      decoded <- httr2::resp_body_json(
+        response,
+        simplifyVector = FALSE,
+        bigint_as_char = TRUE
+      )
+      lexical <- jsonlite::fromJSON(
+        fabric_json_quote_numbers(rawToChar(body)),
+        simplifyVector = FALSE
+      )
+      fabric_json_restore_unsafe_integer_tokens(decoded, lexical)
+    },
     silent = TRUE
   )
   execution_status_codes <- c(200L, 400L, 403L, 408L, 409L, 422L, 500L)

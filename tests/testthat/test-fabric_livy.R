@@ -315,7 +315,10 @@ test_that("Livy requests use the audience stored on the credential", {
         status_code = 200L,
         url = req$url,
         headers = list("content-type" = "application/json"),
-        body = charToRaw('{"value":9007199254740993}')
+        body = charToRaw(paste0(
+          '{"value":9007199254740993,',
+          '"uint64":[18446744073709551615,18446744073709551614]}'
+        ))
       )
     }
   )
@@ -333,6 +336,10 @@ test_that("Livy requests use the audience stored on the credential", {
     list(`$top` = "10", `$skip` = "2", `$count` = "true")
   )
   expect_identical(response$value, "9007199254740993")
+  expect_identical(
+    unlist(response$uint64, use.names = FALSE),
+    c("18446744073709551615", "18446744073709551614")
+  )
 })
 
 test_that("regular session runs multiple statements and closes", {

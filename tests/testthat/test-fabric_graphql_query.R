@@ -393,6 +393,78 @@ test_that("GraphQL responses preserve integers beyond double precision", {
   expect_identical(result$data$identifier, "9007199254740993")
 })
 
+test_that("GraphQL responses distinguish adjacent uint64 values", {
+  body <- charToRaw(paste0(
+    '{"data":{"items":[',
+    '{"value":18446744073709551615},',
+    '{"value":18446744073709551614},',
+    '{"value":null}]}}'
+  ))
+  httr2::local_mocked_responses(function(req) {
+    graphql_test_response(body, url = req$url)
+  })
+
+  exact <- fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ items { value } }",
+    token = "token"
+  )
+  double <- fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "{ items { value } }",
+    token = "token",
+    numeric_policy = "double"
+  )
+
+  expected <- c("18446744073709551615", "18446744073709551614")
+  expect_identical(
+    vapply(exact$data$items[1:2], `[[`, character(1), "value"),
+    expected
+  )
+  expect_identical(
+    vapply(double$data$items[1:2], `[[`, character(1), "value"),
+    expected
+  )
+  expect_null(exact$data$items[[3L]]$value)
+})
+
+test_that("GraphQL pagination and collection retain adjacent uint64 values", {
+  bodies <- lapply(
+    c(
+      paste0(
+        '{"data":{"items":{"rows":[',
+        '{"value":18446744073709551615}],',
+        '"hasNextPage":true,"endCursor":"next"}}}'
+      ),
+      paste0(
+        '{"data":{"items":{"rows":[',
+        '{"value":18446744073709551614},{"value":null}],',
+        '"hasNextPage":false,"endCursor":null}}}'
+      )
+    ),
+    charToRaw
+  )
+  page <- 0L
+  httr2::local_mocked_responses(function(req) {
+    page <<- page + 1L
+    graphql_test_response(bodies[[page]], url = req$url)
+  })
+
+  pages <- fabric_graphql_paginate(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "query Values($after: String) { items { rows { value } } }",
+    next_cursor = fabric_graphql_cursor("items"),
+    token = "token"
+  )
+  rows <- fabric_graphql_collect(pages, c("items", "rows"))
+
+  expect_identical(
+    rows$value,
+    c("18446744073709551615", "18446744073709551614", NA_character_)
+  )
+  expect_identical(attr(rows, "page_count"), 2L)
+})
+
 test_that("GraphQL exact numeric policy preserves decimal source tokens", {
   body <- charToRaw(paste0(
     '{"data":{"ordinary":1.25,"trailing":10.50,',

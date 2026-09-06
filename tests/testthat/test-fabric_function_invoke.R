@@ -386,7 +386,8 @@ test_that("function responses preserve future fields and exact large integers", 
       function_test_response(charToRaw(paste0(
         '{"functionName":"futureFunction",',
         '"invocationId":"future-id","status":"FutureStatus",',
-        '"output":{"identifier":9007199254740993},',
+        '"output":{"identifier":9007199254740993,',
+        '"uint64":[18446744073709551615,18446744073709551614]},',
         '"errors":[{"errorCode":"FutureError"}],',
         '"future":{"mode":"new"}}'
       )))
@@ -397,6 +398,11 @@ test_that("function responses preserve future fields and exact large integers", 
 
   expect_identical(result$status, "FutureStatus")
   expect_identical(result$output$identifier, "9007199254740993")
+  expect_identical(
+    unlist(result$output$uint64, use.names = FALSE),
+    c("18446744073709551615", "18446744073709551614")
+  )
+  expect_identical(result$response$output, result$output)
   expect_identical(result$errors[[1L]]$name, "FutureError")
   expect_identical(result$response$future$mode, "new")
 })

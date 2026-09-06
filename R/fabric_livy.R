@@ -1213,21 +1213,11 @@ fabric_livy_decode_json <- function(
     bigint_as_char = bigint_as_char
   )
   lexical <- jsonlite::fromJSON(
-    fabric_livy_quote_json_numbers(value),
+    fabric_json_quote_numbers(value),
     simplifyVector = FALSE
   )
-  fabric_livy_restore_decimal_tokens(decoded, lexical)
-}
-
-# Quote JSON number tokens without changing quoted strings. Returns valid JSON
-# whose numeric values can be decoded as their exact source text
-fabric_livy_quote_json_numbers <- function(value) {
-  string <- '"(?:\\\\.|[^"\\\\])*"(*SKIP)(*F)'
-  number <- paste0(
-    "(-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?",
-    "(?:[eE][+-]?[0-9]+)?)"
-  )
-  gsub(paste(string, number, sep = "|"), '"\\1"', value, perl = TRUE)
+  decoded <- fabric_livy_restore_decimal_tokens(decoded, lexical)
+  fabric_json_restore_unsafe_integer_tokens(decoded, lexical)
 }
 
 # Merge exact numeric spellings into DECIMAL columns of decoded Livy table

@@ -906,7 +906,7 @@ graphql_decode_response <- function(response, numeric_policy) {
     simplifyVector = FALSE,
     bigint_as_char = TRUE
   )
-  if (!identical(numeric_policy, "exact") || is.null(decoded$data)) {
+  if (is.null(decoded$data)) {
     return(decoded)
   }
   lexical <- jsonlite::fromJSON(
@@ -915,8 +915,12 @@ graphql_decode_response <- function(response, numeric_policy) {
     ),
     simplifyVector = FALSE
   )
-  decoded["data"] <- list(fabric_json_restore_decimal_tokens(
-    decoded$data,
+  data <- decoded$data
+  if (identical(numeric_policy, "exact")) {
+    data <- fabric_json_restore_decimal_tokens(data, lexical$data)
+  }
+  decoded["data"] <- list(fabric_json_restore_unsafe_integer_tokens(
+    data,
     lexical$data
   ))
   decoded
