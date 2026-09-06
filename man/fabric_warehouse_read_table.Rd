@@ -13,6 +13,7 @@ fabric_warehouse_read_table(
   limit = NULL,
   result = c("tibble", "arrow_stream"),
   backend = c("odbc", "adbc"),
+  numeric_policy = c("exact", "driver"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -53,6 +54,21 @@ released; consume it promptly or release it explicitly with
 \code{\link[nanoarrow:nanoarrow_pointer_release]{nanoarrow::nanoarrow_pointer_release()}}}
 
 \item{backend}{SQL connection backend, \code{"odbc"} or \code{"adbc"}.}
+
+\item{numeric_policy}{\code{"exact"} (default) preserves ADBC decimals as
+character and BIGINT as \code{bit64::integer64}, using character for columns
+containing the minimum BIGINT. INT columns containing \code{-2147483648} use
+exact doubles. Nested lists retain character decimals and 64-bit integers,
+and double 32-bit integers. Null struct parents require
+\code{result = "arrow_stream"}; exact tibble collection raises
+\code{fabric_arrow_null_struct_error} to preserve their distinction from valid
+structs with all-null fields. ODBC rejects DECIMAL, NUMERIC, INT and BIGINT
+columns before fetching: its conversion can round or truncate values
+or turn valid integer boundaries into missing values. Cast these columns
+to \code{varchar} in SQL or use ADBC. \code{"driver"} explicitly accepts the backend's
+conversions, including possible rounding and missing values, for either
+output format. This policy applies to this query helper; direct DBI calls
+on \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} use the selected driver's conversion settings.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}

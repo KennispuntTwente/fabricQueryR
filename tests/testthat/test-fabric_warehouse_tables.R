@@ -258,6 +258,7 @@ test_that("Warehouse table reader resolves and safely quotes its query", {
     limit = 25,
     result = "arrow_stream",
     backend = "adbc",
+    numeric_policy = "driver",
     token = "fabric-token",
     sql_token = "sql-token",
     verbose = FALSE,
@@ -280,6 +281,7 @@ test_that("Warehouse table reader resolves and safely quotes its query", {
   expect_identical(queried$result, "arrow_stream")
   expect_identical(queried$target_type, "warehouse")
   expect_identical(queried$backend, "adbc")
+  expect_identical(queried$numeric_policy, "driver")
   expect_s3_class(queried$token, "fabric_credential")
   expect_identical(
     fabric_get_token(resolved$credential, .fabric_audience$fabric),
@@ -304,6 +306,23 @@ test_that("Warehouse table reader resolves and safely quotes its query", {
   expect_identical(plain$id, 1L)
   expect_identical(queried$sql, "SELECT * FROM [dbo].[orders]")
   expect_identical(queried$result, "tibble")
+  expect_identical(queried$numeric_policy, c("exact", "driver"))
+
+  warehouse <- r6_test_record(
+    "Warehouse",
+    credential = fabric_credential(token = "r6-token")
+  )
+  r6_result <- warehouse$read_table(
+    "orders",
+    numeric_policy = "driver",
+    verbose = FALSE
+  )
+  expect_identical(r6_result$id, 1L)
+  expect_identical(queried$numeric_policy, "driver")
+  expect_identical(
+    fabric_get_token(queried$token, .fabric_audience$sql),
+    "r6-token"
+  )
 })
 
 test_that("Warehouse schema and table names reject unsupported spellings", {

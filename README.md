@@ -210,7 +210,7 @@ temporary OneLake staging for Fabric's `COPY INTO`. `$warehouses()` and
 ``` r
 warehouse <- workspace$warehouses()[[1L]]
 lakehouse <- workspace$lakehouses()[[1L]]
-orders <- warehouse$read_table("orders")
+orders <- warehouse$read_table("orders", numeric_policy = "driver")
 
 warehouse$write_table(
   table = "orders_copy",
@@ -219,6 +219,11 @@ warehouse$write_table(
   create_if_missing = TRUE
 )
 ```
+
+The default `numeric_policy = "exact"` prevents the ODBC backend from fetching
+`INT`, `BIGINT`, `DECIMAL`, or `NUMERIC` columns because the driver may convert
+them lossily. Use `numeric_policy = "driver"` when ordinary driver conversion
+is acceptable, as above, or use the ADBC backend for exact conversion.
 
 See
 [Working with Fabric Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.html)
