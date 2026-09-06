@@ -712,6 +712,91 @@ test_that("GraphQL collection preserves large doubles promoted to character", {
   expect_identical(rows$value[3:4], c("9007199254740993", NA_character_))
 })
 
+test_that("GraphQL collection preserves fractions and large integers across pages", {
+  bodies <- lapply(
+    c(
+      paste0(
+        '{"data":{"items":{"rows":[',
+        '{"value":1.25},{"value":3.1415926535897931},',
+        '{"value":null},{}],"hasNextPage":true,"endCursor":"next"}}}'
+      ),
+      paste0(
+        '{"data":{"items":{"rows":[',
+        '{"value":9007199254740993},{"value":4.9406564584124654e-324},',
+        '{"value":-0.0},{"value":1.7976931348623157e308},',
+        '{"value":-9223372036854775807},{"value":2},',
+        '{"value":-9223372036854775808}],',
+        '"hasNextPage":false,"endCursor":null}}}'
+      )
+    ),
+    charToRaw
+  )
+  page <- 0L
+  httr2::local_mocked_responses(function(req) {
+    page <<- page + 1L
+    graphql_test_response(bodies[[page]], url = req$url)
+  })
+  pages <- fabric_graphql_paginate(
+    "https://api.fabric.microsoft.com/graphql",
+    "query Values($after: String) { items(after: $after) { rows { value } hasNextPage endCursor } }",
+    next_cursor = fabric_graphql_cursor("items"),
+    token = "token"
+  )
+
+  result <- fabric_graphql_collect(pages, c("items", "rows"))
+
+  expect_type(result$value, "character")
+  expect_identical(
+    writeBin(
+      as.numeric(result$value[c(1L, 2L, 6L, 7L, 8L, 10L, 11L)]),
+      raw(),
+      size = 8L
+    ),
+    writeBin(
+      c(
+        1.25,
+        pi,
+        .Machine$double.xmin * .Machine$double.eps,
+        as.numeric("-0.0"),
+        .Machine$double.xmax,
+        2,
+        -2^63
+      ),
+      raw(),
+      size = 8L
+    )
+  )
+  expect_identical(result$value[5L], "9007199254740993")
+  expect_identical(result$value[9L], "-9223372036854775807")
+  expect_identical(result$value[3:4], rep(NA_character_, 2L))
+  expect_identical(attr(result, "complete"), TRUE)
+  expect_identical(attr(result, "page_count"), 2L)
+})
+
+test_that("GraphQL fractional text promotion is independent of row order", {
+  values <- list("9007199254740993", pi, 1.25, NULL, "-9223372036854775808")
+
+  forward <- graphql_rows_column(values, "value")
+  backward <- graphql_rows_column(rev(values), "value")
+
+  expect_identical(forward, rev(backward))
+  expect_identical(as.numeric(forward[2:3]), c(pi, 1.25))
+  expect_identical(
+    forward[c(1L, 4L, 5L)],
+    c(
+      "9007199254740993",
+      NA_character_,
+      "-9223372036854775808"
+    )
+  )
+})
+
+test_that("GraphQL numeric columns retain numeric types without integer strings", {
+  result <- graphql_rows_column(list(pi, 1.25, 2L, NULL), "value")
+
+  expect_identical(result, c(pi, 1.25, 2, NA_real_))
+})
+
 test_that("fabric_graphql_collect binds evolving nested rows exactly", {
   first <- graphql_parse_response(list(
     data = list(

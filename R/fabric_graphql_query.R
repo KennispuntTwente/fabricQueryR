@@ -605,8 +605,9 @@ fabric_graphql_cursor <- function(
 #' are added in first-seen order, with missing or GraphQL `null` scalar values
 #' represented by typed `NA` values when their type can be inferred. Exact
 #' integer strings returned by [fabric_graphql_query()] remain character data;
-#' integer-valued numeric entries in the same field are promoted to character
-#' rather than coercing a large integer to an inexact double
+#' finite numeric entries in the same field, including fractions, are promoted
+#' to character using text that recovers the received R value exactly. Fields
+#' containing only numeric values retain ordinary numeric columns
 #'
 #' A successful result has class `fabric_graphql_rows` and reports completion,
 #' page count, path, and GraphQL errors in its printed header and attributes.
@@ -1134,7 +1135,7 @@ graphql_rows_column <- function(values, name) {
   if (graphql_rows_mixed_integer_strings(non_null)) {
     return(vapply(
       values,
-      graphql_rows_integer_character,
+      graphql_rows_numeric_character,
       character(1)
     ))
   }
@@ -1167,8 +1168,8 @@ graphql_rows_column <- function(values, name) {
   do.call(vctrs::vec_c, unname(pieces))
 }
 
-# Detect safe character promotion for a column containing JSON integers on
-# both sides of jsonlite's exact-large-integer boundary
+# Detect safe character promotion for finite JSON numbers mixed with exact
+# integer strings from jsonlite's large-integer protection.
 graphql_rows_mixed_integer_strings <- function(values) {
   kinds <- vapply(
     values,
@@ -1195,16 +1196,16 @@ graphql_rows_mixed_integer_strings <- function(values) {
       if (is.character(value)) {
         grepl("^[+-]?[0-9]+$", value)
       } else {
-        is.finite(value) && value == floor(value)
+        is.finite(value)
       }
     },
     logical(1)
   ))
 }
 
-# Render one integer-valued scalar as exact character data. Returns NA for a
+# Render one numeric scalar as exact character data. Returns NA for a
 # missing/null field
-graphql_rows_integer_character <- function(value) {
+graphql_rows_numeric_character <- function(value) {
   if (is.null(value)) {
     return(NA_character_)
   }
