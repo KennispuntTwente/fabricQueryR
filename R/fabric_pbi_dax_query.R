@@ -1615,6 +1615,13 @@ pbi_normalize_dax_integer_columns <- function(rows) {
           NA_character_
         } else if (is.infinite(value)) {
           as.character(value)
+        } else if (
+          value != 0 &&
+            value == trunc(value) &&
+            value >= -2^63 &&
+            value < 2^63
+        ) {
+          sprintf("%.0f", value)
         } else {
           fabric_format_number(value)
         }

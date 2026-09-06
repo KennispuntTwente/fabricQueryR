@@ -529,6 +529,34 @@ test_that("DAX response parser promotes mixed-size Whole Numbers", {
   )
 })
 
+test_that("DAX response preserves both signed int64 extrema exactly", {
+  body <- charToRaw(paste0(
+    '{"results":[{"tables":[{"rows":[',
+    '{"value":-9223372036854775808},',
+    '{"value":9223372036854775807}]}]}]}'
+  ))
+  httr2::local_mocked_responses(function(req) {
+    httr2::response(
+      status_code = 200L,
+      headers = list(`content-type` = "application/json"),
+      body = body,
+      url = req$url
+    )
+  })
+
+  result <- fabric_pbi_dax_query(
+    dax = 'EVALUATE ROW("value", 1)',
+    workspace_id = pbi_test_workspace_id,
+    dataset_id = pbi_test_dataset_id,
+    token = "token"
+  )
+
+  expect_identical(
+    result$value,
+    c("-9223372036854775808", "9223372036854775807")
+  )
+})
+
 test_that("DAX response promotion retains large finite doubles exactly", {
   body <- charToRaw(paste0(
     '{"results":[{"tables":[{"rows":[',

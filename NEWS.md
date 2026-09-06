@@ -85,7 +85,8 @@ SQL and Livy is deprecated.
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode
 provides typed tibbles or streams for models that support it. Both JSON and
-Arrow executions now expose a client-side HTTP `timeout`.
+Arrow executions now expose a client-side HTTP `timeout`. Mixed JSON Whole
+Number columns preserve both signed 64-bit extrema exactly.
 
 * `fabric_onelake_read_delta_table()` now reads current or historical Lakehouse
 and compatible Warehouse tables through an optional Python Delta reader. It

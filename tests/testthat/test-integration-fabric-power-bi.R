@@ -256,6 +256,21 @@ test_that("JSON DAX preserves large whole numbers and scalar representations", {
     token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
   )
   expect_identical(mixed$`[mixed]`, c("1", "9007199254740993"))
+
+  extrema <- fabric_pbi_dax_query(
+    workspace_id = manifest$workspace_id,
+    dataset_id = semantic_model$id,
+    dax = paste0(
+      "EVALUATE UNION(",
+      "ROW(\"value\", CONVERT(\"-9223372036854775808\", INTEGER)), ",
+      "ROW(\"value\", CONVERT(\"9223372036854775807\", INTEGER)))"
+    ),
+    token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+  )
+  expect_identical(
+    extrema$`[value]`,
+    c("-9223372036854775808", "9223372036854775807")
+  )
 })
 
 test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
