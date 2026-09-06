@@ -92,10 +92,12 @@ test_that("OneLake object reader returns tibbles and lazy streams", {
   fixtures$parquet <- tempfile(fileext = ".parquet")
   fixtures$csv <- tempfile(fileext = ".csv")
   fixtures$arrow <- tempfile(fileext = ".arrow")
+  fixtures$ipc <- tempfile(fileext = ".ipc")
   on.exit(unlink(unlist(fixtures), force = TRUE), add = TRUE)
   arrow::write_parquet(data, fixtures$parquet)
   arrow::write_csv_arrow(data, fixtures$csv)
   arrow::write_ipc_stream(data, fixtures$arrow)
+  arrow::write_feather(data, fixtures$ipc)
   local_mocked_bindings(
     fabric_onelake_download = function(path, dest, ...) {
       extension <- tools::file_ext(path)

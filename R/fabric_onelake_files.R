@@ -375,7 +375,11 @@ fabric_onelake_read_file <- function(
           col_types = col_types,
           skip_empty_rows = FALSE
         ),
-        arrow = arrow::read_ipc_stream(local_path, as_data_frame = FALSE)
+        arrow = if (.fabric_onelake_ipc_file(local_path)) {
+          arrow::read_feather(local_path, as_data_frame = FALSE)
+        } else {
+          arrow::read_ipc_stream(local_path, as_data_frame = FALSE)
+        }
       ),
       error = function(error) {
         .fabric_abort(
@@ -2214,6 +2218,11 @@ onelake_commit_new_download <- function(temporary, dest) {
   do.call(arrow::schema, fields)
 }
 
+# Arrow IPC files start with ARROW1; streams have no file magic.
+.fabric_onelake_ipc_file <- function(path) {
+  identical(readBin(path, "raw", n = 6L), charToRaw("ARROW1"))
+}
+
 # Open a downloaded object file as a lazy Arrow stream and own its local file
 .fabric_onelake_object_stream <- function(
   path,
@@ -2245,6 +2254,9 @@ onelake_commit_new_download <- function(temporary, dest) {
           col_types = col_types,
           skip_empty_rows = FALSE
         )
+        reader <- arrow::as_record_batch_reader(owner)
+      } else if (.fabric_onelake_ipc_file(path)) {
+        owner <- arrow::open_dataset(path, format = "ipc")
         reader <- arrow::as_record_batch_reader(owner)
       } else {
         input <- arrow::mmap_open(path)
