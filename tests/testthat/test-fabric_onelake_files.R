@@ -148,6 +148,42 @@ test_that("OneLake object reader returns tibbles and lazy streams", {
   }
 })
 
+test_that("OneLake Parquet and IPC reads preserve the full uint64 range", {
+  skip_if_not_installed("arrow")
+  values <- c(
+    "0",
+    "9007199254740993",
+    "9223372036854775808",
+    "18446744073709551615",
+    NA
+  )
+  unsigned <- arrow::Array$create(values)$cast(arrow::uint64())
+  data <- arrow::Table$create(
+    value = unsigned,
+    nested = arrow::StructArray$create(value = unsigned)
+  )
+  directory <- withr::local_tempdir()
+  arrow::write_parquet(data, file.path(directory, "numbers.parquet"))
+  arrow::write_ipc_stream(data, file.path(directory, "numbers.arrow"))
+  local_mocked_bindings(
+    fabric_onelake_download = function(path, dest, ...) {
+      file.copy(file.path(directory, basename(path)), dest)
+      invisible(dest)
+    }
+  )
+
+  for (extension in c("parquet", "arrow")) {
+    result <- fabric_onelake_read_file(
+      "workspace",
+      "lakehouse.Lakehouse",
+      paste0("Files/numbers.", extension),
+      token = "synthetic"
+    )
+    expect_identical(result$value, values)
+    expect_identical(result$nested$value, values)
+  }
+})
+
 test_that("OneLake object wrappers retain discovered DFS endpoints", {
   skip_if_not_installed("arrow")
   workspace_id <- "11111111-1111-1111-1111-111111111111"
