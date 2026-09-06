@@ -1607,11 +1607,7 @@ kusto_ingestion_datetime <- function(value, name, allow_date) {
     return(NULL)
   }
   if (inherits(value, "POSIXt") && length(value) == 1L && !is.na(value)) {
-    return(format(
-      as.POSIXct(value, tz = "UTC"),
-      "%Y-%m-%dT%H:%M:%OS6Z",
-      tz = "UTC"
-    ))
+    return(fabric_format_kusto_datetime(value))
   }
   if (inherits(value, "Date") && length(value) == 1L && !is.na(value)) {
     return(paste0(format(value, "%Y-%m-%d"), "T00:00:00Z"))

@@ -248,7 +248,29 @@ test_that("fabric_kql_ingest sends the documented tracked payload", {
     "2026-08-14T00:00:00Z"
   )
   expect_match(payload$properties$validationPolicy, "ValidationOptions")
-  expect_equal(payload$timestamp, "2026-08-14T10:00:00.000000Z")
+  expect_equal(payload$timestamp, "2026-08-14T10:00:00.0000000Z")
+})
+
+test_that("ingestion POSIXct metadata retains Kusto fractional ticks", {
+  epoch <- 1767225600
+  value <- structure(
+    epoch + 2^-21,
+    class = c("POSIXct", "POSIXt"),
+    tzone = "UTC"
+  )
+
+  expect_identical(
+    kusto_ingestion_datetime(value, "timestamp", allow_date = FALSE),
+    "2026-01-01T00:00:00.0000005Z"
+  )
+  expect_identical(
+    kusto_ingestion_datetime(
+      as.POSIXct(1 - 2^-25, origin = "1970-01-01", tz = "UTC"),
+      "creation_time",
+      allow_date = TRUE
+    ),
+    "1970-01-01T00:00:01.0000000Z"
+  )
 })
 
 test_that("fabric_kql_ingest adds tags only when requested", {

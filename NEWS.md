@@ -106,6 +106,10 @@ Delta features should be read through SQL or Spark instead.
 * `fabric_livy_query()` table results now follow the declared Spark schema and
 preserve large whole numbers and decimals exactly.
 
+* KQL query parameters and ingestion metadata now preserve POSIX date-times at
+the service's 100-nanosecond resolution, including correct second-boundary
+rounding.
+
 * `fabric_livy_query()` now bounds temporary-session cleanup with a separate
 deadline and reports both errors when statement execution and session deletion
 fail together.

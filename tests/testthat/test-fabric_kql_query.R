@@ -363,7 +363,7 @@ test_that("KQL parameter values are encoded without query interpolation", {
   expect_equal(encoded$text, "safe ' value; --")
   expect_equal(encoded$count, "9007199254740993")
   expect_equal(encoded$enabled, "true")
-  expect_match(encoded$at, "^datetime\\(2026-07-24T12:30:00")
+  expect_equal(encoded$at, "datetime(2026-07-24T12:30:00.0000000Z)")
   expect_equal(encoded$day, "datetime(2026-07-24)")
   expect_equal(encoded$elapsed, "timespan(90s)")
   expect_equal(encoded$values, 'dynamic(["A","B"])')
@@ -391,6 +391,36 @@ test_that("KQL parameter values are encoded without query interpolation", {
     )),
     "must be scalar",
     fixed = TRUE
+  )
+})
+
+test_that("KQL POSIXct parameters round to 100-nanosecond ticks", {
+  epoch <- 1767225600
+  value <- structure(
+    epoch + 2^-21,
+    class = c("POSIXct", "POSIXt"),
+    tzone = "UTC"
+  )
+
+  expect_identical(
+    kusto_encode_parameter(value),
+    "datetime(2026-01-01T00:00:00.0000005Z)"
+  )
+  expect_identical(
+    kusto_encode_parameter(as.POSIXct(
+      1 - 2^-25,
+      origin = "1970-01-01",
+      tz = "UTC"
+    )),
+    "datetime(1970-01-01T00:00:01.0000000Z)"
+  )
+  expect_identical(
+    kusto_encode_parameter(as.POSIXct(
+      -2^-25,
+      origin = "1970-01-01",
+      tz = "UTC"
+    )),
+    "datetime(1970-01-01T00:00:00.0000000Z)"
   )
 })
 

@@ -218,6 +218,27 @@ test_that("fabric_kql_query discovers targets and binds safe parameters", {
   )
   expect_equal(empty_dynamic$selected_count, 0L)
   expect_equal(empty_dynamic$option_count, 0L)
+
+  fractional_input <- structure(
+    1767225600 + 2^-21,
+    class = c("POSIXct", "POSIXt"),
+    tzone = "UTC"
+  )
+  fractional <- fabric_kql_query(
+    target,
+    query = paste(
+      "declare query_parameters(value:datetime);",
+      "print value=value,",
+      "matches=value == datetime(2026-01-01T00:00:00.0000005Z)"
+    ),
+    parameters = list(value = fractional_input),
+    token = kusto_token
+  )
+  expect_true(fractional$matches)
+  expect_identical(
+    writeBin(as.double(fractional$value), raw(), endian = .Platform$endian),
+    writeBin(as.double(fractional_input), raw(), endian = .Platform$endian)
+  )
 })
 
 test_that("fabric_kql_query preserves exact dynamic numeric parameters in Fabric", {

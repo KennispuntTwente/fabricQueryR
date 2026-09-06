@@ -45,3 +45,34 @@ fabric_format_number_fixed <- function(value) {
   }
   paste0(if (negative) "-" else "", expanded)
 }
+
+# Format a POSIX date-time at Kusto's 100-nanosecond resolution. Fractional
+# ticks are rounded separately from whole epoch seconds so large epoch values
+# do not lose their fractional component during scaling.
+fabric_format_kusto_datetime <- function(value) {
+  seconds <- as.numeric(value)
+  if (length(seconds) != 1L || !is.finite(seconds)) {
+    .fabric_abort(
+      "value must be one finite POSIX date-time",
+      class = "fabric_numeric_format_error"
+    )
+  }
+
+  whole <- floor(seconds)
+  ticks <- floor((seconds - whole) * 1e7 + 0.5)
+  if (ticks == 1e7) {
+    whole <- whole + 1
+    ticks <- 0
+  }
+
+  paste0(
+    format(
+      as.POSIXct(whole, origin = "1970-01-01", tz = "UTC"),
+      "%Y-%m-%dT%H:%M:%S",
+      tz = "UTC"
+    ),
+    ".",
+    sprintf("%07d", as.integer(ticks)),
+    "Z"
+  )
+}

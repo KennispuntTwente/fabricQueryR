@@ -818,7 +818,7 @@ kusto_encode_parameter <- function(value) {
   if (inherits(value, "POSIXt")) {
     return(paste0(
       "datetime(",
-      format(as.POSIXct(value, tz = "UTC"), "%Y-%m-%dT%H:%M:%OS6Z", tz = "UTC"),
+      fabric_format_kusto_datetime(value),
       ")"
     ))
   }
