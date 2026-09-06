@@ -54,6 +54,57 @@ test_that("playground exposes persistent sandbox demos", {
   expect_identical(unname(available), rep(TRUE, length(functions)))
 })
 
+test_that("playground discovery and refresh execute with R6 sandbox objects", {
+  environment <- new.env(parent = globalenv())
+  sys.source(.playground_test_path("sandbox.R"), envir = environment)
+  sys.source(.playground_test_path("playground.R"), envir = environment)
+  workspace <- fabric_r6_record(
+    list(
+      id = "22222222-2222-4222-8222-222222222222",
+      displayName = "Sandbox",
+      description = "test"
+    ),
+    legacy_class = c("fabric_workspace", "list")
+  )
+  sandbox <- structure(
+    list(
+      workspace = workspace,
+      items = list(),
+      targets = list(semantic_model = list(id = "model")),
+      token = function(...) "token"
+    ),
+    class = "fabricqueryr_playground_sandbox"
+  )
+  for (name in c(
+    "fabric_lakehouses",
+    "fabric_warehouses",
+    "fabric_kql_databases",
+    "fabric_semantic_models"
+  )) {
+    environment[[name]] <- function(...) list()
+  }
+  result <- environment$demo_discovery(sandbox)
+  expect_identical(
+    result$workspace,
+    workspace$as_list()[c("displayName", "id", "description")]
+  )
+  principal <- NULL
+  environment$fabric_pbi_refresh <- function(model, token, principal_type) {
+    principal <<- principal_type
+    list(state = "Completed")
+  }
+  environment$fabric_pbi_refresh_wait <- function(refresh, ...) refresh
+  environment$fabric_pbi_refresh_history <- function(...) list()
+  for (type in c("delegated", "service_principal")) {
+    sandbox$principal_type <- type
+    expect_identical(
+      environment$demo_power_bi_refresh(sandbox)$completed$state,
+      "Completed"
+    )
+    expect_identical(principal, type)
+  }
+})
+
 test_that("playground targets allow names shared by different item types", {
   environment <- new.env(parent = globalenv())
   sys.source(

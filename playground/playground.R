@@ -50,7 +50,11 @@ demo_discovery <- function(sandbox) {
   inventory <- inventory[order(inventory$type, inventory$display_name), ]
 
   list(
-    workspace = sandbox$workspace[c("displayName", "id", "description")],
+    workspace = sandbox$workspace$as_list()[c(
+      "displayName",
+      "id",
+      "description"
+    )],
     inventory = inventory,
     lakehouses = fabric_lakehouses(
       sandbox$workspace,
@@ -517,7 +521,11 @@ demo_power_bi <- function(sandbox) {
 demo_power_bi_refresh <- function(sandbox) {
   playground_require_sandbox(sandbox)
   model <- sandbox$targets$semantic_model
-  refresh <- fabric_pbi_refresh(model, token = sandbox$token)
+  refresh <- fabric_pbi_refresh(
+    model,
+    token = sandbox$token,
+    principal_type = sandbox$principal_type
+  )
   completed <- fabric_pbi_refresh_wait(
     refresh,
     timeout = 900,

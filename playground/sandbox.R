@@ -259,7 +259,7 @@ connect_playground_sandbox <- function(
     lakehouse = "Lakehouse",
     lakehouse_no_schemas = "Lakehouse",
     warehouse = "Warehouse",
-    warehouse_snapshot = "Warehouse",
+    warehouse_snapshot = "WarehouseSnapshot",
     sql_database = "SQLDatabase",
     mirrored_database = "MirroredDatabase",
     eventhouse = "Eventhouse",
@@ -318,6 +318,11 @@ connect_playground_sandbox <- function(
       targets = targets,
       token = token,
       livy = livy,
+      principal_type = if (fabric_local_uses_client_credentials(auth_args)) {
+        "service_principal"
+      } else {
+        "delegated"
+      },
       tenant_id = context$tenant_id,
       client_id = context$client_id
     ),
