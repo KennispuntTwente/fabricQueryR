@@ -161,3 +161,98 @@ test_that("uint64 nested struct slices apply parent null masks", {
     c("9223372036854775808", NA, "18446744073709551615")
   )
 })
+
+test_that("ordinary nested numeric structs retain sliced row alignment", {
+  skip_if_not_installed("arrow")
+  integers <- c("0", "9007199254740993", "-9223372036854775808", NA)
+  decimals <- c("0.0000", "12345678901234567890.1234", "-0.0001", NA)
+  table <- arrow::Table$create(
+    id = 1:4,
+    nested = arrow::StructArray$create(
+      value = arrow::Array$create(integers)$cast(arrow::int64()),
+      amount = arrow::Array$create(decimals)$cast(arrow::decimal128(38, 4)),
+      detail = arrow::StructArray$create(count = 11:14)
+    )
+  )$Slice(1L, 3L)
+  stream <- nanoarrow::as_nanoarrow_array_stream(table)
+  withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
+
+  result <- .fabric_arrow_exact_tibble(stream)
+
+  expect_identical(result$id, 2:4)
+  expect_identical(result$nested$value, integers[-1L])
+  expect_identical(result$nested$amount, decimals[-1L])
+  expect_identical(result$nested$detail$count, 12:14)
+})
+
+test_that("ordinary nested struct masks and offsets work without the Arrow package", {
+  nested_schema <- nanoarrow::na_struct(list(count = nanoarrow::na_int32()))
+  nested <- nanoarrow::nanoarrow_array_modify(
+    nanoarrow::nanoarrow_array_init(nested_schema),
+    list(
+      buffers = list(as.raw(11L)),
+      null_count = 1L,
+      offset = 1L,
+      length = 3L,
+      children = list(
+        count = nanoarrow::as_nanoarrow_array(c(11L, NA_integer_, 13L, 14L))
+      )
+    )
+  )
+  schema <- nanoarrow::na_struct(list(nested = nested_schema))
+  batch <- nanoarrow::nanoarrow_array_modify(
+    nanoarrow::nanoarrow_array_init(schema),
+    list(length = 3L, children = list(nested = nested))
+  )
+  for (batches in list(list(batch), list(batch, batch), list())) {
+    stream <- nanoarrow::basic_array_stream(batches, schema = schema)
+    withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
+
+    result <- .fabric_arrow_exact_tibble(stream)
+
+    expect_identical(
+      result$nested$count,
+      rep(c(NA_integer_, NA_integer_, 14L), length(batches))
+    )
+  }
+})
+
+test_that("ordinary numeric structs combine parent and child null masks", {
+  skip_if_not_installed("arrow")
+  decimals <- c("0.0000", NA, "12345678901234567890.1234", "-0.0001")
+  array <- nanoarrow::as_nanoarrow_array(arrow::StructArray$create(
+    count = 11:14,
+    amount = arrow::Array$create(decimals)$cast(arrow::decimal128(38, 4)),
+    detail = arrow::StructArray$create(value = c(pi, -pi, 1.25, 2.5))
+  ))
+  for (offset in c(0L, 1L)) {
+    nested <- nanoarrow::nanoarrow_array_modify(
+      array,
+      list(
+        buffers = list(as.raw(11L)),
+        null_count = 1L,
+        offset = offset,
+        length = 4L - offset
+      )
+    )
+    schema <- nanoarrow::na_struct(list(
+      nested = nanoarrow::infer_nanoarrow_schema(nested)
+    ))
+    batch <- nanoarrow::nanoarrow_array_modify(
+      nanoarrow::nanoarrow_array_init(schema),
+      list(length = 4L - offset, children = list(nested = nested))
+    )
+    stream <- nanoarrow::basic_array_stream(list(batch))
+    withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
+
+    result <- .fabric_arrow_exact_tibble(stream)
+
+    rows <- offset + seq_len(4L - offset)
+    expect_identical(result$nested$count, c(11L, 12L, NA_integer_, 14L)[rows])
+    expect_identical(result$nested$amount, c("0.0000", NA, NA, "-0.0001")[rows])
+    expect_identical(
+      result$nested$detail$value,
+      c(pi, -pi, NA_real_, 2.5)[rows]
+    )
+  }
+})

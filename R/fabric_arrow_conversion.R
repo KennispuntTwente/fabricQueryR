@@ -24,16 +24,20 @@
 .fabric_arrow_exact_tibble <- function(stream) {
   schema <- stream$get_schema()
   has_uint64 <- .fabric_arrow_has_uint64(schema)
-  if (has_uint64) {
+  conversion_schema <- if (has_uint64) {
     # Signed and unsigned 64-bit integers share their physical buffer layout.
     # Reinterpret those buffers so nanoarrow's exact signed-to-text converter
     # can retain validity, slicing, and dictionary/list structure for us.
-    signed_schema <- .fabric_arrow_uint64_signed_schema(schema)
-    batches <- nanoarrow::collect_array_stream(stream, schema = signed_schema)
-    batches <- lapply(batches, .fabric_arrow_normalize_struct_slices)
-    stream <- nanoarrow::basic_array_stream(batches, schema = signed_schema)
-    on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+    .fabric_arrow_uint64_signed_schema(schema)
+  } else {
+    schema
   }
+  # Struct offsets and parent validity apply to all child types, including
+  # ordinary signed integers and decimals in streams with no unsigned columns.
+  batches <- nanoarrow::collect_array_stream(stream, schema = conversion_schema)
+  batches <- lapply(batches, .fabric_arrow_normalize_struct_slices)
+  stream <- nanoarrow::basic_array_stream(batches, schema = conversion_schema)
+  on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
   values <- nanoarrow::convert_array_stream(
     stream,
     to = .fabric_arrow_exact_ptype(schema)
