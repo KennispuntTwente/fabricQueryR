@@ -1,9 +1,11 @@
 test_that("CI distinguishes skipped integration tests from executed coverage", {
-  env <- new.env(parent = baseenv())
-  sys.source(
-    test_path("..", "..", "tools", "fabric-sandbox", "ci-integration.R"),
-    env
+  helper <- test_path("..", "..", "tools", "fabric-sandbox", "ci-integration.R")
+  skip_if_not(
+    file.exists(helper),
+    "tools/ is intentionally excluded from the built package"
   )
+  env <- new.env(parent = baseenv())
+  sys.source(helper, env)
   rows <- data.frame(
     test = c("scalar function", "structured function"),
     skipped = c(TRUE, TRUE),
