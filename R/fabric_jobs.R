@@ -1225,7 +1225,8 @@ print.fabric_job_instance <- function(x, ...) {
   accepted_status = integer(),
   deadline = NULL,
   .sleep = Sys.sleep,
-  .now = Sys.time
+  .now = Sys.time,
+  payload_json = NULL
 ) {
   # 1 Build the HTTP request -----------------------------------------------------------------------
 
@@ -1234,7 +1235,21 @@ print.fabric_job_instance <- function(x, ...) {
   request <- httr2::request(url)
   request <- httr2::req_method(request, method)
 
-  if (!is.null(payload)) {
+  if (!is.null(payload_json)) {
+    if (
+      !is.character(payload_json) ||
+        length(payload_json) != 1L ||
+        is.na(payload_json) ||
+        !jsonlite::validate(payload_json)
+    ) {
+      .fabric_abort("The preserved job request body must be valid JSON")
+    }
+    request <- httr2::req_body_raw(
+      request,
+      payload_json,
+      type = "application/json"
+    )
+  } else if (!is.null(payload)) {
     payload <- .fabric_job_preserve_json_arrays(payload)
     request <- httr2::req_body_json(
       request,
@@ -1274,9 +1289,20 @@ print.fabric_job_instance <- function(x, ...) {
       httr2::resp_header(response, "request-id"),
     activity_id = httr2::resp_header(response, "x-ms-activity-id") %||%
       httr2::resp_header(response, "activity-id"),
+    body_json = if (
+      isTRUE(parse_json) && status != 204L && httr2::resp_has_body(response)
+    ) {
+      httr2::resp_body_string(response)
+    } else {
+      NULL
+    },
     body = if (isTRUE(parse_json) && status != 204L) {
       if (httr2::resp_has_body(response)) {
-        httr2::resp_body_json(response, simplifyVector = FALSE)
+        httr2::resp_body_json(
+          response,
+          simplifyVector = FALSE,
+          bigint_as_char = TRUE
+        )
       } else {
         list()
       }

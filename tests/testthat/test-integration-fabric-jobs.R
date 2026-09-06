@@ -424,6 +424,55 @@ test_that("Cron and monthly Fabric schedules complete live lifecycles", {
   }
 })
 
+test_that("disabled schedule updates preserve numeric execution data in Fabric", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  fixture <- fabric_test_manifest_item(manifest, "JobFixtures")
+  item <- list(
+    id = fixture$id,
+    workspaceId = manifest$workspace_id,
+    type = fixture$type
+  )
+  start <- as.POSIXct(Sys.Date() + 2, tz = "UTC")
+  configuration <- fabric_job_schedule_config(
+    "Daily",
+    start_time = start,
+    end_time = start + 14 * 86400,
+    time_zone = "UTC",
+    times = "05:41"
+  )
+  schedule <- fabric_job_schedule_create(
+    item,
+    configuration,
+    enabled = FALSE,
+    execution_data = list(
+      parameters = list(list(
+        name = "precision_probe",
+        value = bit64::as.integer64("9007199254740993"),
+        type = "Number"
+      ))
+    ),
+    token = token
+  )
+  on.exit(
+    fabric_job_schedule_delete(item, schedule, confirm = TRUE, token = token),
+    add = TRUE
+  )
+  before <- attr(schedule, "fabric_execution_data_json", exact = TRUE)
+  expect_match(before, "9007199254740993", fixed = TRUE)
+  updated <- fabric_job_schedule_update(
+    item,
+    schedule,
+    enabled = FALSE,
+    token = token
+  )
+  expect_identical(
+    attr(updated, "fabric_execution_data_json", exact = TRUE),
+    before
+  )
+  expect_identical(updated$enabled, FALSE)
+})
+
 test_that("notebook and Spark schedule defaults complete live lifecycles", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")

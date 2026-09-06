@@ -808,6 +808,135 @@ test_that("schedule records retain custom job types for later operations", {
   expect_match(calls[[1L]], "/jobs/ScheduledSparkJob/schedules/", fixed = TRUE)
 })
 
+test_that("schedule updates preserve untouched execution JSON exactly", {
+  execution_json <- paste0(
+    '{"id":9007199254740993,"max":9223372036854775807,',
+    '"min":-9223372036854775808,',
+    '"decimal":12345678901234567890.123456789012345,',
+    '"exponent":9.007199254740993e15,"tiny":1e-400,"huge":1e400,',
+    '"zero":-0.0,"trailing":1.23000,"nested":[null,{"value":2.00}],',
+    '"empty":{},"array":[],"text":"number 123, brace } and quote \\\""}'
+  )
+  incoming <- paste0(
+    '{"id":"44444444-4444-4444-4444-444444444444","enabled":true,',
+    '"configuration":{"type":"Daily","times":["09:30"],',
+    '"localTimeZoneId":"UTC","startDateTime":"2026-10-01T00:00:00Z"},',
+    '"executionData":',
+    execution_json,
+    '}'
+  )
+  outgoing <- character()
+  local_mocked_bindings(.httr2_perform = function(req, ...) {
+    if (identical(req$method, "PATCH")) {
+      outgoing <<- c(
+        outgoing,
+        if (identical(req$body$type, "raw")) {
+          rawToChar(req$body$data)
+        } else if (identical(req$body$type, "string")) {
+          req$body$data
+        } else {
+          as.character(jsonlite::toJSON(
+            req$body$data,
+            auto_unbox = TRUE,
+            null = "null",
+            digits = 22
+          ))
+        }
+      )
+    }
+    httr2::response(
+      200L,
+      headers = list("content-type" = "application/json"),
+      body = charToRaw(incoming)
+    )
+  })
+
+  for (arguments in list(list(enabled = FALSE), list(execution_data = NULL))) {
+    do.call(
+      fabric_job_schedule_update,
+      c(
+        list(
+          item = scheduler_test_item(),
+          schedule_id = "44444444-4444-4444-4444-444444444444",
+          token = "test-token",
+          api_base = "https://api.fabric.test/v1"
+        ),
+        arguments
+      )
+    )
+  }
+
+  expect_length(outgoing, 2L)
+  for (body in outgoing) {
+    expect_identical(jsonlite::validate(body), TRUE)
+    expect_match(body, paste0('"executionData":', execution_json), fixed = TRUE)
+    expect_identical(jsonlite::fromJSON(body)$configuration$times, "09:30")
+  }
+  expect_identical(jsonlite::fromJSON(outgoing[[1L]])$enabled, FALSE)
+})
+
+test_that("explicit schedule execution data replaces preserved numeric JSON", {
+  incoming <- paste0(
+    '{"id":"44444444-4444-4444-4444-444444444444","enabled":true,',
+    '"configuration":{"type":"Cron","interval":1},',
+    '"executionData":{"id":9007199254740993}}'
+  )
+  outgoing <- NULL
+  local_mocked_bindings(.httr2_perform = function(req, ...) {
+    if (identical(req$method, "PATCH")) {
+      outgoing <<- req$body$data
+    }
+    httr2::response(
+      200L,
+      headers = list("content-type" = "application/json"),
+      body = charToRaw(incoming)
+    )
+  })
+
+  fabric_job_schedule_update(
+    scheduler_test_item(),
+    "44444444-4444-4444-4444-444444444444",
+    execution_data = list(id = "exact text", ratio = pi),
+    token = "test-token",
+    api_base = "https://api.fabric.test/v1"
+  )
+
+  expect_identical(outgoing$executionData, list(id = "exact text", ratio = pi))
+})
+
+test_that("schedule JSON preservation respects escaping and member boundaries", {
+  for (value in c("null", "{}", "[]", "true", "-0.0", "1e-400")) {
+    input <- paste0(
+      '{"nested":{"executionData":123},"label":"\\u03c0",',
+      '"execution\\u0044ata": ',
+      value,
+      ',"after":[1,2]}'
+    )
+    expect_identical(.fabric_job_json_member(input, "executionData"), value)
+  }
+  value <- '[ 9007199254740993, {"quoted\\\"key":"\\\\ {} [] : 123"}, null ]'
+  expect_identical(
+    .fabric_job_json_member(
+      paste0('{"executionData":', value, '}'),
+      "executionData"
+    ),
+    value
+  )
+  expect_null(.fabric_job_json_member(
+    '{"nested":{"executionData":1}}',
+    "executionData"
+  ))
+  expect_snapshot(error = TRUE, {
+    .fabric_job_json_member(
+      '{"executionData":1,"execution\\u0044ata":2}',
+      "executionData"
+    )
+  })
+  expect_snapshot(error = TRUE, {
+    .fabric_job_json_member('{"executionData":', "executionData")
+  })
+})
+
 test_that("schedule response and print methods do not expose credentials", {
   context <- list(
     workspace_id = "22222222-2222-2222-2222-222222222222",

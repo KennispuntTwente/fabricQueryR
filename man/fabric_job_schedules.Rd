@@ -153,7 +153,9 @@ permission. The current service limit is 20 schedules per item.
 the Fabric PATCH contract requires \code{enabled} and a complete \code{configuration}.
 When either is omitted, the function first reads the current schedule and
 preserves the omitted value. An omitted or \code{NULL} \code{execution_data} is also
-preserved; supply a named list to replace it.
+preserved from the original response JSON, retaining numeric precision and
+empty objects or arrays; supply a named list to replace it. Decoded record
+fields use ordinary R JSON types and cannot represent arbitrary decimals.
 
 The published REST response currently exposes \code{enabled} but no standard
 auto-disable reason. \code{auto_disabled} is therefore \code{NA} unless Fabric returns

@@ -301,7 +301,9 @@ fabric_job_schedule_config <- function(
 #' the Fabric PATCH contract requires `enabled` and a complete `configuration`.
 #' When either is omitted, the function first reads the current schedule and
 #' preserves the omitted value. An omitted or `NULL` `execution_data` is also
-#' preserved; supply a named list to replace it.
+#' preserved from the original response JSON, retaining numeric precision and
+#' empty objects or arrays; supply a named list to replace it. Decoded record
+#' fields use ordinary R JSON types and cannot represent arbitrary decimals.
 #'
 #' The published REST response currently exposes `enabled` but no standard
 #' auto-disable reason. `auto_disabled` is therefore `NA` unless Fabric returns
@@ -498,11 +500,32 @@ fabric_job_schedule_update <- function(
   if (!is.null(execution_data)) {
     payload$executionData <- execution_data
   }
+  payload_json <- NULL
+  preserved <- attr(current, "fabric_execution_data_json", exact = TRUE)
+  if (!execution_data_supplied && !is.null(preserved)) {
+    # Resend the service's original subtree, including exact numeric tokens,
+    # empty objects, arrays and nulls. R decoding cannot represent every number.
+    payload$executionData <- NULL
+    encoded <- as.character(jsonlite::toJSON(
+      .fabric_job_preserve_json_arrays(payload),
+      auto_unbox = TRUE,
+      null = "null",
+      digits = 22
+    ))
+    payload_json <- paste0(
+      substr(encoded, 1L, nchar(encoded) - 1L),
+      ',"executionData":',
+      preserved,
+      "}"
+    )
+    payload$executionData <- execution_data
+  }
   result <- .fabric_job_request(
     "PATCH",
     .fabric_job_schedule_url(context, id),
     context$credential,
     payload = payload,
+    payload_json = payload_json,
     idempotent = TRUE
   )
   .fabric_job_schedule_response(result, context, expected_status = 200L)
@@ -764,7 +787,71 @@ print.fabric_job_schedule <- function(x, ...) {
       response = result$body
     )
   }
-  .fabric_job_schedule_record(result$body, context)
+  schedule <- .fabric_job_schedule_record(result$body, context)
+  if (!is.null(result$body_json)) {
+    attr(schedule, "fabric_execution_data_json") <- .fabric_job_json_member(
+      result$body_json,
+      "executionData"
+    )
+  }
+  schedule
+}
+
+# Extract a top-level member of validated JSON without decoding its numbers.
+.fabric_job_json_member <- function(value, name) {
+  if (!jsonlite::validate(value)) {
+    .fabric_abort(
+      "Fabric returned malformed schedule JSON",
+      class = "fabric_job_schedule_protocol_error"
+    )
+  }
+  pattern <- paste0(
+    '"(?:\\\\.|[^"\\\\])*"|',
+    '-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|',
+    'true|false|null|[{}\\[\\]:,]'
+  )
+  positions <- gregexpr(pattern, value, perl = TRUE)[[1L]]
+  lengths <- attr(positions, "match.length")
+  tokens <- regmatches(value, list(positions))[[1L]]
+  depth <- 0L
+  matches <- integer()
+  for (index in seq_along(tokens)) {
+    token <- tokens[[index]]
+    if (
+      depth == 1L &&
+        startsWith(token, '"') &&
+        index < length(tokens) &&
+        identical(tokens[[index + 1L]], ":") &&
+        identical(jsonlite::fromJSON(token), name)
+    ) {
+      matches <- c(matches, index + 2L)
+    }
+    if (token %in% c("{", "[")) {
+      depth <- depth + 1L
+    }
+    if (token %in% c("}", "]")) depth <- depth - 1L
+  }
+  if (!length(matches)) {
+    return(NULL)
+  }
+  if (length(matches) != 1L) {
+    .fabric_abort(
+      "Fabric returned duplicate executionData fields",
+      class = "fabric_job_schedule_protocol_error"
+    )
+  }
+  start <- end <- matches[[1L]]
+  if (tokens[[start]] %in% c("{", "[")) {
+    depth <- 1L
+    while (depth > 0L) {
+      end <- end + 1L
+      if (tokens[[end]] %in% c("{", "[")) {
+        depth <- depth + 1L
+      }
+      if (tokens[[end]] %in% c("}", "]")) depth <- depth - 1L
+    }
+  }
+  substr(value, positions[[start]], positions[[end]] + lengths[[end]] - 1L)
 }
 
 .fabric_job_schedule_record <- function(body, context) {
