@@ -404,6 +404,67 @@ test_that("KQL numeric parameters ignore R's output decimal option", {
   )
 })
 
+test_that("KQL scalar parameters preserve difficult large doubles exactly", {
+  values <- as.numeric(c(
+    "0x1.a4a3bd7d8804dp+709",
+    "-0x1.92be36a62eeeep+787",
+    "0x1.7da5549086f13p+777",
+    "-0x1.d2b875de02835p+938",
+    "0x1.59213c73171b3p+230",
+    "0x1.8455950a667a1p+226"
+  ))
+  withr::local_options(OutDec = ",", digits = 3L, scipen = 999L)
+
+  encoded <- vapply(values, kusto_encode_parameter, character(1))
+
+  expect_identical(as.numeric(encoded), values)
+})
+
+test_that("KQL scalar parameters retain signed zero and ordinary integer spelling", {
+  negative_zero <- as.numeric("-0.0")
+  positive_zero <- as.numeric("0.0")
+
+  encoded <- kusto_encode_parameters(list(
+    negative = negative_zero,
+    positive = positive_zero,
+    integer = 42L,
+    whole = 10000000000
+  ))
+
+  expect_identical(
+    encoded,
+    list(
+      negative = "-0.0",
+      positive = "0",
+      integer = "42",
+      whole = "10000000000"
+    )
+  )
+  expect_identical(
+    writeBin(as.numeric(encoded$negative), raw(), size = 8L),
+    writeBin(negative_zero, raw(), size = 8L)
+  )
+})
+
+test_that("KQL timespan parameters retain fixed notation for small durations", {
+  seconds <- c(5e-7, -5e-7, 1.5, 10000000000)
+
+  encoded <- vapply(
+    seconds,
+    function(value) {
+      kusto_encode_parameter(as.difftime(value, units = "secs"))
+    },
+    character(1)
+  )
+  text <- sub("^timespan\\((.*)s\\)$", "\\1", encoded)
+
+  expect_identical(
+    grepl("^-?[0-9]+(?:\\.[0-9]+)?$", text),
+    rep(TRUE, length(seconds))
+  )
+  expect_identical(as.numeric(text), seconds)
+})
+
 test_that("KQL dynamic numbers retain the same exact values as scalar parameters", {
   smallest <- .Machine$double.xmin * .Machine$double.eps
   positive <- c(

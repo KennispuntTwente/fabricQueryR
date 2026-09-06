@@ -259,6 +259,44 @@ test_that("fabric_kql_query preserves exact dynamic numeric parameters in Fabric
   expect_identical(result$value, pi)
 })
 
+test_that("fabric_kql_query preserves scientific scalar parameters in Fabric", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  values <- c(
+    as.numeric("0x1.a4a3bd7d8804dp+709"),
+    as.numeric("-0x1.92be36a62eeeep+787"),
+    1e-200,
+    .Machine$double.xmax
+  )
+  result <- fabric_kql_query(
+    database$query_service_uri,
+    query = paste(
+      "declare query_parameters(a:real, b:real, small:real, large:real, elapsed:timespan);",
+      "print a_matches=a == real(4.425243029857038e213),",
+      "b_matches=b == real(-1.280544414187844e237),",
+      "small_matches=small == real(1e-200),",
+      "large_matches=large == real(1.7976931348623157e308),",
+      "a=a, b=b, small=small, large=large, elapsed_seconds=elapsed / 1s"
+    ),
+    database = database$database_name,
+    parameters = c(
+      stats::setNames(as.list(values), c("a", "b", "small", "large")),
+      list(elapsed = as.difftime(5e-7, units = "secs"))
+    ),
+    token = fabric_test_token_provider()
+  )
+
+  expect_identical(
+    unname(unlist(result[grepl("_matches$", names(result))])),
+    rep(TRUE, 4L)
+  )
+  expect_identical(
+    unname(unlist(result[c("a", "b", "small", "large")])),
+    values
+  )
+  expect_identical(result$elapsed_seconds, 5e-7)
+})
+
 test_that("fabric_kql_query returns multiple live primary tables", {
   manifest <- fabric_test_manifest()
   database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")

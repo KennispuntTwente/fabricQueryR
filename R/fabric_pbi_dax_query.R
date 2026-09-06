@@ -1613,8 +1613,10 @@ pbi_normalize_dax_integer_columns <- function(rows) {
       if (!is.null(value) && (is.integer(value) || is.double(value))) {
         row[[column_name]] <- if (is.na(value)) {
           NA_character_
+        } else if (is.infinite(value)) {
+          as.character(value)
         } else {
-          format(value, scientific = FALSE, trim = TRUE, digits = 22)
+          fabric_format_number(value)
         }
       }
       row

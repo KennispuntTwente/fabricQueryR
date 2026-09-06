@@ -529,6 +529,56 @@ test_that("DAX response parser promotes mixed-size Whole Numbers", {
   )
 })
 
+test_that("DAX response promotion retains large finite doubles exactly", {
+  body <- charToRaw(paste0(
+    '{"results":[{"tables":[{"rows":[',
+    '{"value":4.425243029857038e213},',
+    '{"value":-1.280544414187844e237},',
+    '{"value":9007199254740993},',
+    '{"value":null}]}]}]}'
+  ))
+  httr2::local_mocked_responses(function(req) {
+    httr2::response(
+      status_code = 200L,
+      headers = list(`content-type` = "application/json"),
+      body = body,
+      url = req$url
+    )
+  })
+
+  result <- fabric_pbi_dax_query(
+    dax = 'EVALUATE ROW("value", 1)',
+    workspace_id = pbi_test_workspace_id,
+    dataset_id = pbi_test_dataset_id,
+    token = "token"
+  )
+
+  expect_identical(
+    as.numeric(result$value[1:2]),
+    as.numeric(c(
+      "0x1.a4a3bd7d8804dp+709",
+      "-0x1.92be36a62eeeep+787"
+    ))
+  )
+  expect_identical(result$value[3:4], c("9007199254740993", NA_character_))
+})
+
+test_that("DAX text promotion retains its existing non-finite value policy", {
+  rows <- lapply(
+    list("9007199254740993", Inf, -Inf, NaN, NA_real_),
+    function(value) {
+      list(value = value)
+    }
+  )
+
+  result <- pbi_normalize_dax_integer_columns(rows)
+
+  expect_identical(
+    vapply(result, `[[`, character(1), "value"),
+    c("9007199254740993", "Inf", "-Inf", NA_character_, NA_character_)
+  )
+})
+
 test_that("DAX response parser raises every embedded error level", {
   expect_error(
     pbi_parse_dax_response(list(

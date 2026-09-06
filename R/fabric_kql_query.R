@@ -835,7 +835,7 @@ kusto_encode_parameter <- function(value) {
 
     return(paste0(
       "timespan(",
-      kusto_format_number(seconds),
+      fabric_format_number_fixed(seconds),
       "s)"
     ))
   }
@@ -877,13 +877,7 @@ kusto_encode_parameter <- function(value) {
 # Format a KQL number independently of R's display locale. KQL literals always
 # use a full stop as their decimal separator
 kusto_format_number <- function(value) {
-  format(
-    value,
-    digits = 17L,
-    scientific = FALSE,
-    trim = TRUE,
-    decimal.mark = "."
-  )
+  fabric_format_number(value)
 }
 
 # Return a unique Kusto client request ID without inputs. The request sender uses

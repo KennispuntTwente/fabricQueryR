@@ -1211,7 +1211,7 @@ graphql_rows_integer_character <- function(value) {
   if (is.character(value)) {
     return(value)
   }
-  format(value, scientific = FALSE, trim = TRUE, digits = 22L)
+  fabric_format_number(value)
 }
 
 # Format one count for the GraphQL rows print header

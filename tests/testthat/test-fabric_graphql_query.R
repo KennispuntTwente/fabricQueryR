@@ -682,6 +682,36 @@ test_that("custom GraphQL hosts require an explicit credential", {
   expect_identical(error$argument, "api")
 })
 
+test_that("GraphQL collection preserves large doubles promoted to character", {
+  body <- charToRaw(paste0(
+    '{"data":{"items":[',
+    '{"value":4.425243029857038e213},',
+    '{"value":-1.280544414187844e237},',
+    '{"value":9007199254740993},',
+    '{"value":null}]}}'
+  ))
+  httr2::local_mocked_responses(function(req) {
+    graphql_test_response(body, url = req$url)
+  })
+  pages <- fabric_graphql_paginate(
+    "https://api.fabric.microsoft.com/graphql",
+    "{ items { value } }",
+    next_cursor = function(result) NULL,
+    token = "token"
+  )
+
+  rows <- fabric_graphql_collect(pages, "items")
+
+  expect_identical(
+    as.numeric(rows$value[1:2]),
+    as.numeric(c(
+      "0x1.a4a3bd7d8804dp+709",
+      "-0x1.92be36a62eeeep+787"
+    ))
+  )
+  expect_identical(rows$value[3:4], c("9007199254740993", NA_character_))
+})
+
 test_that("fabric_graphql_collect binds evolving nested rows exactly", {
   first <- graphql_parse_response(list(
     data = list(
