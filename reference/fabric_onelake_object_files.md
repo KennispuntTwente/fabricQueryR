@@ -25,7 +25,9 @@ fabric_onelake_read_file(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   col_names = TRUE,
-  na = c("", "NA")
+  na = "NA",
+  col_types = NULL,
+  csv_numeric = c("exact", "infer")
 )
 
 fabric_onelake_write_file(
@@ -38,7 +40,7 @@ fabric_onelake_write_file(
   if_match = NULL,
   compression = "snappy",
   include_header = TRUE,
-  na = "",
+  na = "NA",
   create_parents = TRUE,
   item_type = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -120,7 +122,34 @@ fabric_onelake_write_file(
 - na:
 
   Text used for missing values in a written CSV, or character values
-  interpreted as missing when reading CSV.
+  interpreted as missing when reading CSV. The default, `"NA"`,
+  preserves empty strings separately from missing values and keeps
+  missing-only rows visible in CSV files. Blank records are retained
+  when reading. For legacy files whose empty fields mean missing, read
+  with `na = c("", "NA")`. Any literal text matching a chosen missing
+  marker is also read as missing; choose the same custom marker for
+  writing and reading when needed.
+
+- col_types:
+
+  Optional Arrow Schema specifying CSV column types, such as
+  `arrow::schema(amount = arrow::decimal128(38, 15), id = arrow::uint64())`.
+  Columns omitted from the schema follow `csv_numeric`. Use
+  [`arrow::utf8()`](https://arrow.apache.org/docs/r/reference/data-type.html)
+  to preserve all spelling, including leading zeros in identifiers.
+
+- csv_numeric:
+
+  CSV numeric inference policy. The default, `"exact"`, retains inferred
+  floating-point columns as character strings to avoid rounding decimals
+  or oversized integers. Inferred integer columns retain their exact
+  values but canonicalize spellings such as leading zeros. `"infer"`
+  opts into Arrow's ordinary inference, including approximate
+  floating-point values. Explicit `col_types` entries override this
+  policy. These options apply equally to tibbles and Arrow streams. CSV
+  does not store type metadata; use `col_types` to recover known types
+  after writing, or Parquet/Arrow IPC to retain numeric types
+  automatically.
 
 - data:
 

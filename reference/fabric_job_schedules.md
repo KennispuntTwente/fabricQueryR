@@ -182,7 +182,10 @@ permission. The current service limit is 20 schedules per item.
 but the Fabric PATCH contract requires `enabled` and a complete
 `configuration`. When either is omitted, the function first reads the
 current schedule and preserves the omitted value. An omitted or `NULL`
-`execution_data` is also preserved; supply a named list to replace it.
+`execution_data` is also preserved from the original response JSON,
+retaining numeric precision and empty objects or arrays; supply a named
+list to replace it. Decoded record fields use ordinary R JSON types and
+cannot represent arbitrary decimals.
 
 The published REST response currently exposes `enabled` but no standard
 auto-disable reason. `auto_disabled` is therefore `NA` unless Fabric

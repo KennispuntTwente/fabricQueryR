@@ -165,7 +165,10 @@ values as `null`, so those values are returned as typed missing values.
 Binary and nested values use list-columns Nested decimal values retain
 their JSON spelling. Fabric may round these values before sending SQL
 JSON output; cast decimal leaves to STRING in Spark when full precision
-is required across that service boundary.
+is required across that service boundary. Generic JSON arrays combine
+compatible numbers into numeric vectors. Mixed scalar types remain lists
+or tibble list-columns so numbers and exact integer or decimal strings
+retain their original values.
 
 ## R on Runtime 2.0
 

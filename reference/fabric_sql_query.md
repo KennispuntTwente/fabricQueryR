@@ -66,7 +66,14 @@ fabric_sql_query(
   separately from the SQL text, which is safer and easier to quote
   correctly than building a query with
   [`paste()`](https://rdrr.io/r/base/paste.html). Factors are bound as
-  their character labels on both backends.
+  their character labels on both backends. For ODBC,
+  [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html)
+  parameters are sent as exact decimal text and their placeholders are
+  cast to `bigint` in SQL, preserving numeric operations and missing
+  values. ADBC binds them natively. This normalization applies to this
+  query helper; direct DBI calls on
+  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  use the driver's parameter conversion.
 
 - result:
 
@@ -204,7 +211,10 @@ fabric_sql_query(
   have to fit an R 32-bit integer. Supply another `bigint` policy
   explicitly through `...` if needed. Direct DBI reads with `integer64`
   cannot represent the minimum signed BIGINT because 'bit64' reserves
-  that value for `NA`.
+  that value for `NA`. Direct ODBC binding can misinterpret `integer64`
+  parameters as doubles. Use `fabric_sql_query()` for its exact
+  parameter handling, use ADBC, or supply character parameters with
+  explicit SQL `bigint` casts.
 
 ## Value
 

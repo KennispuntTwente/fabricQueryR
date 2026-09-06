@@ -63,7 +63,9 @@ supported OneLake files directly to a tibble or Arrow stream.</p>
 <span>  auth_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  dfs_base <span class="op">=</span> <span class="st">"https://onelake.dfs.fabric.microsoft.com"</span>,</span>
 <span>  col_names <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  na <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">""</span>, <span class="st">"NA"</span><span class="op">)</span></span>
+<span>  na <span class="op">=</span> <span class="st">"NA"</span>,</span>
+<span>  col_types <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  csv_numeric <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exact"</span>, <span class="st">"infer"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">fabric_onelake_write_file</span><span class="op">(</span></span>
@@ -76,7 +78,7 @@ supported OneLake files directly to a tibble or Arrow stream.</p>
 <span>  if_match <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  compression <span class="op">=</span> <span class="st">"snappy"</span>,</span>
 <span>  include_header <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  na <span class="op">=</span> <span class="st">""</span>,</span>
+<span>  na <span class="op">=</span> <span class="st">"NA"</span>,</span>
 <span>  create_parents <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  item_type <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
@@ -158,7 +160,31 @@ names. Use <code>FALSE</code> for files written with <code>include_header = FALS
 
 <dt id="arg-na">na<a class="anchor" aria-label="anchor" href="#arg-na"></a></dt>
 <dd><p>Text used for missing values in a written CSV, or character values
-interpreted as missing when reading CSV.</p></dd>
+interpreted as missing when reading CSV. The default, <code>"NA"</code>, preserves
+empty strings separately from missing values and keeps missing-only rows
+visible in CSV files. Blank records are retained when reading. For legacy
+files whose empty fields mean missing, read with <code>na = c("", "NA")</code>.
+Any literal text matching a chosen missing marker is also read as missing;
+choose the same custom marker for writing and reading when needed.</p></dd>
+
+
+<dt id="arg-col-types">col_types<a class="anchor" aria-label="anchor" href="#arg-col-types"></a></dt>
+<dd><p>Optional Arrow Schema specifying CSV column types, such as
+<code>arrow::schema(amount = arrow::decimal128(38, 15), id = arrow::uint64())</code>.
+Columns omitted from the schema follow <code>csv_numeric</code>. Use <code><a href="https://arrow.apache.org/docs/r/reference/data-type.html" class="external-link">arrow::utf8()</a></code>
+to preserve all spelling, including leading zeros in identifiers.</p></dd>
+
+
+<dt id="arg-csv-numeric">csv_numeric<a class="anchor" aria-label="anchor" href="#arg-csv-numeric"></a></dt>
+<dd><p>CSV numeric inference policy. The default, <code>"exact"</code>,
+retains inferred floating-point columns as character strings to avoid
+rounding decimals or oversized integers. Inferred integer columns retain
+their exact values but canonicalize spellings such as leading zeros.
+<code>"infer"</code> opts into Arrow's ordinary inference, including approximate
+floating-point values. Explicit <code>col_types</code> entries override this policy.
+These options apply equally to tibbles and Arrow streams. CSV does not
+store type metadata; use <code>col_types</code> to recover known types after writing,
+or Parquet/Arrow IPC to retain numeric types automatically.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>

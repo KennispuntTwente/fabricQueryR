@@ -117,7 +117,14 @@ fabric_job_cancel(
   types from R and is appropriate for most runs. Names must match the
   parameters configured in Fabric. Advanced callers can instead supply
   records with `name`, `value`, and `type`. The typed DataPipeline
-  `Execute` endpoint does not accept parameters
+  `Execute` endpoint does not accept parameters.
+  [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html)
+  values infer `Number` and are accepted only when exactly representable
+  as a double, since Fabric may interpret numeric parameters as floating
+  point. This check also applies to explicit `Number` and `Automatic`
+  types. For other exact integers or decimals, pass
+  `as.character(value)` with type `Text`; the receiving job must handle
+  them as text.
 
 - parameter_types:
 

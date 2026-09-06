@@ -146,7 +146,11 @@ fabric_sql_connect(
   have to fit an R 32-bit integer. Supply another `bigint` policy
   explicitly through `...` if needed. Direct DBI reads with `integer64`
   cannot represent the minimum signed BIGINT because 'bit64' reserves
-  that value for `NA`.
+  that value for `NA`. Direct ODBC binding can misinterpret `integer64`
+  parameters as doubles. Use
+  [`fabric_sql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.md)
+  for its exact parameter handling, use ADBC, or supply character
+  parameters with explicit SQL `bigint` casts.
 
 ## Value
 

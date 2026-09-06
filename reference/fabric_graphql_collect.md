@@ -39,9 +39,10 @@ pages are added in first-seen order, with missing or GraphQL `null`
 scalar values represented by typed `NA` values when their type can be
 inferred. Exact integer strings returned by
 [`fabric_graphql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_graphql_query.md)
-remain character data; integer-valued numeric entries in the same field
-are promoted to character rather than coercing a large integer to an
-inexact double
+remain character data; finite numeric entries in the same field,
+including fractions, are promoted to character using text that recovers
+the received R value exactly. Fields containing only numeric values
+retain ordinary numeric columns
 
 A successful result has class `fabric_graphql_rows` and reports
 completion, page count, path, and GraphQL errors in its printed header

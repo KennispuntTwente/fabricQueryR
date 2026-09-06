@@ -156,7 +156,12 @@ item supplies this automatically. Examples are <code>"Notebook"</code>,
 from R and is appropriate for most runs. Names must match the parameters
 configured in Fabric. Advanced callers can instead supply records with
 <code>name</code>, <code>value</code>, and <code>type</code>. The typed DataPipeline <code>Execute</code> endpoint does
-not accept parameters</p></dd>
+not accept parameters. <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code> values infer <code>Number</code> and are
+accepted only when exactly representable as a double, since Fabric may
+interpret numeric parameters as floating point. This check also applies
+to explicit <code>Number</code> and <code>Automatic</code> types. For other exact integers or
+decimals, pass <code>as.character(value)</code> with type <code>Text</code>; the receiving job
+must handle them as text.</p></dd>
 
 
 <dt id="arg-parameter-types">parameter_types<a class="anchor" aria-label="anchor" href="#arg-parameter-types"></a></dt>

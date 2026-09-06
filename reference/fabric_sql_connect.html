@@ -185,7 +185,10 @@ excludes raw <code>.connection_string</code>, <code>DSN</code>, and <code>FileDS
 ADBC defaults to <code>bigint = "integer64"</code>, so ordinary BIGINT values do not
 have to fit an R 32-bit integer. Supply another <code>bigint</code> policy explicitly
 through <code>...</code> if needed. Direct DBI reads with <code>integer64</code> cannot represent
-the minimum signed BIGINT because 'bit64' reserves that value for <code>NA</code>.</p></dd>
+the minimum signed BIGINT because 'bit64' reserves that value for <code>NA</code>.
+Direct ODBC binding can misinterpret <code>integer64</code> parameters as doubles.
+Use <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code> for its exact parameter handling, use ADBC, or
+supply character parameters with explicit SQL <code>bigint</code> casts.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -102,7 +102,11 @@ Lakehouse SQL analytics endpoint is read-only and does not support
 <dd><p>Optional list of values for <code>?</code> placeholders in <code>sql</code>. Values
 are sent separately from the SQL text, which is safer and easier to quote
 correctly than building a query with <code><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste()</a></code>. Factors are bound as their
-character labels on both backends.</p></dd>
+character labels on both backends. For ODBC, <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code> parameters
+are sent as exact decimal text and their placeholders are cast to <code>bigint</code>
+in SQL, preserving numeric operations and missing values. ADBC binds them
+natively. This normalization applies to this query helper; direct DBI
+calls on <code><a href="fabric_sql_connect.html">fabric_sql_connect()</a></code> use the driver's parameter conversion.</p></dd>
 
 
 <dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
@@ -237,7 +241,10 @@ excludes raw <code>.connection_string</code>, <code>DSN</code>, and <code>FileDS
 ADBC defaults to <code>bigint = "integer64"</code>, so ordinary BIGINT values do not
 have to fit an R 32-bit integer. Supply another <code>bigint</code> policy explicitly
 through <code>...</code> if needed. Direct DBI reads with <code>integer64</code> cannot represent
-the minimum signed BIGINT because 'bit64' reserves that value for <code>NA</code>.</p></dd>
+the minimum signed BIGINT because 'bit64' reserves that value for <code>NA</code>.
+Direct ODBC binding can misinterpret <code>integer64</code> parameters as doubles.
+Use <code>fabric_sql_query()</code> for its exact parameter handling, use ADBC, or
+supply character parameters with explicit SQL <code>bigint</code> casts.</p></dd>
 
 </dl></div>
     <div class="section level2">

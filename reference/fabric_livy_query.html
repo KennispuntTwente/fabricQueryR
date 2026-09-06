@@ -201,7 +201,10 @@ Fabric's SQL JSON output represents non-finite floating-point values as
 nested values use list-columns
 Nested decimal values retain their JSON spelling. Fabric may round these
 values before sending SQL JSON output; cast decimal leaves to STRING in
-Spark when full precision is required across that service boundary.</p>
+Spark when full precision is required across that service boundary.
+Generic JSON arrays combine compatible numbers into numeric vectors.
+Mixed scalar types remain lists or tibble list-columns so numbers and
+exact integer or decimal strings retain their original values.</p>
     </div>
     <div class="section level2">
     <h2 id="r-on-runtime-">R on Runtime 2.0<a class="anchor" aria-label="anchor" href="#r-on-runtime-"></a></h2>
