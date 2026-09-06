@@ -1,3 +1,7 @@
+# Fabric integration coverage: OneLake nested struct null preservation
+# The test round-trips parent-null Arrow structs through live OneLake storage
+# and verifies stream fidelity plus the guarded tibble conversion
+
 test_that("OneLake struct null masks survive stream round trips and tibble reads refuse loss", {
   fabric_test_require_package("arrow")
   manifest <- fabric_test_manifest()
