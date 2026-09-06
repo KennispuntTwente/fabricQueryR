@@ -54,6 +54,50 @@ test_that("playground exposes persistent sandbox demos", {
   expect_identical(unname(available), rep(TRUE, length(functions)))
 })
 
+test_that("playground targets allow names shared by different item types", {
+  environment <- new.env(parent = globalenv())
+  sys.source(
+    .playground_test_path("sandbox.R"),
+    envir = environment
+  )
+  items <- list(
+    list(id = "lake", displayName = "SharedLake", type = "Lakehouse"),
+    list(id = "sql", displayName = "SharedLake", type = "SQLEndpoint"),
+    list(id = "event", displayName = "Telemetry", type = "Eventhouse"),
+    list(id = "kql", displayName = "Telemetry", type = "KQLDatabase")
+  )
+  target_names <- c(lakehouse = "SharedLake", kql_database = "Telemetry")
+  target_types <- c(lakehouse = "Lakehouse", kql_database = "KQLDatabase")
+
+  targets <- environment$playground_resolve_targets(
+    items,
+    target_names,
+    target_types
+  )
+  expect_identical(
+    vapply(targets, `[[`, character(1), "id"),
+    c(
+      lakehouse = "lake",
+      kql_database = "kql"
+    )
+  )
+
+  ambiguous <- c(
+    items,
+    list(
+      list(id = "lake-2", displayName = "SharedLake", type = "Lakehouse")
+    )
+  )
+  expect_error(
+    environment$playground_resolve_targets(
+      ambiguous,
+      target_names,
+      target_types
+    ),
+    "Expected one .*Lakehouse.* named .*SharedLake.* but found 2"
+  )
+})
+
 test_that("playground examples do not embed live Fabric endpoints", {
   files <- .playground_test_path(c("playground.R", "sandbox.R"))
   source <- paste(

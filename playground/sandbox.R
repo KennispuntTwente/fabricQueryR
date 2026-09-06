@@ -64,6 +64,49 @@ playground_item_display_name <- function(item) {
   value
 }
 
+# Read an item's type without depending on package-internal helpers
+playground_item_type <- function(item) {
+  value <- item[["type"]]
+  if (!is.character(value) || length(value) != 1L || is.na(value)) {
+    return("")
+  }
+  value
+}
+
+# Resolve required fixtures by the display-name and item-type pair
+playground_resolve_targets <- function(items, target_names, target_types) {
+  if (!identical(names(target_names), names(target_types))) {
+    cli::cli_abort("Playground target names and types must use the same keys")
+  }
+  item_names <- vapply(items, playground_item_display_name, character(1))
+  item_types <- vapply(items, playground_item_type, character(1))
+  if (!all(nzchar(item_names)) || !all(nzchar(item_types))) {
+    cli::cli_abort(
+      "The persistent sandbox returned items without a display name or type"
+    )
+  }
+
+  targets <- vector("list", length(target_names))
+  for (index in seq_along(target_names)) {
+    matches <- item_names == unname(target_names)[[index]] &
+      item_types == unname(target_types)[[index]]
+    count <- sum(matches)
+    if (count != 1L) {
+      cli::cli_abort(c(
+        "Could not resolve a required persistent sandbox item",
+        "x" = paste0(
+          "Expected one {.val {unname(target_types)[[index]]}} named ",
+          "{.val {unname(target_names)[[index]]}} but found {count}"
+        ),
+        "i" = "Rebuild the sandbox from the current branch if it is incomplete"
+      ))
+    }
+    targets[[index]] <- items[[which(matches)]]
+  }
+  names(targets) <- names(target_names)
+  targets
+}
+
 # Add the authentication appropriate to a Livy call without exposing secrets
 playground_livy_call <- function(fun, arguments, authentication) {
   overlap <- intersect(names(arguments), names(authentication))
@@ -193,12 +236,7 @@ connect_playground_sandbox <- function(
     token = token
   )
   item_names <- vapply(items, playground_item_display_name, character(1))
-  if (!all(nzchar(item_names)) || anyDuplicated(item_names)) {
-    cli::cli_abort(
-      "The persistent sandbox returned missing or duplicate item names"
-    )
-  }
-  names(items) <- item_names
+  item_types <- vapply(items, playground_item_type, character(1))
 
   target_names <- c(
     lakehouse = "TestLakehouse",
@@ -217,16 +255,25 @@ connect_playground_sandbox <- function(
     pipeline = "TestPipeline",
     spark_job = "TestSparkJob"
   )
-  missing_targets <- setdiff(unname(target_names), names(items))
-  if (length(missing_targets)) {
-    cli::cli_abort(c(
-      "The persistent sandbox is missing required seeded items",
-      "x" = "Missing {length(missing_targets)} item{?s}: {.val {missing_targets}}",
-      "i" = "Rebuild it from the current branch before using the playground"
-    ))
-  }
-  targets <- items[unname(target_names)]
-  names(targets) <- names(target_names)
+  target_types <- c(
+    lakehouse = "Lakehouse",
+    lakehouse_no_schemas = "Lakehouse",
+    warehouse = "Warehouse",
+    warehouse_snapshot = "Warehouse",
+    sql_database = "SQLDatabase",
+    mirrored_database = "MirroredDatabase",
+    eventhouse = "Eventhouse",
+    kql_database = "KQLDatabase",
+    semantic_model = "SemanticModel",
+    arrow_semantic_model = "SemanticModel",
+    graphql_api = "GraphQLApi",
+    seed_notebook = "Notebook",
+    job_notebook = "Notebook",
+    pipeline = "DataPipeline",
+    spark_job = "SparkJobDefinition"
+  )
+  targets <- playground_resolve_targets(items, target_names, target_types)
+  names(items) <- make.unique(paste(item_types, item_names, sep = ":"))
 
   livy_authentication <- if (fabric_local_uses_client_credentials(auth_args)) {
     list(
