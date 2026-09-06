@@ -82,11 +82,17 @@ recent_orders <- warehouse$sql_query(
     "WHERE order_date >= ?",
     "ORDER BY order_date DESC"
   ),
-  params = list(as.Date("2026-01-01"))
+  params = list(as.Date("2026-01-01")),
+  numeric_policy = "driver"
 )
 
 head(recent_orders)
 ```
+
+This example explicitly accepts ODBC's numeric conversion, which can lose
+precision. The default `numeric_policy = "exact"` rejects ODBC results with
+INT, BIGINT, DECIMAL, or NUMERIC columns. Use `backend = "adbc"` with the
+default exact policy to preserve numeric precision.
 
 Put changing values in `params` rather than pasting them into the SQL text.
 This handles quoting safely. Use `$sql_connect()` (`fabric_sql_connect()`) and
@@ -99,6 +105,8 @@ on.exit(DBI::dbDisconnect(con), add = TRUE)
 DBI::dbListTables(con)
 orders <- DBI::dbGetQuery(con, "SELECT TOP 100 * FROM dbo.orders")
 ```
+
+Direct 'DBI' reads use the driver's numeric conversion.
 
 The default SQL backend uses Microsoft ODBC Driver 18 for SQL Server. See
 `?fabric_sql_connect` for the ODBC and ADBC setup choices.

@@ -101,13 +101,18 @@ DBI::dbListTables(con)
 DBI::dbDisconnect(con)
 
 customers <- lakehouse$sql_query(
-  "SELECT * FROM dbo.Customers WHERE region = 'West'"
+  "SELECT * FROM dbo.Customers WHERE region = 'West'",
+  numeric_policy = "driver"
 )
 ```
 
 `$sql_connect()` (`fabric_sql_connect()`) supports both ODBC and ADBC. The
 default ODBC backend requires
 [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server).
+The query explicitly accepts ODBC's numeric conversion, which can lose
+precision. The default `numeric_policy = "exact"` rejects ODBC results with
+INT, BIGINT, DECIMAL, or NUMERIC columns. Use `backend = "adbc"` with the
+default exact policy when numeric precision must be preserved.
 
 ### 3. Query a semantic model with DAX
 
