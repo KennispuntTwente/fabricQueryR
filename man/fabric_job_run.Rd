@@ -104,7 +104,12 @@ item supplies this automatically. Examples are \code{"Notebook"},
 from R and is appropriate for most runs. Names must match the parameters
 configured in Fabric. Advanced callers can instead supply records with
 \code{name}, \code{value}, and \code{type}. The typed DataPipeline \code{Execute} endpoint does
-not accept parameters}
+not accept parameters. \code{bit64::integer64} values infer \code{Number} and are
+accepted only when exactly representable as a double, since Fabric may
+interpret numeric parameters as floating point. This check also applies
+to explicit \code{Number} and \code{Automatic} types. For other exact integers or
+decimals, pass \code{as.character(value)} with type \code{Text}; the receiving job
+must handle them as text.}
 
 \item{parameter_types}{Optional named character vector overriding inferred
 parameter types. Supported values are \code{VariableReference}, \code{Integer},

@@ -42,7 +42,12 @@
 #'   from R and is appropriate for most runs. Names must match the parameters
 #'   configured in Fabric. Advanced callers can instead supply records with
 #'   `name`, `value`, and `type`. The typed DataPipeline `Execute` endpoint does
-#'   not accept parameters
+#'   not accept parameters. `bit64::integer64` values infer `Number` and are
+#'   accepted only when exactly representable as a double, since Fabric may
+#'   interpret numeric parameters as floating point. This check also applies
+#'   to explicit `Number` and `Automatic` types. For other exact integers or
+#'   decimals, pass `as.character(value)` with type `Text`; the receiving job
+#'   must handle them as text.
 #' @param parameter_types Optional named character vector overriding inferred
 #'   parameter types. Supported values are `VariableReference`, `Integer`,
 #'   `Number`, `Text`, `Boolean`, `DateTime`, `Guid`, and `Automatic`. Use this
@@ -2458,6 +2463,27 @@ print.fabric_job_instance <- function(x, ...) {
 
   # Convert the validated value to Fabric's JSON-ready representation
 
+  # Numeric job parameters can become doubles inside the receiving workload.
+  if (inherits(value, "integer64") && type %in% c("Number", "Automatic")) {
+    numeric_value <- suppressWarnings(as.numeric(value))
+    restored <- suppressWarnings(bit64::as.integer64(numeric_value))
+    if (
+      !identical(
+        as.character(restored),
+        as.character(value)
+      )
+    ) {
+      .fabric_abort(
+        sprintf(
+          "%s parameter `%s` cannot represent this integer64 exactly; pass as.character(value) with type Text",
+          type,
+          name
+        ),
+        class = "fabric_job_parameter_precision_error"
+      )
+    }
+    value <- numeric_value
+  }
   # R date objects become the UTC text format expected by Fabric
   if (date_time_value) {
     if (inherits(value, c("POSIXct", "POSIXlt"))) {

@@ -206,6 +206,157 @@ test_that("notebook run uses the released workload-specific route", {
   expect_equal(call$payload$parameters[[5L]]$value, "2026-07-24T00:00:00Z")
 })
 
+test_that("job parameters serialize exactly representable integer64 values", {
+  values <- c(
+    "-9223372036854774784",
+    "-9007199254740992",
+    "0",
+    "9007199254740992",
+    "9007199254740994",
+    "1152921504606846976",
+    "9223372036854774784"
+  )
+  outgoing <- NULL
+  local_mocked_bindings(
+    .httr2_collection = function(...) list(),
+    .httr2_perform = function(req, ...) {
+      outgoing <<- as.character(do.call(
+        jsonlite::toJSON,
+        c(list(req$body$data), req$body$params)
+      ))
+      httr2::response(
+        202L,
+        headers = list(
+          location = "/jobs/instances/33333333-3333-3333-3333-333333333333"
+        )
+      )
+    }
+  )
+  for (item in list(job_test_item(), job_test_item("Other"))) {
+    for (value in values) {
+      for (type in list(NULL, "Number", "Automatic", "Text")) {
+        parameters <- list(
+          value = if (identical(type, "Text")) {
+            value
+          } else {
+            bit64::as.integer64(value)
+          }
+        )
+        types <- if (is.null(type)) NULL else c(value = type)
+        fabric_job_run(
+          item,
+          job_type = if (identical(item$type, "Other")) "DefaultJob" else NULL,
+          parameters = parameters,
+          parameter_types = types,
+          token = "test-token",
+          api_base = "https://api.fabric.test/v1"
+        )
+        decoded <- jsonlite::fromJSON(
+          outgoing,
+          simplifyVector = FALSE,
+          bigint_as_char = TRUE
+        )$parameters[[1L]]
+        expect_identical(
+          if (is.character(decoded$value)) {
+            decoded$value
+          } else {
+            sprintf("%.0f", decoded$value)
+          },
+          value
+        )
+        expect_identical(decoded$type, type %||% "Number")
+        if (identical(type, "Text")) {
+          expect_match(outgoing, paste0('"value":"', value, '"'), fixed = TRUE)
+        } else {
+          expect_identical(as.numeric(decoded$value), as.numeric(value))
+        }
+      }
+      record <- .fabric_job_parameters(list(list(
+        name = "value",
+        value = bit64::as.integer64(value),
+        type = "Number"
+      )))[[1L]]
+      expect_identical(sprintf("%.0f", record$value), value)
+    }
+  }
+})
+
+test_that("unsafe integer64 job parameters fail before any request", {
+  local_mocked_bindings(
+    .httr2_collection = function(...) stop("must not query history"),
+    .httr2_perform = function(...) stop("must not submit")
+  )
+  for (value in c(
+    "-9223372036854775807",
+    "-9007199254740993",
+    "9007199254740993",
+    "9223372036854775807"
+  )) {
+    for (type in list(NULL, "Number", "Automatic")) {
+      error <- rlang::catch_cnd(fabric_job_run(
+        job_test_item(),
+        parameters = list(value = bit64::as.integer64(value)),
+        parameter_types = if (is.null(type)) NULL else c(value = type),
+        token = "test-token",
+        api_base = "https://api.fabric.test/v1"
+      ))
+      expect_s3_class(error, "fabric_job_parameter_precision_error")
+    }
+    text <- .fabric_job_parameters(list(
+      value = as.character(bit64::as.integer64(value))
+    ))[[1L]]
+    expect_identical(text$value, value)
+    expect_identical(text$type, "Text")
+  }
+  expect_snapshot(error = TRUE, {
+    .fabric_job_parameters(list(
+      value = bit64::as.integer64("9007199254740993")
+    ))
+  })
+  expect_snapshot(error = TRUE, {
+    .fabric_job_parameters(list(list(
+      name = "value",
+      value = bit64::as.integer64("9223372036854775807"),
+      type = "Number"
+    )))
+  })
+})
+
+test_that("integer64 job parameters retain scalar and explicit integer validation", {
+  lower <- .fabric_job_parameter(
+    "value",
+    bit64::as.integer64("-2147483648"),
+    "Integer"
+  )
+  upper <- .fabric_job_parameter(
+    "value",
+    bit64::as.integer64("2147483647"),
+    "Integer"
+  )
+  expect_identical(lower$value, -2147483648)
+  expect_identical(upper$value, 2147483647L)
+  expect_snapshot(error = TRUE, {
+    .fabric_job_parameter("value", bit64::as.integer64("2147483648"), "Integer")
+  })
+  expect_snapshot(error = TRUE, {
+    .fabric_job_parameters(list(value = bit64::as.integer64(NA)))
+  })
+  expect_snapshot(error = TRUE, {
+    .fabric_job_parameters(list(value = bit64::as.integer64(c("1", "2"))))
+  })
+  for (value in c(
+    pi,
+    1 + .Machine$double.eps,
+    .Machine$double.xmax,
+    .Machine$double.xmin * .Machine$double.eps
+  )) {
+    expect_identical(
+      .fabric_job_parameter("value", value, "Number")$value,
+      value
+    )
+  }
+})
+
 test_that("notebook run preserves configured compute without overrides", {
   payload <- "not called"
   local_mocked_bindings(

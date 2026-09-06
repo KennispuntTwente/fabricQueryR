@@ -154,6 +154,41 @@ test_that("Fabric item jobs complete, fail, time out, and cancel", {
   expect_true(nzchar(cancelled$root_activity_id))
 })
 
+test_that("notebook integer64 parameters reject rounding and support exact text", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  fixture <- fabric_test_manifest_item(manifest, "JobFixtures")
+  item <- list(
+    id = fixture$id,
+    workspaceId = manifest$workspace_id,
+    type = fixture$type
+  )
+  value <- bit64::as.integer64("9223372036854775807")
+  error <- rlang::catch_cnd(fabric_job_run(
+    item,
+    parameters = list(marker = value),
+    token = token
+  ))
+  expect_s3_class(error, "fabric_job_parameter_precision_error")
+  job <- fabric_job_run(
+    item,
+    parameters = list(mode = "success", marker = as.character(value)),
+    token = token
+  )
+  on.exit(try(fabric_job_cancel(job), silent = TRUE), add = TRUE)
+  result <- fabric_job_wait(
+    job,
+    timeout = 900,
+    cancel_on_timeout = TRUE,
+    notebook_details = TRUE
+  )
+  expect_identical(result$status, "Completed")
+  expect_identical(
+    result$exit_value,
+    "fabricqueryr-job-success:9223372036854775807"
+  )
+})
+
 test_that("Fabric pipeline and Spark job definition jobs complete", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
