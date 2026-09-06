@@ -670,7 +670,7 @@ kusto_ingestion_sources <- function(sources, source_ids, raw_sizes) {
     ))
   }
 
-  normalized <- lapply(records, function(record) {
+  normalized <- lapply(unname(records), function(record) {
     if (is.data.frame(record)) {
       record <- as.list(record[1L, , drop = FALSE])
     }

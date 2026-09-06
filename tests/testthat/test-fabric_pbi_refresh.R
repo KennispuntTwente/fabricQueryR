@@ -229,6 +229,58 @@ test_that("enhanced refresh builds documented processing controls", {
   expect_match(url, paste0("/groups/", pbi_refresh_workspace_id), fixed = TRUE)
 })
 
+test_that("named enhanced refresh objects serialize as arrays", {
+  requests <- list()
+  local_mocked_bindings(
+    .httr2_perform = function(req, ...) {
+      requests[[length(requests) + 1L]] <<- req
+      httr2::new_response(
+        method = req$method,
+        url = req$url,
+        status_code = 202L,
+        headers = list(RequestId = pbi_refresh_id),
+        body = charToRaw("")
+      )
+    }
+  )
+  object_cases <- list(
+    list(list(table = "Sales")),
+    list(list(table = "Sales"), list(table = "Customers")),
+    list(Sales = list(table = "Sales")),
+    list(
+      Sales = list(table = "Sales"),
+      Customers = list(table = "Customers")
+    )
+  )
+
+  for (objects in object_cases) {
+    fabric_pbi_refresh(
+      pbi_refresh_test_model(),
+      mode = "enhanced",
+      objects = objects,
+      token = "test-token",
+      api_base = "https://powerbi.test/v1.0/myorg"
+    )
+  }
+
+  encoded <- vapply(
+    requests,
+    function(req) {
+      jsonlite::toJSON(req$body$data, auto_unbox = TRUE, null = "null")
+    },
+    character(1)
+  )
+  expect_match(encoded, '"objects":\\[')
+  lengths <- vapply(
+    encoded,
+    function(body) {
+      length(jsonlite::fromJSON(body, simplifyVector = FALSE)$objects)
+    },
+    integer(1)
+  )
+  expect_identical(unname(lengths), c(1L, 2L, 1L, 2L))
+})
+
 test_that("automatic mode infers enhanced and My Workspace routes", {
   call <- NULL
   local_mocked_bindings(

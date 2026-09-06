@@ -1345,7 +1345,7 @@ print.fabric_job_instance <- function(x, ...) {
   )
 
   if (!is.null(field) && field %in% array_fields) {
-    return(I(value))
+    return(I(unname(value)))
   }
 
   if (!is.list(value)) {

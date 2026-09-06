@@ -251,6 +251,62 @@ test_that("fabric_kql_ingest sends the documented tracked payload", {
   expect_equal(payload$timestamp, "2026-08-14T10:00:00.0000000Z")
 })
 
+test_that("named ingestion sources serialize as blob arrays", {
+  requests <- list()
+  httr2::local_mocked_responses(function(req) {
+    requests[[length(requests) + 1L]] <<- req
+    kusto_ingestion_test_response(
+      list(ingestionOperationId = paste0("ingest_op_", length(requests))),
+      url = req$url
+    )
+  })
+  source_cases <- list(
+    "https://example.test/one.csv",
+    list(
+      list(url = "https://example.test/one.csv"),
+      list(url = "https://example.test/two.csv")
+    ),
+    c(part1 = "https://example.test/one.csv"),
+    list(
+      part1 = list(url = "https://example.test/one.csv"),
+      part2 = list(url = "https://example.test/two.csv")
+    )
+  )
+
+  for (sources in source_cases) {
+    fabric_kql_ingest(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      table = "Raw",
+      sources = sources,
+      database = "Telemetry",
+      format = "csv",
+      token = "kusto-token"
+    )
+  }
+
+  encoded <- vapply(
+    requests,
+    function(req) {
+      jsonlite::toJSON(
+        req$body$data,
+        auto_unbox = TRUE,
+        digits = 22,
+        null = "null"
+      )
+    },
+    character(1)
+  )
+  expect_match(encoded, '"blobs":\\[')
+  lengths <- vapply(
+    encoded,
+    function(body) {
+      length(jsonlite::fromJSON(body, simplifyVector = FALSE)$blobs)
+    },
+    integer(1)
+  )
+  expect_identical(unname(lengths), c(1L, 2L, 1L, 2L))
+})
+
 test_that("ingestion POSIXct metadata retains Kusto fractional ticks", {
   epoch <- 1767225600
   value <- structure(

@@ -990,7 +990,22 @@ test_that("job POST requests preserve one-element schema arrays", {
     payload = list(
       executionData = list(
         additionalLibraryUris = "abfss://account/library.zip",
-        computeConfiguration = list(jars = "abfss://account/library.jar"),
+        computeConfiguration = list(
+          jars = "abfss://account/library.jar",
+          sparkProperties = list(
+            primary = list(key = "spark.test", value = "enabled")
+          ),
+          mountPoints = list(
+            input = list(
+              source = "abfss://account/input",
+              mountPointPath = "/mnt/input"
+            ),
+            output = list(
+              source = "abfss://account/output",
+              mountPointPath = "/mnt/output"
+            )
+          )
+        ),
         customExtension = list(values = I("only"))
       ),
       parameters = list(list(name = "mode", type = "Text", value = "test"))
@@ -1002,6 +1017,8 @@ test_that("job POST requests preserve one-element schema arrays", {
   parsed <- jsonlite::fromJSON(body, simplifyVector = FALSE)
   expect_length(parsed$executionData$additionalLibraryUris, 1L)
   expect_length(parsed$executionData$computeConfiguration$jars, 1L)
+  expect_length(parsed$executionData$computeConfiguration$sparkProperties, 1L)
+  expect_length(parsed$executionData$computeConfiguration$mountPoints, 2L)
   expect_length(parsed$executionData$customExtension$values, 1L)
   expect_length(parsed$parameters, 1L)
   expect_match(
@@ -1009,6 +1026,8 @@ test_that("job POST requests preserve one-element schema arrays", {
     '"additionalLibraryUris":\\["abfss://account/library.zip"\\]'
   )
   expect_match(body, '"jars":\\["abfss://account/library.jar"\\]')
+  expect_match(body, '"sparkProperties":\\[')
+  expect_match(body, '"mountPoints":\\[')
   expect_match(body, '"values":\\["only"\\]')
 })
 

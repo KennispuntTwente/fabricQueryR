@@ -1853,7 +1853,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       "objects must be table names or a non-empty list of table records"
     )
   }
-  lapply(objects, function(object) {
+  lapply(unname(objects), function(object) {
     if (
       !is.list(object) ||
         is.null(names(object)) ||
