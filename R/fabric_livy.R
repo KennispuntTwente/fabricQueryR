@@ -88,6 +88,9 @@
 #' Nested decimal values retain their JSON spelling. Fabric may round these
 #' values before sending SQL JSON output; cast decimal leaves to STRING in
 #' Spark when full precision is required across that service boundary.
+#' Generic JSON arrays combine compatible numbers into numeric vectors.
+#' Mixed scalar types remain lists or tibble list-columns so numbers and
+#' exact integer or decimal strings retain their original values.
 #'
 #' @section R on Runtime 2.0:
 #' Microsoft Fabric distributes `sparklyr` and documents
@@ -1105,34 +1108,96 @@ fabric_livy_response_object <- function(value, name) {
   invisible(value)
 }
 
-# Decode one JSON `value` when possible. Returns an R object or `NULL` so output
-# parsing can try other supported formats
+# Simplify already decoded JSON without coercing mixed scalars to character.
 fabric_livy_parse_json <- function(value) {
   table <- fabric_livy_parse_sql_json(value)
   if (!is.null(table)) {
     return(table)
   }
-  # Keep whole-number doubles distinct from exact bigint tokens.
-  obj <- try(
-    jsonlite::fromJSON(
-      jsonlite::toJSON(
-        value,
-        auto_unbox = TRUE,
-        null = "null",
-        digits = 22,
-        always_decimal = TRUE
-      ),
-      simplifyVector = TRUE,
-      bigint_as_char = TRUE
-    ),
-    silent = TRUE
-  )
+  .fabric_livy_simplify_json(value)
+}
 
-  if (inherits(obj, "try-error")) {
-    return(NULL)
+.fabric_livy_simplify_json <- function(value, simplify_matrix = TRUE) {
+  if (inherits(value, "integer64")) {
+    return(as.character(value))
+  }
+  if (!is.list(value) || !length(value)) {
+    return(value)
+  }
+  if (is.data.frame(value)) {
+    return(tibble::as_tibble(lapply(
+      value,
+      .fabric_livy_simplify_json,
+      simplify_matrix = FALSE
+    )))
+  }
+  if (!is.null(names(value))) {
+    return(lapply(value, .fabric_livy_simplify_json))
   }
 
-  if (is.data.frame(obj)) tibble::as_tibble(obj) else obj
+  # Arrays of records become tibbles; every column chooses its own safe type.
+  column_names <- unique(unlist(lapply(value, names), use.names = FALSE))
+  records <- length(column_names) &&
+    all(vapply(
+      value,
+      function(record) {
+        is.null(record) ||
+          (is.list(record) && (!length(record) || !is.null(names(record))))
+      },
+      logical(1)
+    ))
+  if (records) {
+    columns <- lapply(column_names, function(name) {
+      cells <- lapply(value, function(record) record[[name]])
+      .fabric_livy_simplify_json(cells, simplify_matrix = FALSE)
+    })
+    return(tibble::new_tibble(
+      stats::setNames(columns, column_names),
+      nrow = length(value)
+    ))
+  }
+
+  value <- lapply(value, function(cell) {
+    if (inherits(cell, "integer64")) as.character(cell) else cell
+  })
+  present <- Filter(Negate(is.null), value)
+  scalars <- length(present) &&
+    all(vapply(
+      present,
+      function(cell) is.atomic(cell) && !is.object(cell) && length(cell) == 1L,
+      logical(1)
+    ))
+  if (scalars) {
+    types <- unique(vapply(present, typeof, character(1)))
+    if (all(types %in% c("integer", "double")) && "double" %in% types) {
+      return(vapply(value, function(cell) cell %||% NA_real_, double(1)))
+    }
+    return(fabric_livy_simplify_column(value))
+  }
+
+  out <- lapply(value, .fabric_livy_simplify_json)
+  atomic <- all(vapply(out, is.atomic, logical(1)))
+  types <- unique(vapply(out, typeof, character(1)))
+  compatible <- length(types) == 1L || all(types %in% c("integer", "double"))
+  if (simplify_matrix && atomic && compatible) {
+    dimensions <- lapply(out, dim)
+    if (
+      all(vapply(dimensions, is.null, logical(1))) &&
+        length(unique(lengths(out))) == 1L
+    ) {
+      return(do.call(rbind, out))
+    }
+    if (
+      !is.null(dimensions[[1L]]) &&
+        all(vapply(dimensions, identical, logical(1), dimensions[[1L]]))
+    ) {
+      return(array(
+        do.call(rbind, lapply(out, as.vector)),
+        dim = c(length(out), dimensions[[1L]])
+      ))
+    }
+  }
+  out
 }
 
 # Decode JSON while retaining the lexical spelling of schema-declared DECIMAL

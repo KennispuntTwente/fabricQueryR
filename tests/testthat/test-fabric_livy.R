@@ -2460,6 +2460,118 @@ test_that("generic Livy MIME output preserves tabular double precision", {
     expect_identical(result$output$parsed, expected)
   }
 })
+
+test_that("generic Livy MIME retains mixed numeric arrays without character coercion", {
+  tokens <- c(
+    "3.141592653589793",
+    "1.0000000000000002",
+    "1.7976931348623157e308",
+    "4.9406564584124654e-324",
+    "-0.0"
+  )
+  for (mime in c("application/json", "application/vnd.test+json")) {
+    for (token in tokens) {
+      wire <- paste0(
+        '{"id":4,"state":"available","output":{"status":"ok","data":{"',
+        mime,
+        '":[',
+        token,
+        ',"text",null,true]}}}'
+      )
+      response <- fabric_livy_decode_json(wire)
+      result <- fabric_livy_output(
+        response,
+        Sys.time(),
+        Sys.time(),
+        "https://example.test/statements/4"
+      )
+      expected <- list(as.numeric(token), "text", NULL, TRUE)
+      expect_identical(result$output$parsed, expected)
+      expect_identical(
+        writeBin(result$output$parsed[[1L]], raw()),
+        writeBin(expected[[1L]], raw())
+      )
+      expect_identical(result$output$data[[mime]], response$output$data[[mime]])
+    }
+  }
+})
+
+test_that("generic Livy arrays retain protected integer and decimal text beside doubles", {
+  value <- fabric_livy_decode_json(paste0(
+    '{"values":[9007199254740993,3.141592653589793,null],',
+    '"nested":[["12345678901234567890.123456789012345678",1.0000000000000002],',
+    '[9223372036854775807,1.7976931348623157e308]]}'
+  ))
+  result <- fabric_livy_parse_json(value)
+  expect_identical(result$values, list("9007199254740993", pi, NULL))
+  expect_identical(
+    result$nested,
+    list(
+      list("12345678901234567890.123456789012345678", 1 + .Machine$double.eps),
+      list("9223372036854775807", .Machine$double.xmax)
+    )
+  )
+  expect_identical(
+    fabric_livy_parse_json(list(
+      bit64::as.integer64("9223372036854775807"),
+      pi
+    )),
+    list("9223372036854775807", pi)
+  )
+})
+
+test_that("generic Livy record arrays keep mixed list columns and missing cells", {
+  value <- fabric_livy_decode_json(paste0(
+    '[{"id":1,"value":3.141592653589793,"nested":{"value":1.0000000000000002},"array":[1]},',
+    '{"id":2,"value":"text","nested":{"value":"label"},"array":[2]},',
+    '{"id":3,"value":null},{"id":4}]'
+  ))
+  result <- fabric_livy_parse_json(value)
+  expect_s3_class(result, "tbl_df")
+  expect_identical(result$id, 1:4)
+  expect_identical(result$value, list(pi, "text", NULL, NULL))
+  expect_identical(
+    result$nested$value,
+    list(1 + .Machine$double.eps, "label", NULL, NULL)
+  )
+  expect_identical(result$array, list(1L, 2L, NULL, NULL))
+})
+
+test_that("generic Livy simplification keeps compatible vectors and matrices usable", {
+  value <- fabric_livy_decode_json(paste0(
+    '{"numbers":[1,1.0000000000000002,null,1.7976931348623157e308],',
+    '"integers":[1,null,3],"logical":[true,null,false],',
+    '"matrix":[[1,2.0],[3.0,4]],"mixed_matrix":[[1,2],["a","b"]],',
+    '"cube":[[[1,2],[3,4]],[[5,6],[7,8]]],',
+    '"bigints":[9007199254740993,null,9007199254740995],',
+    '"strings":[1.0000000000000002,"Inf","NaN","NA"],',
+    '"nulls":[null,null],"empty":[],"missing":null}'
+  ))
+  result <- fabric_livy_parse_json(value)
+  expect_identical(
+    result$numbers,
+    c(1, 1 + .Machine$double.eps, NA_real_, .Machine$double.xmax)
+  )
+  expect_identical(result$integers, c(1L, NA_integer_, 3L))
+  expect_identical(result$logical, c(TRUE, NA, FALSE))
+  expect_identical(result$matrix, matrix(c(1, 3, 2, 4), nrow = 2L))
+  expect_identical(result$mixed_matrix, list(1:2, c("a", "b")))
+  expect_identical(
+    result$cube,
+    array(c(1L, 5L, 3L, 7L, 2L, 6L, 4L, 8L), dim = c(2L, 2L, 2L))
+  )
+  expect_identical(
+    result$bigints,
+    c("9007199254740993", NA_character_, "9007199254740995")
+  )
+  expect_identical(
+    result$strings,
+    list(1 + .Machine$double.eps, "Inf", "NaN", "NA")
+  )
+  expect_identical(result$nulls, list(NULL, NULL))
+  expect_identical(result$empty, list())
+  expect_null(result$missing)
+})
 test_that("Livy retains application flow through stored credentials", {
   credential <- fabric_credential(
     "tenant",

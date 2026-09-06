@@ -131,6 +131,9 @@ nested values use list-columns
 Nested decimal values retain their JSON spelling. Fabric may round these
 values before sending SQL JSON output; cast decimal leaves to STRING in
 Spark when full precision is required across that service boundary.
+Generic JSON arrays combine compatible numbers into numeric vectors.
+Mixed scalar types remain lists or tibble list-columns so numbers and
+exact integer or decimal strings retain their original values.
 }
 
 \section{R on Runtime 2.0}{

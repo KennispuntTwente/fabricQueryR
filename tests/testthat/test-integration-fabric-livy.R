@@ -374,6 +374,59 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   expect_false(session$close())
 })
 
+test_that("generic Livy JSON preserves mixed scalar values", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  auth <- fabric_test_azure_auth_config()
+  session <- fabric_livy_session(
+    lakehouse$livy_url,
+    name = "fabricqueryr-numeric-mixed-regression",
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
+    verbose = FALSE
+  )
+  on.exit(try(session$close(), silent = TRUE), add = TRUE)
+  session$wait(timeout = 900, poll_interval = 5)
+  result <- session$run(
+    paste(
+      "import math, sys",
+      "fabricqueryr_mixed_values = {",
+      "    'mixed': [math.pi, 'text', None, True, sys.float_info.max, -0.0],",
+      "    'numbers': [1, math.nextafter(1.0, math.inf), None],",
+      "    'bigints': [9007199254740993, math.pi, None],",
+      "    'nested': [[math.pi, 'text'], [sys.float_info.max, 'large']],",
+      "    'rows': [{'value': math.pi}, {'value': 'text'}, {'value': None}],",
+      "    'decimal': ['12345678901234567890.123456789012345678', math.pi]}",
+      "%json fabricqueryr_mixed_values",
+      sep = "\n"
+    ),
+    kind = "pyspark",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_identical(result$output$status, "ok")
+  out <- result$output$parsed
+  expect_identical(
+    out$mixed[1:5],
+    list(pi, "text", NULL, TRUE, .Machine$double.xmax)
+  )
+  expect_identical(1 / out$mixed[[6L]], -Inf)
+  expect_identical(out$numbers, c(1, 1 + .Machine$double.eps, NA_real_))
+  expect_identical(out$bigints, list("9007199254740993", pi, NULL))
+  expect_identical(
+    out$nested,
+    list(list(pi, "text"), list(.Machine$double.xmax, "large"))
+  )
+  expect_s3_class(out$rows, "tbl_df")
+  expect_identical(out$rows$value, list(pi, "text", NULL))
+  expect_identical(
+    out$decimal,
+    list("12345678901234567890.123456789012345678", pi)
+  )
+  expect_identical(session$close(), TRUE)
+})
+
 test_that("high-concurrency Livy sessions isolate their REPLs", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
