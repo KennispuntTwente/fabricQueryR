@@ -67,7 +67,9 @@
 #'   set the notebook's default Lakehouse for this run. This changes the run
 #'   context, not the notebook's saved default
 #' @param default_lakehouse_workspace Optional workspace GUID or discovered
-#'   record for `default_lakehouse`; defaults to the job workspace
+#'   record for `default_lakehouse`. When omitted, a discovered Lakehouse's
+#'   workspace is used when available, otherwise the job workspace. An explicit
+#'   workspace must match the workspace carried by a discovered Lakehouse
 #' @param compute Notebook compute kind: `"Spark"`, `"Jupyter"`, or
 #'   `"DataWarehouse"`. Use `"Spark"` (the default) for Spark notebooks,
 #'   `"Jupyter"` for a Jupyter runtime, and `"DataWarehouse"` for a notebook
@@ -1889,15 +1891,44 @@ print.fabric_job_instance <- function(x, ...) {
         "id"
       ) %||%
         default_lakehouse
-      lakehouse_workspace <- fabric_record_value(
+      inferred_workspace <- fabric_record_value(
         lakehouse_record %||% list(),
         "workspaceId",
         "workspace_id"
       )
       supplied_workspace <- fabric_as_record(default_lakehouse_workspace)
-      lakehouse_workspace <- lakehouse_workspace %||%
-        fabric_record_value(supplied_workspace %||% list(), "id") %||%
-        default_lakehouse_workspace %||%
+      supplied_workspace_id <- fabric_record_value(
+        supplied_workspace %||% list(),
+        "id"
+      ) %||%
+        default_lakehouse_workspace
+
+      if (!is.null(inferred_workspace)) {
+        .fabric_job_guid(inferred_workspace, "default_lakehouse workspace")
+      }
+      if (!is.null(supplied_workspace_id)) {
+        .fabric_job_guid(
+          supplied_workspace_id,
+          "default_lakehouse_workspace"
+        )
+      }
+      if (
+        !is.null(inferred_workspace) &&
+          !is.null(supplied_workspace_id) &&
+          !identical(
+            tolower(inferred_workspace),
+            tolower(supplied_workspace_id)
+          )
+      ) {
+        .fabric_abort(
+          paste0(
+            "`default_lakehouse_workspace` conflicts with the workspace ",
+            "recorded on `default_lakehouse`"
+          )
+        )
+      }
+      lakehouse_workspace <- inferred_workspace %||%
+        supplied_workspace_id %||%
         target$workspace_id
 
       # Check both parts before adding the reference to the request

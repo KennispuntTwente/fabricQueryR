@@ -133,7 +133,9 @@ set the notebook's default Lakehouse for this run. This changes the run
 context, not the notebook's saved default}
 
 \item{default_lakehouse_workspace}{Optional workspace GUID or discovered
-record for \code{default_lakehouse}; defaults to the job workspace}
+record for \code{default_lakehouse}. When omitted, a discovered Lakehouse's
+workspace is used when available, otherwise the job workspace. An explicit
+workspace must match the workspace carried by a discovered Lakehouse}
 
 \item{compute}{Notebook compute kind: \code{"Spark"}, \code{"Jupyter"}, or
 \code{"DataWarehouse"}. Use \code{"Spark"} (the default) for Spark notebooks,

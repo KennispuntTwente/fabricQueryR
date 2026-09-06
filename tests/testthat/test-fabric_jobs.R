@@ -278,6 +278,61 @@ test_that("job parameters serialize exactly representable integer64 values", {
   }
 })
 
+test_that("discovered Lakehouse workspaces cannot be overridden", {
+  job_workspace <- "22222222-2222-4222-8222-222222222222"
+  lakehouse_workspace <- "66666666-6666-4666-8666-666666666666"
+  other_workspace <- "77777777-7777-4777-8777-777777777777"
+  lakehouse <- list(
+    id = "55555555-5555-4555-8555-555555555555",
+    workspaceId = lakehouse_workspace,
+    type = "Lakehouse"
+  )
+  workspace <- list(id = lakehouse_workspace, type = "Workspace")
+  execution_data <- function(default_lakehouse, default_workspace = NULL) {
+    .fabric_job_execution_data(
+      target = list(workspace_id = job_workspace),
+      route = list(route = "notebook"),
+      execution_data = NULL,
+      default_lakehouse = default_lakehouse,
+      default_lakehouse_workspace = default_workspace,
+      compute = NULL,
+      session_tag = NULL
+    )
+  }
+
+  inferred <- execution_data(lakehouse)
+  matching_guid <- execution_data(lakehouse, toupper(lakehouse_workspace))
+  matching_object <- execution_data(lakehouse, workspace)
+  expect_identical(
+    inferred$computeConfiguration$defaultLakehouse$workspaceId,
+    lakehouse_workspace
+  )
+  expect_identical(
+    matching_guid$computeConfiguration$defaultLakehouse$workspaceId,
+    lakehouse_workspace
+  )
+  expect_identical(
+    matching_object$computeConfiguration$defaultLakehouse$workspaceId,
+    lakehouse_workspace
+  )
+
+  raw_id <- execution_data(lakehouse$id, workspace)
+  expect_identical(
+    raw_id$computeConfiguration$defaultLakehouse$workspaceId,
+    lakehouse_workspace
+  )
+  for (conflict in list(
+    other_workspace,
+    list(id = other_workspace, type = "Workspace")
+  )) {
+    expect_error(
+      execution_data(lakehouse, conflict),
+      "conflicts with the workspace recorded on `default_lakehouse`",
+      fixed = TRUE
+    )
+  }
+})
+
 test_that("numeric job parameters reject negative zero before submission", {
   outgoing <- NULL
   local_mocked_bindings(
