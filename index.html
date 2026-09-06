@@ -188,7 +188,7 @@
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">warehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="st">"orders"</span><span class="op">)</span></span>
+<span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="st">"orders"</span>, numeric_policy <span class="op">=</span> <span class="st">"driver"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders_copy"</span>,</span>
@@ -196,6 +196,7 @@
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">lakehouse</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>The default <code>numeric_policy = "exact"</code> prevents the ODBC backend from fetching <code>INT</code>, <code>BIGINT</code>, <code>DECIMAL</code>, or <code>NUMERIC</code> columns because the driver may convert them lossily. Use <code>numeric_policy = "driver"</code> when ordinary driver conversion is acceptable, as above, or use the ADBC backend for exact conversion.</p>
 <p>See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.html">Working with Fabric Warehouses</a> for staging, table creation, overwrite behavior, schema matching, and large Arrow inputs.</p>
 </div>
 <div class="section level3">

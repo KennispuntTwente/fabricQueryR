@@ -227,8 +227,16 @@ methods call <code><a href="../reference/fabric_lakehouse_read_table.html">fabri
 <span><span class="va">warehouse_rows</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
 <span>  schema <span class="op">=</span> <span class="st">"dbo"</span>,</span>
-<span>  limit <span class="op">=</span> <span class="fl">100L</span></span>
+<span>  limit <span class="op">=</span> <span class="fl">100L</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="st">"driver"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>Warehouse reads default to <code>numeric_policy = "exact"</code>.
+With the ODBC backend, that policy rejects <code>INT</code>,
+<code>BIGINT</code>, <code>DECIMAL</code>, and <code>NUMERIC</code>
+columns before fetching because the driver may convert them lossily.
+Select <code>numeric_policy = "driver"</code> when ordinary driver
+conversion is acceptable, as above, or use the ADBC backend for exact
+conversion.</p>
 <p>Use <code>lakehouse$tables()</code>
 (<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code>) when you are unsure which
 Lakehouse tables or schemas are available.</p>

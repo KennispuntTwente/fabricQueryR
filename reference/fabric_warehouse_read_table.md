@@ -21,6 +21,7 @@ fabric_warehouse_read_table(
   limit = NULL,
   result = c("tibble", "arrow_stream"),
   backend = c("odbc", "adbc"),
+  numeric_policy = c("exact", "driver"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -83,6 +84,25 @@ fabric_warehouse_read_table(
 - backend:
 
   SQL connection backend, `"odbc"` or `"adbc"`.
+
+- numeric_policy:
+
+  `"exact"` (default) preserves ADBC decimals as character and BIGINT as
+  [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
+  using character for columns containing the minimum BIGINT. INT columns
+  containing `-2147483648` use exact doubles. Nested lists retain
+  character decimals and 64-bit integers, and double 32-bit integers.
+  Null struct parents require `result = "arrow_stream"`; exact tibble
+  collection raises `fabric_arrow_null_struct_error` to preserve their
+  distinction from valid structs with all-null fields. ODBC rejects
+  DECIMAL, NUMERIC, INT and BIGINT columns before fetching: its
+  conversion can round or truncate values or turn valid integer
+  boundaries into missing values. Cast these columns to `varchar` in SQL
+  or use ADBC. `"driver"` explicitly accepts the backend's conversions,
+  including possible rounding and missing values, for either output
+  format. This policy applies to this query helper; direct DBI calls on
+  [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+  use the selected driver's conversion settings.
 
 - tenant_id:
 

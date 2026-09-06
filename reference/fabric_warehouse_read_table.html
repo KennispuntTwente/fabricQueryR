@@ -61,6 +61,7 @@ function for filters, ordering, joins, aggregations, or other T-SQL.</p>
 <span>  limit <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  result <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"tibble"</span>, <span class="st">"arrow_stream"</span><span class="op">)</span>,</span>
 <span>  backend <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"odbc"</span>, <span class="st">"adbc"</span><span class="op">)</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exact"</span>, <span class="st">"driver"</span><span class="op">)</span>,</span>
 <span>  tenant_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_TENANT_ID"</span><span class="op">)</span>,</span>
 <span>  client_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRICQUERYR_CLIENT_ID"</span>, unset <span class="op">=</span></span>
 <span>    <span class="st">"04b07795-8ddb-461a-bbee-02f9e1bf7b46"</span><span class="op">)</span>,</span>
@@ -120,6 +121,23 @@ released; consume it promptly or release it explicitly with
 
 <dt id="arg-backend">backend<a class="anchor" aria-label="anchor" href="#arg-backend"></a></dt>
 <dd><p>SQL connection backend, <code>"odbc"</code> or <code>"adbc"</code>.</p></dd>
+
+
+<dt id="arg-numeric-policy">numeric_policy<a class="anchor" aria-label="anchor" href="#arg-numeric-policy"></a></dt>
+<dd><p><code>"exact"</code> (default) preserves ADBC decimals as
+character and BIGINT as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, using character for columns
+containing the minimum BIGINT. INT columns containing <code>-2147483648</code> use
+exact doubles. Nested lists retain character decimals and 64-bit integers,
+and double 32-bit integers. Null struct parents require
+<code>result = "arrow_stream"</code>; exact tibble collection raises
+<code>fabric_arrow_null_struct_error</code> to preserve their distinction from valid
+structs with all-null fields. ODBC rejects DECIMAL, NUMERIC, INT and BIGINT
+columns before fetching: its conversion can round or truncate values
+or turn valid integer boundaries into missing values. Cast these columns
+to <code>varchar</code> in SQL or use ADBC. <code>"driver"</code> explicitly accepts the backend's
+conversions, including possible rounding and missing values, for either
+output format. This policy applies to this query helper; direct DBI calls
+on <code><a href="fabric_sql_connect.html">fabric_sql_connect()</a></code> use the selected driver's conversion settings.</p></dd>
 
 
 <dt id="arg-tenant-id">tenant_id<a class="anchor" aria-label="anchor" href="#arg-tenant-id"></a></dt>

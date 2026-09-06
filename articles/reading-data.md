@@ -125,9 +125,16 @@ lakehouse_rows <- lakehouse$read_table(
 warehouse_rows <- warehouse$read_table(
   table = "orders",
   schema = "dbo",
-  limit = 100L
+  limit = 100L,
+  numeric_policy = "driver"
 )
 ```
+
+Warehouse reads default to `numeric_policy = "exact"`. With the ODBC
+backend, that policy rejects `INT`, `BIGINT`, `DECIMAL`, and `NUMERIC`
+columns before fetching because the driver may convert them lossily.
+Select `numeric_policy = "driver"` when ordinary driver conversion is
+acceptable, as above, or use the ADBC backend for exact conversion.
 
 Use `lakehouse$tables()`
 ([`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))
