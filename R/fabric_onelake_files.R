@@ -202,6 +202,9 @@ NULL
 #'   value (reserved for missing values by bit64). Int32 columns containing
 #'   `-2147483648` use exact R doubles. Nested lists retain character 64-bit
 #'   integers and decimals, and double 32-bit integers.
+#'   Structs with null parents require `result = "arrow_stream"`: tibble
+#'   collection cannot distinguish them from valid structs with all-null fields
+#'   and raises `fabric_arrow_null_struct_error` before discarding that distinction.
 #' @param overwrite Whether an existing OneLake file may be replaced.
 #' @param if_match Optional destination ETag for conditional replacement.
 #' @param compression Parquet compression codec passed to Arrow.

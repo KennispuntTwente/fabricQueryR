@@ -148,7 +148,7 @@ test_that("OneLake object reader returns tibbles and lazy streams", {
   }
 })
 
-test_that("OneLake IPC and Parquet reads support nullable structs with Null children", {
+test_that("OneLake IPC and Parquet reads retain Null children in non-null structs", {
   skip_if_not_installed("arrow")
   skip_if_not_installed("nanoarrow")
   fixtures <- list(
@@ -161,10 +161,6 @@ test_that("OneLake IPC and Parquet reads support nullable structs with Null chil
     always_null = arrow::Array$create(rep(NA, 3L), type = arrow::null()),
     value = c(10L, 20L, 30L)
   ))
-  nested <- nanoarrow::nanoarrow_array_modify(
-    nested,
-    list(buffers = list(as.raw(5L)), null_count = 1L)
-  )
   schema <- nanoarrow::na_struct(list(
     nested = nanoarrow::infer_nanoarrow_schema(nested)
   ))
@@ -194,7 +190,7 @@ test_that("OneLake IPC and Parquet reads support nullable structs with Null chil
     )
     expect_s3_class(result$nested$always_null, "vctrs_unspecified")
     expect_true(all(is.na(result$nested$always_null)))
-    expect_identical(result$nested$value, c(10L, NA_integer_, 30L))
+    expect_identical(result$nested$value, c(10L, 20L, 30L))
   }
 })
 

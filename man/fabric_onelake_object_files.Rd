@@ -66,7 +66,10 @@ Tibbles preserve decimals as character strings. Signed 64-bit integers use
 \code{bit64::integer64}, or character if the column contains the minimum signed
 value (reserved for missing values by bit64). Int32 columns containing
 \code{-2147483648} use exact R doubles. Nested lists retain character 64-bit
-integers and decimals, and double 32-bit integers.}
+integers and decimals, and double 32-bit integers.
+Structs with null parents require \code{result = "arrow_stream"}: tibble
+collection cannot distinguish them from valid structs with all-null fields
+and raises \code{fabric_arrow_null_struct_error} before discarding that distinction.}
 
 \item{item_type}{Optional Fabric item type used to resolve a named item.}
 

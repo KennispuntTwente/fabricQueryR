@@ -130,7 +130,7 @@ test_that("uint64 list conversion retains null elements and empty lists", {
   expect_identical(as.list(result$value), values)
 })
 
-test_that("uint64 nested struct slices apply parent null masks", {
+test_that("struct normalization applies uint64 parent masks without discarding parent validity", {
   skip_if_not_installed("arrow")
   values <- c("0", "9223372036854775808", "10", "18446744073709551615")
   array <- nanoarrow::as_nanoarrow_array(arrow::StructArray$create(
@@ -152,10 +152,27 @@ test_that("uint64 nested struct slices apply parent null masks", {
     nanoarrow::nanoarrow_array_init(schema),
     list(length = 3L, children = list(nested = array))
   )
-  stream <- nanoarrow::basic_array_stream(list(batch))
+  normalized <- .fabric_arrow_normalize_struct_slices(batch)
+  expect_identical(
+    nanoarrow::convert_buffer(
+      normalized$children$nested$buffers[[1L]],
+      logical()
+    )[1:3],
+    c(TRUE, FALSE, TRUE)
+  )
+  stream <- nanoarrow::basic_array_stream(
+    list(nanoarrow::nanoarrow_array_set_schema(
+      normalized,
+      .fabric_arrow_uint64_signed_schema(schema)
+    ))
+  )
   withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
 
-  result <- .fabric_arrow_exact_tibble(stream)
+  result <- nanoarrow::convert_array_stream(
+    stream,
+    to = .fabric_arrow_exact_ptype(schema)
+  )
+  result <- .fabric_arrow_uint64_restore(result, schema)
   expect_identical(
     result$nested$value,
     c("9223372036854775808", NA, "18446744073709551615")
@@ -185,7 +202,7 @@ test_that("ordinary nested numeric structs retain sliced row alignment", {
   expect_identical(result$nested$detail$count, 12:14)
 })
 
-test_that("ordinary nested struct masks and offsets work without the Arrow package", {
+test_that("struct normalization retains child masks and offsets without the Arrow package", {
   nested_schema <- nanoarrow::na_struct(list(count = nanoarrow::na_int32()))
   nested <- nanoarrow::nanoarrow_array_modify(
     nanoarrow::nanoarrow_array_init(nested_schema),
@@ -205,19 +222,23 @@ test_that("ordinary nested struct masks and offsets work without the Arrow packa
     list(length = 3L, children = list(nested = nested))
   )
   for (batches in list(list(batch), list(batch, batch), list())) {
-    stream <- nanoarrow::basic_array_stream(batches, schema = schema)
+    normalized <- lapply(batches, .fabric_arrow_normalize_struct_slices)
+    stream <- nanoarrow::basic_array_stream(normalized, schema = schema)
     withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
 
-    result <- .fabric_arrow_exact_tibble(stream)
+    result <- nanoarrow::convert_array_stream(
+      stream,
+      to = .fabric_arrow_exact_ptype(schema)
+    )
 
     expect_identical(
       result$nested$count,
-      rep(c(NA_integer_, NA_integer_, 14L), length(batches))
+      rep(c(NA_real_, NA_real_, 14), length(batches))
     )
   }
 })
 
-test_that("ordinary numeric structs combine parent and child null masks", {
+test_that("struct normalization combines parent and child masks for exact numeric fields", {
   skip_if_not_installed("arrow")
   decimals <- c("0.0000", NA, "12345678901234567890.1234", "-0.0001")
   array <- nanoarrow::as_nanoarrow_array(arrow::StructArray$create(
@@ -242,13 +263,18 @@ test_that("ordinary numeric structs combine parent and child null masks", {
       nanoarrow::nanoarrow_array_init(schema),
       list(length = 4L - offset, children = list(nested = nested))
     )
-    stream <- nanoarrow::basic_array_stream(list(batch))
+    stream <- nanoarrow::basic_array_stream(list(.fabric_arrow_normalize_struct_slices(
+      batch
+    )))
     withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
 
-    result <- .fabric_arrow_exact_tibble(stream)
+    result <- nanoarrow::convert_array_stream(
+      stream,
+      to = .fabric_arrow_exact_ptype(schema)
+    )
 
     rows <- offset + seq_len(4L - offset)
-    expect_identical(result$nested$count, c(11L, 12L, NA_integer_, 14L)[rows])
+    expect_identical(result$nested$count, c(11, 12, NA_real_, 14)[rows])
     expect_identical(result$nested$amount, c("0.0000", NA, NA, "-0.0001")[rows])
     expect_identical(
       result$nested$detail$value,
@@ -257,7 +283,7 @@ test_that("ordinary numeric structs combine parent and child null masks", {
   }
 })
 
-test_that("nullable structs retain Arrow Null children", {
+test_that("struct normalization retains Arrow Null children", {
   skip_if_not_installed("arrow")
   nested <- nanoarrow::as_nanoarrow_array(arrow::StructArray$create(
     always_null = arrow::Array$create(rep(NA, 3L), type = arrow::null()),
@@ -274,12 +300,18 @@ test_that("nullable structs retain Arrow Null children", {
     nanoarrow::nanoarrow_array_init(schema),
     list(length = 3L, children = list(nested = nested))
   )
-  stream <- nanoarrow::basic_array_stream(list(batch), schema = schema)
+  stream <- nanoarrow::basic_array_stream(
+    list(.fabric_arrow_normalize_struct_slices(batch)),
+    schema = schema
+  )
   withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
 
-  result <- .fabric_arrow_exact_tibble(stream)
+  result <- nanoarrow::convert_array_stream(
+    stream,
+    to = .fabric_arrow_exact_ptype(schema)
+  )
 
   expect_s3_class(result$nested$always_null, "vctrs_unspecified")
   expect_true(all(is.na(result$nested$always_null)))
-  expect_identical(result$nested$value, c(10L, NA_integer_, 30L))
+  expect_identical(result$nested$value, c(10, NA_real_, 30))
 })

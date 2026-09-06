@@ -36,6 +36,9 @@
   # ordinary signed integers and decimals in streams with no unsigned columns.
   batches <- nanoarrow::collect_array_stream(stream, schema = conversion_schema)
   batches <- lapply(batches, .fabric_arrow_normalize_struct_slices)
+  for (batch in batches) {
+    .fabric_arrow_validate_struct_collection(batch)
+  }
   stream <- nanoarrow::basic_array_stream(batches, schema = conversion_schema)
   on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
   values <- nanoarrow::convert_array_stream(
@@ -46,6 +49,158 @@
     values <- .fabric_arrow_uint64_restore(values, schema)
   }
   tibble::as_tibble(.fabric_arrow_exact_restore(values, schema))
+}
+
+# A data-frame column has no representation for a null struct parent. Check
+# only reachable rows: list offsets and dictionary indices can leave null
+# structs in backing buffers that are not part of the selected result.
+.fabric_arrow_validate_struct_collection <- function(
+  array,
+  rows = seq_len(array$length) - 1,
+  path = character()
+) {
+  schema <- nanoarrow::infer_nanoarrow_schema(array)
+  if (!.fabric_arrow_schema_has_struct(schema)) {
+    return(invisible(NULL))
+  }
+  if (!length(rows)) {
+    return(invisible(NULL))
+  }
+  supported_layout <- schema$format %in%
+    c("+s", "+l", "+L", "+m") ||
+    startsWith(schema$format, "+w:") ||
+    !is.null(array$dictionary)
+  if (!supported_layout) {
+    .fabric_abort(
+      c(
+        paste0(
+          "Cannot collect Arrow structs inside layout `",
+          schema$format,
+          "` to a tibble."
+        ),
+        "i" = "Use result = \"arrow_stream\" to retain the Arrow representation."
+      ),
+      class = c(
+        "fabric_arrow_struct_layout_error",
+        "fabric_arrow_error",
+        "fabric_error"
+      ),
+      arrow_format = schema$format
+    )
+  }
+  logical_schema <- schema
+  while (!is.null(logical_schema$dictionary)) {
+    logical_schema <- logical_schema$dictionary
+  }
+  validity <- if (length(array$buffers)) {
+    nanoarrow::convert_buffer(array$buffers[[1L]], logical())
+  } else {
+    logical()
+  }
+  valid <- if (length(validity)) {
+    validity[array$offset + rows + 1]
+  } else {
+    logical()
+  }
+  if (identical(logical_schema$format, "+s") && any(!valid)) {
+    column <- if (length(path)) paste(path, collapse = ".") else "<rows>"
+    .fabric_abort(
+      c(
+        paste0(
+          "Cannot collect null Arrow structs in `",
+          column,
+          "` to a tibble."
+        ),
+        "i" = paste0(
+          "Use result = \"arrow_stream\" to retain null parents separately ",
+          "from valid structs with all-null fields."
+        )
+      ),
+      class = c(
+        "fabric_arrow_null_struct_error",
+        "fabric_arrow_error",
+        "fabric_error"
+      ),
+      arrow_column = column
+    )
+  }
+  if (length(valid) && any(!valid)) {
+    rows <- rows[valid]
+  }
+  if (!length(rows)) {
+    return(invisible(NULL))
+  }
+  if (!is.null(array$dictionary)) {
+    indices <- nanoarrow::convert_array(
+      nanoarrow::nanoarrow_array_modify(array, list(dictionary = NULL)),
+      to = double()
+    )
+    .fabric_arrow_validate_struct_collection(
+      array$dictionary,
+      unique(indices[rows + 1]),
+      path
+    )
+  } else if (identical(schema$format, "+s")) {
+    for (index in seq_along(array$children)) {
+      .fabric_arrow_validate_struct_collection(
+        array$children[[index]],
+        rows,
+        c(path, names(schema$children)[[index]])
+      )
+    }
+  } else if (schema$format %in% c("+l", "+L", "+m")) {
+    offset_schema <- if (identical(schema$format, "+L")) {
+      nanoarrow::na_int64()
+    } else {
+      nanoarrow::na_int32()
+    }
+    offsets <- nanoarrow::nanoarrow_array_modify(
+      nanoarrow::nanoarrow_array_init(offset_schema),
+      list(
+        length = array$offset + array$length + 1,
+        buffers = list(raw(), array$buffers[[2L]])
+      )
+    )
+    offsets <- nanoarrow::convert_array(offsets, to = double())
+    starts <- offsets[array$offset + rows + 1]
+    sizes <- offsets[array$offset + rows + 2] - starts
+    child_rows <- unlist(
+      Map(
+        function(start, size) {
+          start + seq_len(size) - 1
+        },
+        starts,
+        sizes
+      ),
+      use.names = FALSE
+    )
+    .fabric_arrow_validate_struct_collection(
+      array$children[[1L]],
+      child_rows,
+      c(path, "[]")
+    )
+  } else if (startsWith(schema$format, "+w:")) {
+    size <- as.numeric(substring(schema$format, 4L))
+    child_rows <- unlist(
+      lapply(array$offset + rows, function(row) {
+        row * size + seq_len(size) - 1
+      }),
+      use.names = FALSE
+    )
+    .fabric_arrow_validate_struct_collection(
+      array$children[[1L]],
+      child_rows,
+      c(path, "[]")
+    )
+  }
+  invisible(NULL)
+}
+
+.fabric_arrow_schema_has_struct <- function(schema) {
+  identical(schema$format, "+s") ||
+    (!is.null(schema$dictionary) &&
+      .fabric_arrow_schema_has_struct(schema$dictionary)) ||
+    any(vapply(schema$children, .fabric_arrow_schema_has_struct, logical(1)))
 }
 
 .fabric_arrow_has_uint64 <- function(schema) {

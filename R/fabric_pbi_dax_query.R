@@ -31,6 +31,9 @@
 #' except the minimum signed 64-bit value, which is character because 'bit64'
 #' reserves that bit pattern for missing values. `result = "arrow_stream"`
 #' retains native Arrow decimal and dense-union types.
+#' Null struct parents require `result = "arrow_stream"`; tibble collection
+#' raises `fabric_arrow_null_struct_error` to preserve their distinction from
+#' valid structs with all-null fields.
 #' The Power BI administrator must enable both **Dataset Execute Queries REST
 #' API** under Developer settings and **Allow XMLA endpoints and Analyze in
 #' Excel with on-premises semantic models** under Integration settings.
