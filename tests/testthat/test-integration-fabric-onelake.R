@@ -1132,6 +1132,40 @@ test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {
   object_stream[["release"]]()
   expect_false(file.exists(object_stream_path))
 
+  csv_path <- paste0(test_root, "/objects/exact-numbers.csv")
+  csv_data <- data.frame(
+    amount = c("12345678901234567890.123456789012345", "-0.000000000000001"),
+    id = c("18446744073709551615", "9223372036854775808")
+  )
+  fabric_onelake_write_file(
+    manifest$workspace_id,
+    lakehouse$id,
+    csv_path,
+    csv_data,
+    token = token
+  )
+  csv_read <- fabric_onelake_read_file(
+    manifest$workspace_id,
+    lakehouse$id,
+    csv_path,
+    token = token
+  )
+  expect_identical(as.list(csv_read), as.list(csv_data))
+  csv_stream <- fabric_onelake_read_file(
+    manifest$workspace_id,
+    lakehouse$id,
+    csv_path,
+    result = "arrow_stream",
+    col_types = arrow::schema(
+      amount = arrow::decimal128(38, 15),
+      id = arrow::uint64()
+    ),
+    token = token
+  )
+  on.exit(nanoarrow::nanoarrow_pointer_release(csv_stream), add = TRUE)
+  csv_typed <- .fabric_arrow_exact_tibble(csv_stream)
+  expect_identical(as.list(csv_typed), as.list(csv_data))
+
   fabric_onelake_upload(
     manifest$workspace_id,
     lakehouse$id,

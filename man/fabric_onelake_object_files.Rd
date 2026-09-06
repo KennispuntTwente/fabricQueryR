@@ -20,7 +20,9 @@ fabric_onelake_read_file(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   col_names = TRUE,
-  na = c("", "NA")
+  na = c("", "NA"),
+  col_types = NULL,
+  csv_numeric = c("exact", "infer")
 )
 
 fabric_onelake_write_file(
@@ -87,6 +89,21 @@ names. Use \code{FALSE} for files written with \code{include_header = FALSE}.}
 
 \item{na}{Text used for missing values in a written CSV, or character values
 interpreted as missing when reading CSV.}
+
+\item{col_types}{Optional Arrow Schema specifying CSV column types, such as
+\code{arrow::schema(amount = arrow::decimal128(38, 15), id = arrow::uint64())}.
+Columns omitted from the schema follow \code{csv_numeric}. Use \code{arrow::utf8()}
+to preserve all spelling, including leading zeros in identifiers.}
+
+\item{csv_numeric}{CSV numeric inference policy. The default, \code{"exact"},
+retains inferred floating-point columns as character strings to avoid
+rounding decimals or oversized integers. Inferred integer columns retain
+their exact values but canonicalize spellings such as leading zeros.
+\code{"infer"} opts into Arrow's ordinary inference, including approximate
+floating-point values. Explicit \code{col_types} entries override this policy.
+These options apply equally to tibbles and Arrow streams. CSV does not
+store type metadata; use \code{col_types} to recover known types after writing,
+or Parquet/Arrow IPC to retain numeric types automatically.}
 
 \item{data}{A data frame, tibble, Arrow Table/RecordBatch, lazy Arrow
 Dataset/Scanner/query, RecordBatchReader, or Arrow-compatible array stream.}

@@ -210,6 +210,19 @@ NULL
 #'   interpreted as missing when reading CSV.
 #' @param col_names Whether a CSV has a header, or a character vector of column
 #'   names. Use `FALSE` for files written with `include_header = FALSE`.
+#' @param col_types Optional Arrow Schema specifying CSV column types, such as
+#'   `arrow::schema(amount = arrow::decimal128(38, 15), id = arrow::uint64())`.
+#'   Columns omitted from the schema follow `csv_numeric`. Use `arrow::utf8()`
+#'   to preserve all spelling, including leading zeros in identifiers.
+#' @param csv_numeric CSV numeric inference policy. The default, `"exact"`,
+#'   retains inferred floating-point columns as character strings to avoid
+#'   rounding decimals or oversized integers. Inferred integer columns retain
+#'   their exact values but canonicalize spellings such as leading zeros.
+#'   `"infer"` opts into Arrow's ordinary inference, including approximate
+#'   floating-point values. Explicit `col_types` entries override this policy.
+#'   These options apply equally to tibbles and Arrow streams. CSV does not
+#'   store type metadata; use `col_types` to recover known types after writing,
+#'   or Parquet/Arrow IPC to retain numeric types automatically.
 #' @param create_parents Whether missing parent directories are created.
 #' @param item_type Optional Fabric item type used to resolve a named item.
 #' @param tenant_id Entra tenant ID. Defaults to
@@ -274,7 +287,9 @@ fabric_onelake_read_file <- function(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   col_names = TRUE,
-  na = c("", "NA")
+  na = c("", "NA"),
+  col_types = NULL,
+  csv_numeric = c("exact", "infer")
 ) {
   dfs_base_supplied <- !missing(dfs_base)
   format_path <- if (
@@ -289,6 +304,13 @@ fabric_onelake_read_file <- function(
   format <- .fabric_onelake_object_format(format_path, format)
   result <- rlang::arg_match(result, c("tibble", "arrow_stream"))
   .fabric_onelake_require_arrow(result)
+  csv_numeric <- match.arg(csv_numeric)
+  if (!is.null(col_types) && !inherits(col_types, "Schema")) {
+    .fabric_abort("col_types must be an Arrow Schema")
+  }
+  if (!identical(format, "csv") && !is.null(col_types)) {
+    .fabric_abort("col_types can only be supplied for CSV files")
+  }
 
   local_path <- tempfile(
     "fabricqueryr-onelake-object-",
@@ -314,6 +336,24 @@ fabric_onelake_read_file <- function(
     dfs_base = if (dfs_base_supplied) dfs_base else NULL
   )
 
+  if (identical(format, "csv")) {
+    col_types <- tryCatch(
+      .fabric_onelake_csv_schema(
+        local_path,
+        col_names,
+        na,
+        col_types,
+        csv_numeric
+      ),
+      error = function(error) {
+        .fabric_abort(
+          "Could not determine the OneLake CSV column types",
+          class = c("fabric_onelake_object_read_error", "fabric_error"),
+          parent = error
+        )
+      }
+    )
+  }
   if (identical(result, "tibble")) {
     value <- tryCatch(
       switch(
@@ -323,7 +363,8 @@ fabric_onelake_read_file <- function(
           local_path,
           as_data_frame = FALSE,
           col_names = col_names,
-          na = na
+          na = na,
+          col_types = col_types
         ),
         arrow = arrow::read_ipc_stream(local_path, as_data_frame = FALSE)
       ),
@@ -344,7 +385,13 @@ fabric_onelake_read_file <- function(
     return(.fabric_arrow_exact_tibble(stream))
   }
 
-  stream <- .fabric_onelake_object_stream(local_path, format, col_names, na)
+  stream <- .fabric_onelake_object_stream(
+    local_path,
+    format,
+    col_names,
+    na,
+    col_types
+  )
   keep_local <- TRUE
   stream
 }
@@ -2121,12 +2168,49 @@ onelake_commit_new_download <- function(temporary, dest) {
   )
 }
 
+# Infer safe CSV column types before numeric buffers can lose source precision.
+.fabric_onelake_csv_schema <- function(
+  path,
+  col_names,
+  na,
+  col_types,
+  csv_numeric
+) {
+  source <- arrow::open_csv_dataset(
+    path,
+    col_names = col_names,
+    na = na,
+    col_types = col_types
+  )
+  schema <- source$schema
+  explicit <- if (is.null(col_types)) character() else names(col_types)
+  unknown <- setdiff(explicit, names(schema))
+  if (length(unknown)) {
+    .fabric_abort(paste0(
+      "Unknown CSV col_types column(s): ",
+      paste(unknown, collapse = ", ")
+    ))
+  }
+  if (identical(csv_numeric, "infer")) {
+    return(schema)
+  }
+  fields <- lapply(schema$fields, function(field) {
+    if (!field$name %in% explicit && field$type$Equals(arrow::float64())) {
+      arrow::field(field$name, arrow::utf8(), nullable = field$nullable)
+    } else {
+      field
+    }
+  })
+  do.call(arrow::schema, fields)
+}
+
 # Open a downloaded object file as a lazy Arrow stream and own its local file
 .fabric_onelake_object_stream <- function(
   path,
   format,
   col_names = TRUE,
-  na = c("", "NA")
+  na = c("", "NA"),
+  col_types = NULL
 ) {
   owner <- NULL
   reader <- NULL
@@ -2144,7 +2228,12 @@ onelake_commit_new_download <- function(temporary, dest) {
         owner <- arrow::open_dataset(path, format = "parquet")
         reader <- arrow::as_record_batch_reader(owner)
       } else if (identical(format, "csv")) {
-        owner <- arrow::open_csv_dataset(path, col_names = col_names, na = na)
+        owner <- arrow::open_csv_dataset(
+          path,
+          col_names = col_names,
+          na = na,
+          col_types = col_types
+        )
         reader <- arrow::as_record_batch_reader(owner)
       } else {
         input <- arrow::mmap_open(path)

@@ -148,6 +148,205 @@ test_that("OneLake object reader returns tibbles and lazy streams", {
   }
 })
 
+test_that("OneLake CSV defaults retain exact decimal and oversized numeric text", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  decimals <- c(
+    "12345678901234567890.123456789012345",
+    "0.123456789012345678901234567890",
+    "1.0000000000000002",
+    "-0.0"
+  )
+  unsigned <- c("18446744073709551615", "18446744073709551614", "0", "1")
+  extremes <- c(
+    "1e999",
+    "1e-999",
+    "4.9406564584124654e-324",
+    "1.7976931348623157e308"
+  )
+  integers <- c(
+    "9007199254740993",
+    "9223372036854775807",
+    "-9223372036854775808",
+    "0"
+  )
+  writeLines(
+    c(
+      "decimal,unsigned,extreme,id",
+      paste(decimals, unsigned, extremes, integers, sep = ",")
+    ),
+    fixture
+  )
+  local_mocked_bindings(fabric_onelake_download = function(dest, ...) {
+    file.copy(fixture, dest)
+    invisible(dest)
+  })
+
+  for (output in c("tibble", "arrow_stream")) {
+    result <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/numbers.csv",
+      result = output
+    )
+    if (output == "arrow_stream") {
+      stream <- result
+      withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
+      result <- .fabric_arrow_exact_tibble(stream)
+    }
+    expect_identical(result$decimal, decimals)
+    expect_identical(result$unsigned, unsigned)
+    expect_identical(result$extreme, extremes)
+    expect_identical(as.character(result$id), integers)
+  }
+})
+
+test_that("OneLake CSV column schemas retain exact decimals and uint64 values", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  writeLines(
+    c(
+      "amount,id,ratio",
+      "12345678901234567890.123456789012345,18446744073709551615,3.141592653589793",
+      "-0.000000000000001,9223372036854775808,4.9406564584124654e-324"
+    ),
+    fixture
+  )
+  local_mocked_bindings(fabric_onelake_download = function(dest, ...) {
+    file.copy(fixture, dest)
+    invisible(dest)
+  })
+  schema <- arrow::schema(
+    amount = arrow::decimal128(38, 15),
+    id = arrow::uint64(),
+    ratio = arrow::float64()
+  )
+
+  for (output in c("tibble", "arrow_stream")) {
+    result <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/numbers.csv",
+      result = output,
+      col_types = schema
+    )
+    if (output == "arrow_stream") {
+      stream <- result
+      withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
+      expect_identical(stream$get_schema()$children$amount$format, "d:38,15")
+      expect_identical(stream$get_schema()$children$id$format, "L")
+      result <- .fabric_arrow_exact_tibble(stream)
+    }
+    expect_identical(
+      result$amount,
+      c("12345678901234567890.123456789012345", "-0.000000000000001")
+    )
+    expect_identical(
+      result$id,
+      c("18446744073709551615", "9223372036854775808")
+    )
+    expect_identical(
+      result$ratio,
+      c(pi, .Machine$double.xmin * .Machine$double.eps)
+    )
+  }
+})
+
+test_that("OneLake CSV inference and partial schemas are explicit", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  writeLines(
+    c(
+      "id,ratio,amount",
+      "00123,3.141592653589793,0.123456789012345678901234567890"
+    ),
+    fixture
+  )
+  local_mocked_bindings(fabric_onelake_download = function(dest, ...) {
+    file.copy(fixture, dest)
+    invisible(dest)
+  })
+
+  for (output in c("tibble", "arrow_stream")) {
+    explicit <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/numbers.csv",
+      result = output,
+      col_types = arrow::schema(id = arrow::utf8(), ratio = arrow::float64())
+    )
+    inferred <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/numbers.csv",
+      result = output,
+      csv_numeric = "infer"
+    )
+    if (output == "arrow_stream") {
+      explicit_stream <- explicit
+      inferred_stream <- inferred
+      withr::defer(nanoarrow::nanoarrow_pointer_release(explicit_stream))
+      withr::defer(nanoarrow::nanoarrow_pointer_release(inferred_stream))
+      explicit <- .fabric_arrow_exact_tibble(explicit_stream)
+      inferred <- .fabric_arrow_exact_tibble(inferred_stream)
+    }
+    expect_identical(explicit$id, "00123")
+    expect_identical(explicit$ratio, pi)
+    expect_identical(explicit$amount, "0.123456789012345678901234567890")
+    expect_identical(inferred$ratio, pi)
+    expect_identical(inferred$amount, 0.123456789012345678901234567890)
+  }
+})
+
+test_that("OneLake CSV write and read retain exact numeric strings", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  data <- data.frame(
+    amount = c("12345678901234567890.123456789012345", "-0.0"),
+    id = c("18446744073709551615", "18446744073709551614")
+  )
+  local_mocked_bindings(
+    fabric_onelake_upload = function(source, ...) {
+      file.copy(source, fixture)
+      tibble::tibble(path = "Files/numbers.csv")
+    },
+    fabric_onelake_download = function(dest, ...) {
+      file.copy(fixture, dest)
+      invisible(dest)
+    }
+  )
+
+  fabric_onelake_write_file("workspace", "item", "Files/numbers.csv", data)
+  result <- fabric_onelake_read_file("workspace", "item", "Files/numbers.csv")
+  expect_identical(as.list(result), as.list(data))
+})
+
+test_that("OneLake CSV schemas reject unknown columns and unsafe coercions", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("id", "18446744073709551615"), fixture)
+  local_mocked_bindings(fabric_onelake_download = function(dest, ...) {
+    file.copy(fixture, dest)
+    invisible(dest)
+  })
+
+  for (schema in list(
+    arrow::schema(missing = arrow::utf8()),
+    arrow::schema(id = arrow::int64())
+  )) {
+    error <- tryCatch(
+      fabric_onelake_read_file(
+        "workspace",
+        "item",
+        "Files/numbers.csv",
+        col_types = schema
+      ),
+      error = identity
+    )
+    expect_s3_class(error, "fabric_onelake_object_read_error")
+  }
+})
+
 test_that("OneLake Parquet and IPC reads preserve the full uint64 range", {
   skip_if_not_installed("arrow")
   values <- c(
