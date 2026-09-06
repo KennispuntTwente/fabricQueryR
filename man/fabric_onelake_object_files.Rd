@@ -20,7 +20,7 @@ fabric_onelake_read_file(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   col_names = TRUE,
-  na = c("", "NA"),
+  na = "NA",
   col_types = NULL,
   csv_numeric = c("exact", "infer")
 )
@@ -35,7 +35,7 @@ fabric_onelake_write_file(
   if_match = NULL,
   compression = "snappy",
   include_header = TRUE,
-  na = "",
+  na = "NA",
   create_parents = TRUE,
   item_type = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -88,7 +88,12 @@ on a discovered object is preferred when this argument is omitted.}
 names. Use \code{FALSE} for files written with \code{include_header = FALSE}.}
 
 \item{na}{Text used for missing values in a written CSV, or character values
-interpreted as missing when reading CSV.}
+interpreted as missing when reading CSV. The default, \code{"NA"}, preserves
+empty strings separately from missing values and keeps missing-only rows
+visible in CSV files. Blank records are retained when reading. For legacy
+files whose empty fields mean missing, read with \code{na = c("", "NA")}.
+Any literal text matching a chosen missing marker is also read as missing;
+choose the same custom marker for writing and reading when needed.}
 
 \item{col_types}{Optional Arrow Schema specifying CSV column types, such as
 \code{arrow::schema(amount = arrow::decimal128(38, 15), id = arrow::uint64())}.

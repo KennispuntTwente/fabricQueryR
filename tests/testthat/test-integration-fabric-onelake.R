@@ -1166,6 +1166,40 @@ test_that("OneLake file helpers cover hierarchy, ranges, and Unicode", {
   csv_typed <- .fabric_arrow_exact_tibble(csv_stream)
   expect_identical(as.list(csv_typed), as.list(csv_data))
 
+  csv_missing_path <- paste0(test_root, "/objects/missing-rows.csv")
+  csv_missing <- c(NA_real_, pi, NA_real_, NA_real_, 1 / 3, NA_real_)
+  fabric_onelake_write_file(
+    manifest$workspace_id,
+    lakehouse$id,
+    csv_missing_path,
+    data.frame(value = csv_missing),
+    include_header = FALSE,
+    token = token
+  )
+  csv_missing_read <- fabric_onelake_read_file(
+    manifest$workspace_id,
+    lakehouse$id,
+    csv_missing_path,
+    col_names = "value",
+    col_types = arrow::schema(value = arrow::float64()),
+    token = token
+  )
+  expect_identical(csv_missing_read$value, csv_missing)
+  csv_missing_stream <- fabric_onelake_read_file(
+    manifest$workspace_id,
+    lakehouse$id,
+    csv_missing_path,
+    result = "arrow_stream",
+    col_names = "value",
+    col_types = arrow::schema(value = arrow::float64()),
+    token = token
+  )
+  on.exit(nanoarrow::nanoarrow_pointer_release(csv_missing_stream), add = TRUE)
+  expect_identical(
+    .fabric_arrow_exact_tibble(csv_missing_stream)$value,
+    csv_missing
+  )
+
   fabric_onelake_upload(
     manifest$workspace_id,
     lakehouse$id,

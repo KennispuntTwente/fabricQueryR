@@ -2157,6 +2157,186 @@ test_that("OneLake distinguishes literal percent filenames from URI escapes", {
   expect_identical(target$path, "Files/a%2Fb.txt")
   expect_match(onelake_path_url(target), "/Files/a%252Fb.txt$", fixed = FALSE)
 })
+test_that("CSV round trips retain leading trailing consecutive and all missing rows", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  local_mocked_bindings(
+    fabric_onelake_upload = function(source, ...) {
+      file.copy(source, fixture, overwrite = TRUE)
+      tibble::tibble(path = "Files/missing.csv")
+    },
+    fabric_onelake_download = function(dest, ...) {
+      file.copy(fixture, dest)
+      invisible(dest)
+    }
+  )
+  read_values <- function(output, header) {
+    result <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/missing.csv",
+      result = output,
+      col_names = if (header) TRUE else "value",
+      col_types = arrow::schema(value = arrow::float64())
+    )
+    if (output == "arrow_stream") {
+      on.exit(nanoarrow::nanoarrow_pointer_release(result))
+      .fabric_arrow_exact_tibble(result)$value
+    } else {
+      result$value
+    }
+  }
+
+  for (values in list(
+    c(NA_real_, pi, NA_real_, NA_real_, 1 / 3, NA_real_),
+    rep(NA_real_, 3L),
+    NA_real_
+  )) {
+    for (header in c(TRUE, FALSE)) {
+      fabric_onelake_write_file(
+        "workspace",
+        "item",
+        "Files/missing.csv",
+        data.frame(value = values),
+        include_header = header
+      )
+      for (output in c("tibble", "arrow_stream")) {
+        expect_identical(read_values(output, header), values)
+      }
+    }
+  }
+})
+
+test_that("CSV readers retain legacy empty records under an explicit NA policy", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  local_mocked_bindings(fabric_onelake_download = function(dest, ...) {
+    file.copy(fixture, dest)
+    invisible(dest)
+  })
+  read_values <- function(output, header) {
+    result <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/missing.csv",
+      result = output,
+      col_names = if (header) TRUE else "value",
+      na = c("", "NA"),
+      col_types = arrow::schema(value = arrow::float64())
+    )
+    if (output == "arrow_stream") {
+      on.exit(nanoarrow::nanoarrow_pointer_release(result))
+      .fabric_arrow_exact_tibble(result)$value
+    } else {
+      result$value
+    }
+  }
+
+  for (expected in list(
+    c(NA_real_, 1, NA_real_, NA_real_, 3, NA_real_),
+    rep(NA_real_, 3L)
+  )) {
+    for (header in c(TRUE, FALSE)) {
+      records <- ifelse(is.na(expected), "", as.character(expected))
+      writeLines(c(if (header) "value", records), fixture)
+      for (output in c("tibble", "arrow_stream")) {
+        expect_identical(read_values(output, header), expected)
+      }
+    }
+  }
+})
+
+test_that("CSV readers retain missing rows with generated headerless names", {
+  skip_if_not_installed("arrow")
+  local_mocked_bindings(fabric_onelake_download = function(dest, ...) {
+    writeLines(c("NA", "2", "NA"), dest)
+    invisible(dest)
+  })
+  read_values <- function(output) {
+    value <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/missing.csv",
+      result = output,
+      col_names = FALSE
+    )
+    if (output == "arrow_stream") {
+      on.exit(nanoarrow::nanoarrow_pointer_release(value))
+      .fabric_arrow_exact_tibble(value)
+    } else {
+      value
+    }
+  }
+  for (output in c("tibble", "arrow_stream")) {
+    value <- read_values(output)
+    expect_identical(names(value), "f0")
+    expect_identical(as.character(value[[1L]]), c(NA, "2", NA))
+  }
+})
+
+test_that("CSV missing markers remain distinct from empty strings", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  local_mocked_bindings(
+    fabric_onelake_upload = function(source, ...) {
+      file.copy(source, fixture, overwrite = TRUE)
+      tibble::tibble(path = "Files/missing.csv")
+    },
+    fabric_onelake_download = function(dest, ...) {
+      file.copy(fixture, dest)
+      invisible(dest)
+    }
+  )
+  read_values <- function(output, na) {
+    result <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/missing.csv",
+      result = output,
+      na = na
+    )
+    if (output == "arrow_stream") {
+      on.exit(nanoarrow::nanoarrow_pointer_release(result))
+      .fabric_arrow_exact_tibble(result)$value
+    } else {
+      result$value
+    }
+  }
+
+  values <- c("", NA_character_, "text", "")
+  fabric_onelake_write_file(
+    "workspace",
+    "item",
+    "Files/missing.csv",
+    data.frame(value = values)
+  )
+  for (output in c("tibble", "arrow_stream")) {
+    result <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/missing.csv",
+      result = output
+    )
+    if (output == "arrow_stream") {
+      stream <- result
+      withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
+      result <- .fabric_arrow_exact_tibble(stream)
+    }
+    expect_identical(result$value, values)
+  }
+  custom <- c("", NA_character_, "NA", "text", "")
+  fabric_onelake_write_file(
+    "workspace",
+    "item",
+    "Files/missing.csv",
+    data.frame(value = custom),
+    na = "MISSING"
+  )
+  for (output in c("tibble", "arrow_stream")) {
+    expect_identical(read_values(output, "MISSING"), custom)
+  }
+})
+
 test_that("CSV reads preserve headerless rows and custom missing values", {
   skip_if_not_installed("arrow")
   skip_if_not_installed("nanoarrow")

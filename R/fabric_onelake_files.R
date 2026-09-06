@@ -207,7 +207,12 @@ NULL
 #' @param compression Parquet compression codec passed to Arrow.
 #' @param include_header Whether a written CSV includes column names.
 #' @param na Text used for missing values in a written CSV, or character values
-#'   interpreted as missing when reading CSV.
+#'   interpreted as missing when reading CSV. The default, `"NA"`, preserves
+#'   empty strings separately from missing values and keeps missing-only rows
+#'   visible in CSV files. Blank records are retained when reading. For legacy
+#'   files whose empty fields mean missing, read with `na = c("", "NA")`.
+#'   Any literal text matching a chosen missing marker is also read as missing;
+#'   choose the same custom marker for writing and reading when needed.
 #' @param col_names Whether a CSV has a header, or a character vector of column
 #'   names. Use `FALSE` for files written with `include_header = FALSE`.
 #' @param col_types Optional Arrow Schema specifying CSV column types, such as
@@ -287,7 +292,7 @@ fabric_onelake_read_file <- function(
   auth_args = list(),
   dfs_base = "https://onelake.dfs.fabric.microsoft.com",
   col_names = TRUE,
-  na = c("", "NA"),
+  na = "NA",
   col_types = NULL,
   csv_numeric = c("exact", "infer")
 ) {
@@ -364,7 +369,8 @@ fabric_onelake_read_file <- function(
           as_data_frame = FALSE,
           col_names = col_names,
           na = na,
-          col_types = col_types
+          col_types = col_types,
+          skip_empty_rows = FALSE
         ),
         arrow = arrow::read_ipc_stream(local_path, as_data_frame = FALSE)
       ),
@@ -408,7 +414,7 @@ fabric_onelake_write_file <- function(
   if_match = NULL,
   compression = "snappy",
   include_header = TRUE,
-  na = "",
+  na = "NA",
   create_parents = TRUE,
   item_type = NULL,
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
@@ -2180,7 +2186,8 @@ onelake_commit_new_download <- function(temporary, dest) {
     path,
     col_names = col_names,
     na = na,
-    col_types = col_types
+    col_types = col_types,
+    skip_empty_rows = FALSE
   )
   schema <- source$schema
   explicit <- if (is.null(col_types)) character() else names(col_types)
@@ -2209,7 +2216,7 @@ onelake_commit_new_download <- function(temporary, dest) {
   path,
   format,
   col_names = TRUE,
-  na = c("", "NA"),
+  na = "NA",
   col_types = NULL
 ) {
   owner <- NULL
@@ -2232,7 +2239,8 @@ onelake_commit_new_download <- function(temporary, dest) {
           path,
           col_names = col_names,
           na = na,
-          col_types = col_types
+          col_types = col_types,
+          skip_empty_rows = FALSE
         )
         reader <- arrow::as_record_batch_reader(owner)
       } else {
