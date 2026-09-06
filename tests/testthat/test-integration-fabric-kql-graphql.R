@@ -799,7 +799,7 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
   expect_null(result$data[[root_field]]$items[[2L]]$amount)
 })
 
-test_that("Fabric GraphQL introspection reflects the live API setting", {
+test_that("Fabric GraphQL introspection succeeds or is specifically disabled", {
   manifest <- fabric_test_manifest()
   api <- fabric_test_manifest_item(manifest, "TestGraphQL")
   token <- fabric_test_token_provider()
@@ -815,7 +815,13 @@ test_that("Fabric GraphQL introspection reflects the live API setting", {
 
   if (inherits(outcome, "fabric_graphql_introspection_error")) {
     expect_match(outcome$message, "API Settings > Introspection", fixed = TRUE)
-    expect_gt(length(outcome$errors), 0L)
+    expect_length(outcome$errors, 1L)
+    expect_identical(outcome$errors[[1L]]$extensions$code, "HC0046")
+    expect_match(
+      outcome$errors[[1L]]$message,
+      "introspection",
+      ignore.case = TRUE
+    )
   } else {
     expect_s3_class(outcome, "fabric_graphql_schema")
     expect_equal(outcome$queryType$name, "Query")
