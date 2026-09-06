@@ -1,3 +1,7 @@
+# Fabric integration coverage: KQL decimal ingestion and Parquet export
+# The tests exercise exact decimal validation and service-selected conversion
+# against the live Eventhouse fixture, including empty export results
+
 test_that("KQL decimal ingestion rejects narrowing before creating a table", {
   manifest <- fabric_test_manifest()
   fabric_test_require_package("arrow")
