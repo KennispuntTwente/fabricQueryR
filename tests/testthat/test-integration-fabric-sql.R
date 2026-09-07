@@ -97,6 +97,11 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
       info = backend
     )
 
+    # adbi's dbExistsTable() leaves its temporary metadata stream to GC.
+    # Finalize that stream before checking for outstanding connection handles.
+    if (identical(backend, "adbc")) {
+      invisible(gc())
+    }
     disconnected <- NULL
     expect_silent(disconnected <- DBI::dbDisconnect(con))
     expect_true(isTRUE(disconnected), info = backend)
