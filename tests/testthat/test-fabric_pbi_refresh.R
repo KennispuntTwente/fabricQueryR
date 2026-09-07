@@ -1,3 +1,36 @@
+test_that("discovered models retain automatic identity for default refresh", {
+  payloads <- list()
+  local_mocked_bindings(
+    .pbi_refresh_request = function(
+      method,
+      url,
+      credential,
+      payload = NULL,
+      ...
+    ) {
+      payloads[length(payloads) + 1L] <<- list(payload)
+      list(status_code = 202L, request_id = pbi_refresh_id, body = list())
+    }
+  )
+  for (application in c(FALSE, TRUE)) {
+    credential <- fabric_credential(
+      "test-tenant",
+      "test-client",
+      auth_args = if (application) list(password = "test-secret") else list()
+    )
+    model <- fabric_r6_record(
+      pbi_refresh_test_model(),
+      c("fabric_item", "list"),
+      credential
+    )
+    refresh <- model$refresh()
+    expect_s3_class(refresh, "fabric_pbi_refresh")
+    expect_identical(refresh$mode, "standard")
+  }
+  expect_equal(payloads[[1L]], list(notifyOption = "NoNotification"))
+  expect_length(payloads[[2L]], 0L)
+})
+
 test_that("service-principal standard refresh uses the RequestId header", {
   requests <- list()
   local_mocked_bindings(

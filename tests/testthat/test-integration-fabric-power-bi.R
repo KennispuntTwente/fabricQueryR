@@ -85,20 +85,22 @@ test_that("semantic-model refresh completes with history and execution details",
   expect_identical(as.numeric(rows[["[row_count]"]]), 3)
 })
 
-test_that("service-principal standard refresh omits email notification", {
+test_that("automatically authenticated discovery models support default refresh", {
   manifest <- fabric_test_manifest()
   semantic_model <- fabric_test_manifest_item(
     manifest,
     "TestArrowSemanticModel"
   )
 
-  refresh <- fabric_pbi_refresh(
-    workspace_id = manifest$workspace_id,
-    dataset_id = semantic_model$id,
-    notify_option = NULL,
-    token = fabric_test_token_provider(),
-    principal_type = "service_principal"
+  auth <- fabric_test_azure_auth_config()
+  items <- do.call(
+    fabric_items,
+    c(list(workspace = manifest$workspace_id), auth)
   )
+  model <- Filter(function(item) identical(item$id, semantic_model$id), items)[[
+    1L
+  ]]
+  refresh <- model$refresh()
   completed <- fabric_pbi_refresh_wait(
     refresh,
     poll_interval = 2,

@@ -991,6 +991,13 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   if (!identical(principal_type, "auto")) {
     return(principal_type)
   }
+  if (
+    inherits(token, "fabric_credential") && !is.null(token$client_credentials)
+  ) {
+    return(
+      if (isTRUE(token$client_credentials)) "service_principal" else "delegated"
+    )
+  }
   if (!is.null(token)) {
     return("unknown")
   }
