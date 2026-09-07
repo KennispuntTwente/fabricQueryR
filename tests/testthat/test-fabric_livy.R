@@ -638,6 +638,35 @@ test_that("session statement listing follows the Livy collection contract", {
   session$close()
 })
 
+test_that("statement cancellation supplies the JSON object required by HC", {
+  payloads <- list()
+  local_mocked_bindings(
+    fabric_livy_json = function(method, url, credential, payload = NULL, ...) {
+      if (endsWith(url, "/cancel")) {
+        payloads[[length(payloads) + 1L]] <<- payload
+      }
+      list(
+        id = if (endsWith(url, "/sessions")) "session" else 1L,
+        state = "idle"
+      )
+    },
+    fabric_livy_ok = function(...) TRUE
+  )
+  session <- fabric_livy_session(
+    "https://example.test/livy/sessions",
+    token = "test-token",
+    verbose = FALSE
+  )
+  withr::defer(session$close())
+  statement <- session$submit("print('test')", kind = "pyspark")
+  statement$cancel()
+  expect_length(payloads, 1L)
+  expect_identical(
+    as.character(jsonlite::toJSON(payloads[[1L]], auto_unbox = TRUE)),
+    "{}"
+  )
+})
+
 test_that("statement output byte ranges apply only to individual lookups", {
   calls <- list()
   local_mocked_bindings(

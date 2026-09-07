@@ -19,6 +19,19 @@ test_that("Livy SQL timestamps preserve instants in non-UTC sessions", {
   )
   on.exit(try(session$close(), silent = TRUE), add = TRUE)
   session$wait(timeout = 900, poll_interval = 5)
+  expect_identical(session$reset_timeout(), session)
+  window_statement <- session$submit(
+    "print('ABCDEFGHIJKLMNOPQRSTUVWXYZ')",
+    kind = "pyspark"
+  )
+  window_statement$wait(timeout = 300, poll_interval = 2)
+  expect_identical(
+    paste(
+      window_statement$result(from = 4L, size = 8L)$output$parsed,
+      collapse = ""
+    ),
+    "EFGHIJKL"
+  )
   result <- session$run(
     "SELECT TIMESTAMP '2026-09-07 12:30:00+02:00' AS zoned",
     kind = "sql",
@@ -566,6 +579,35 @@ test_that("high-concurrency Livy sessions isolate their REPLs", {
   expect_match(
     paste(isolated$output$parsed, collapse = "\n"),
     "FABRICQUERYR_HC_VARIABLE_VISIBLE=False",
+    fixed = TRUE
+  )
+  recovered <- fabric_livy_session_attach(
+    lakehouse$livy_url,
+    session_a$id,
+    high_concurrency = TRUE,
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args,
+    verbose = FALSE
+  )
+  expect_identical(recovered$id, session_a$id)
+  expect_identical(recovered$repl_id, session_a$repl_id)
+  slow <- recovered$submit("import time; time.sleep(120)", kind = "pyspark")
+  fabric_test_eventually(
+    function() slow$status()$state,
+    ready = function(state) identical(state, "running"),
+    attempts = 30L,
+    delay = 1
+  )
+  slow$cancel()
+  other <- session_b$run(
+    "print('continued-after-cancel')",
+    kind = "pyspark",
+    timeout = 300
+  )
+  expect_match(
+    paste(other$output$parsed, collapse = ""),
+    "continued-after-cancel",
     fixed = TRUE
   )
   expect_true(session_a$close())
