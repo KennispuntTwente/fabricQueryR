@@ -18,11 +18,17 @@ test_that("declared dependency floors cover APIs used by the package", {
 
   description <- read.dcf(description_path)
 
-  expect_match(description[[1L, "Imports"]], "httr2 \\(>= 1\\.2\\.0\\)")
-  expect_match(description[[1L, "Imports"]], "cli \\(>= 3\\.4\\.0\\)")
-  expect_match(description[[1L, "Imports"]], "rlang \\(>= 0\\.4\\.10\\)")
-  expect_match(description[[1L, "Suggests"]], "testthat \\(>= 3\\.2\\.0\\)")
-  expect_match(description[[1L, "Suggests"]], "lifecycle")
+  wrapped <- withr::local_tempfile()
+  write.dcf(description, wrapped, width = 20L)
+  for (fields in list(description, read.dcf(wrapped))) {
+    imports <- gsub("[[:space:]]+", " ", fields[[1L, "Imports"]])
+    suggests <- gsub("[[:space:]]+", " ", fields[[1L, "Suggests"]])
+    expect_match(imports, "httr2 \\(>= 1\\.2\\.0\\)")
+    expect_match(imports, "cli \\(>= 3\\.4\\.0\\)")
+    expect_match(imports, "rlang \\(>= 0\\.4\\.10\\)")
+    expect_match(suggests, "testthat \\(>= 3\\.2\\.0\\)")
+    expect_match(suggests, "lifecycle")
+  }
 })
 
 test_that("experimental lifecycle badge asset is packaged", {
