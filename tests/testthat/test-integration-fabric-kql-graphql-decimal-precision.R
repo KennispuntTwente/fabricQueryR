@@ -98,6 +98,7 @@ test_that("KQL Parquet export protects decimals and supports an exact text proje
   fabric_test_require_package("arrow")
   database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  lakehouse$workspaceId <- manifest$workspace_id
   token <- fabric_test_token_provider()
   root <- paste0(
     "Files/fabricqueryr-decimal-export/",
@@ -106,13 +107,18 @@ test_that("KQL Parquet export protects decimals and supports an exact text proje
   created <- FALSE
   withr::defer(
     if (created) {
-      fabric_onelake_delete(
-        manifest$workspace_id,
-        lakehouse$id,
-        root,
-        recursive = TRUE,
-        confirm = TRUE,
-        token = token
+      tryCatch(
+        fabric_onelake_delete(
+          manifest$workspace_id,
+          lakehouse$id,
+          root,
+          recursive = TRUE,
+          confirm = TRUE,
+          token = token
+        ),
+        fabric_http_error = function(error) {
+          if (!identical(error$status, 404L)) stop(error)
+        }
       )
     }
   )
