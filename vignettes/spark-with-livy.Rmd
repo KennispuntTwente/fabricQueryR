@@ -255,8 +255,10 @@ The `FabricLivyBatch` lifecycle methods (`$wait()`, `$result()`, `$logs()`,
 
 If a session, statement, or batch wait times out, the
 `fabric_livy_timeout_error` condition keeps the exact live object in its
-`handle` field. You can inspect `$status()` or request `$cancel()` through that
-handle in the current R process. The kind-specific `session`, `statement`, or
+`handle` field. You can inspect `$status()` through that handle in the current
+R process. Use `$close()` for a session and `$cancel()` for a statement or batch.
+`fabric_livy_query()` attempts to close its temporary session on exit, including
+after a timeout, so that session may already be closed. The kind-specific `session`, `statement`, or
 `batch` field contains safe metadata for logging; after serialization, a handle
 intentionally no longer carries its credential.
 
