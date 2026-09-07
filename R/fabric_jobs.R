@@ -2669,7 +2669,13 @@ print.fabric_job_instance <- function(x, ...) {
 .fabric_job_validate_number <- function(value, name, type) {
   token <- fabric_json_serialize(value, auto_unbox = TRUE, digits = 22)
   decimal <- .fabric_job_decimal_token(token)
-  restored <- if (is.null(decimal)) NA_real_ else as.numeric(decimal)
+  # R's decimal parser can round differently without extended precision
+  # (notably macOS ARM). Decode the modeled wire token with the JSON parser.
+  restored <- if (is.null(decimal)) {
+    NA_real_
+  } else {
+    as.double(jsonlite::fromJSON(decimal))
+  }
   if (
     !identical(
       writeBin(as.numeric(value), raw(), size = 8L),

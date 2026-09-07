@@ -447,7 +447,7 @@ test_that("KQL scalar parameters preserve difficult large doubles exactly", {
 
   encoded <- vapply(values, kusto_encode_parameter, character(1))
 
-  expect_identical(as.numeric(encoded), values)
+  expect_identical(numeric_test_decode(encoded), values)
 })
 
 test_that("KQL scalar parameters retain signed zero and ordinary integer spelling", {
@@ -492,7 +492,7 @@ test_that("KQL timespan parameters retain fixed notation for small durations", {
     grepl("^-?[0-9]+(?:\\.[0-9]+)?$", text),
     rep(TRUE, length(seconds))
   )
-  expect_identical(as.numeric(text), seconds)
+  expect_identical(numeric_test_decode(text), seconds)
 })
 
 test_that("KQL dynamic numbers retain the same exact values as scalar parameters", {
@@ -525,7 +525,7 @@ test_that("KQL dynamic numbers retain the same exact values as scalar parameters
   decoded <- jsonlite::fromJSON(json)
   scalar_decoded <- vapply(
     values,
-    \(value) as.numeric(kusto_encode_parameter(value)),
+    \(value) numeric_test_decode(kusto_encode_parameter(value)),
     numeric(1)
   )
 

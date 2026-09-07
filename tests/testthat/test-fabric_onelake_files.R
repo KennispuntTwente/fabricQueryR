@@ -342,7 +342,7 @@ test_that("OneLake CSV inference and partial schemas are explicit", {
     expect_identical(explicit$ratio, pi)
     expect_identical(explicit$amount, "0.123456789012345678901234567890")
     expect_identical(inferred$ratio, pi)
-    expect_identical(inferred$amount, 0.123456789012345678901234567890)
+    expect_identical(inferred$amount, as.numeric("0x1.f9add3746f65fp-4"))
   }
 })
 

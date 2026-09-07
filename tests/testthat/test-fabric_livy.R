@@ -2492,7 +2492,7 @@ test_that("generic Livy MIME retains mixed numeric arrays without character coer
         Sys.time(),
         "https://example.test/statements/4"
       )
-      expected <- list(as.numeric(token), "text", NULL, TRUE)
+      expected <- list(numeric_test_decode(token), "text", NULL, TRUE)
       expect_identical(result$output$parsed, expected)
       expect_identical(
         writeBin(result$output$parsed[[1L]], raw()),

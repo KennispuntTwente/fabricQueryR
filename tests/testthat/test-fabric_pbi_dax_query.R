@@ -611,7 +611,7 @@ test_that("DAX response promotion retains large finite doubles exactly", {
   )
 
   expect_identical(
-    as.numeric(result$value[1:2]),
+    numeric_test_decode(result$value[1:2]),
     as.numeric(c(
       "0x1.a4a3bd7d8804dp+709",
       "-0x1.92be36a62eeeep+787"

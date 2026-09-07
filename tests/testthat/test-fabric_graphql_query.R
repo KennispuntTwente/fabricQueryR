@@ -891,7 +891,7 @@ test_that("GraphQL collection preserves large doubles promoted to character", {
   rows <- fabric_graphql_collect(pages, "items")
 
   expect_identical(
-    as.numeric(rows$value[1:2]),
+    numeric_test_decode(rows$value[1:2]),
     as.numeric(c(
       "0x1.a4a3bd7d8804dp+709",
       "-0x1.92be36a62eeeep+787"
@@ -936,7 +936,7 @@ test_that("GraphQL collection preserves fractions and large integers across page
   expect_type(result$value, "character")
   expect_identical(
     writeBin(
-      as.numeric(result$value[c(1L, 2L, 6L, 7L, 8L, 10L, 11L)]),
+      numeric_test_decode(result$value[c(1L, 2L, 6L, 7L, 8L, 10L, 11L)]),
       raw(),
       size = 8L
     ),

@@ -22,7 +22,7 @@ test_that("numeric text recovers finite binary64 values across their range", {
   withr::local_options(OutDec = ",", digits = 3L, scipen = 999L)
 
   encoded <- vapply(values, fabric_format_number, character(1))
-  decoded <- as.numeric(encoded)
+  decoded <- numeric_test_decode(encoded)
 
   expect_identical(
     writeBin(decoded, raw(), size = 8L),
@@ -61,7 +61,7 @@ test_that("fixed numeric text expands exponents without changing values", {
     rep(TRUE, length(values))
   )
   expect_identical(
-    writeBin(as.numeric(encoded), raw(), size = 8L),
+    writeBin(numeric_test_decode(encoded), raw(), size = 8L),
     writeBin(values, raw(), size = 8L)
   )
   expect_identical(fabric_format_number_fixed(1e20), "100000000000000000000")
