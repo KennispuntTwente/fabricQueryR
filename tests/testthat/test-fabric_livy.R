@@ -1,3 +1,25 @@
+test_that("Livy decodes signed binary arrays including empty and NULL values", {
+  expect_identical(
+    fabric_livy_convert_column(
+      list(list(0L, -1L, -128L), list(0L, 255L, 128L), list(), NULL),
+      "binary"
+    ),
+    list(as.raw(c(0, 255, 128)), as.raw(c(0, 255, 128)), raw(), NULL)
+  )
+  for (value in list(
+    list(256L),
+    list(-129L),
+    list(0.5),
+    list(NULL),
+    list(TRUE),
+    list(list(1L))
+  )) {
+    error <- rlang::catch_cnd(fabric_livy_convert_column(list(value), "binary"))
+    expect_s3_class(error, "error")
+    expect_match(conditionMessage(error), "binary")
+  }
+})
+
 test_that("Livy timestamps fully parse offsets with either date separator", {
   values <- list(
     "2026-09-07 12:30:00+02:00",

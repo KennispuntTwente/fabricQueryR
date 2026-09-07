@@ -28,6 +28,17 @@ test_that("Livy SQL timestamps preserve instants in non-UTC sessions", {
     unname(result$output$parsed$zoned),
     as.POSIXct("2026-09-07 10:30:00", tz = "UTC")
   )
+  binary <- session$run(
+    paste(
+      "SELECT X'00FF80' AS bytes, X'' AS empty_bytes,",
+      "CAST(NULL AS BINARY) AS missing_bytes"
+    ),
+    kind = "sql",
+    timeout = 300
+  )
+  expect_identical(binary$output$parsed$bytes, list(as.raw(c(0, 255, 128))))
+  expect_identical(binary$output$parsed$empty_bytes, list(raw()))
+  expect_identical(binary$output$parsed$missing_bytes, list(NULL))
 })
 
 test_that("fabric_livy_query executes Spark and returns its output", {

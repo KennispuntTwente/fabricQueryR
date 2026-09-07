@@ -1651,7 +1651,7 @@ fabric_livy_convert_column <- function(values, type) {
     return(as.POSIXct(parsed, origin = "1970-01-01", tz = "UTC"))
   }
 
-  # Binary values may already be raw or may arrive as base64 text
+  # Livy SQL serializes signed bytes as arrays; other MIME writers use base64.
   if (identical(kind, "binary")) {
     return(lapply(values, function(value) {
       if (is.null(value)) {
@@ -1660,6 +1660,25 @@ fabric_livy_convert_column <- function(values, type) {
 
       if (is.raw(value)) {
         return(value)
+      }
+      if (is.list(value) && is.null(names(value))) {
+        valid <- vapply(
+          value,
+          function(byte) {
+            is.numeric(byte) &&
+              length(byte) == 1L &&
+              !is.na(byte) &&
+              is.finite(byte) &&
+              byte == floor(byte) &&
+              byte >= -128 &&
+              byte <= 255
+          },
+          logical(1)
+        )
+        if (!all(valid)) {
+          fabric_livy_invalid_type(kind)
+        }
+        return(as.raw(as.numeric(unlist(value, use.names = FALSE)) %% 256))
       }
       valid <- is.character(value) &&
         length(value) == 1L &&
