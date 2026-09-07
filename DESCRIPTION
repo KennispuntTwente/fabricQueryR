@@ -25,6 +25,7 @@ Suggests:
     knitr,
     lifecycle,
     odbc,
+    processx,
     purrr,
     rmarkdown,
     testthat (>= 3.2.0),

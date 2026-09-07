@@ -37,10 +37,22 @@ fabric_ci_integration_summary <- function(results, filter) {
   )
 }
 
+# Only the unconfigured UDF lane is optional; supplying any fixture makes it required.
+fabric_ci_lane_required <- function(filter) {
+  !identical(filter, "integration-fabric-functions") ||
+    any(nzchar(Sys.getenv(c(
+      "FABRIC_TEST_FUNCTION_SCALAR_URL",
+      "FABRIC_TEST_FUNCTION_STRUCTURED_URL",
+      "FABRIC_TEST_FUNCTION_ERROR_URL"
+    ))))
+}
+
 run_fabric_ci_integration <- function(
-  filter = Sys.getenv("FABRIC_TEST_FILTER")
+  filter = Sys.getenv("FABRIC_TEST_FILTER"),
+  required = fabric_ci_lane_required(filter),
+  .test = testthat::test_local
 ) {
-  results <- testthat::test_local(filter = filter, stop_on_failure = FALSE)
+  results <- .test(filter = filter, stop_on_failure = FALSE)
   summary <- fabric_ci_integration_summary(results, filter)
   path <- Sys.getenv("GITHUB_STEP_SUMMARY")
   if (nzchar(path)) {
@@ -58,6 +70,17 @@ run_fabric_ci_integration <- function(
   }
   if (summary$failed > 0L) {
     stop("Fabric integration tests failed", call. = FALSE)
+  }
+  if (identical(summary$status, "NOT EXERCISED")) {
+    if (isTRUE(required)) {
+      stop(
+        "Required Fabric integration lane executed zero tests",
+        call. = FALSE
+      )
+    }
+    cat(
+      "Optional Fabric integration lane unavailable: no fixtures configured.\n"
+    )
   }
   invisible(results)
 }
