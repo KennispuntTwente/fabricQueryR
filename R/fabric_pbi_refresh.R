@@ -440,7 +440,7 @@ fabric_pbi_refresh_status <- function(
 
   # Status requests accept both 200 terminal and 202 active responses
 
-  .pbi_refresh_get_status(context)
+  .pbi_refresh_get_status(context, .sleep = .sleep, .now = .now)
 }
 
 #' @rdname fabric_pbi_refresh
@@ -1427,7 +1427,8 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       response$body,
       context$refresh,
       status_code = response$status_code,
-      retry_after = response$retry_after
+      retry_after = response$retry_after,
+      received_at = .now()
     ))
   }
 
@@ -1519,9 +1520,16 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   refresh,
   status_code,
   retry_after = NULL,
-  history = FALSE
+  history = FALSE,
+  received_at = Sys.time()
 ) {
   .pbi_refresh_object(body, "refresh detail")
+  refresh$retry_after <- retry_after
+  refresh$next_poll_at <- if (is.null(retry_after)) {
+    NULL
+  } else {
+    received_at + retry_after
+  }
   raw_messages <- body$messages %||% list()
   raw_attempts <- body$refreshAttempts %||% list()
   .pbi_refresh_object_array(raw_messages, "refresh detail `messages`")

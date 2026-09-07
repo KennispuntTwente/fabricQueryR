@@ -1165,6 +1165,40 @@ test_that("wait rejects service retry delays beyond its deadline", {
   )
 })
 
+test_that("status to wait preserves the latest unelapsed Retry-After", {
+  now <- as.POSIXct("2026-09-07 10:00:00", tz = "UTC")
+  calls <- 0L
+  slept <- numeric()
+  local_mocked_bindings(.pbi_refresh_request = function(...) {
+    calls <<- calls + 1L
+    list(
+      status_code = 200L,
+      retry_after = if (calls == 1L) 60 else NULL,
+      body = list(status = if (calls == 1L) "InProgress" else "Completed")
+    )
+  })
+  handle <- pbi_refresh_test_handle()
+  handle$next_poll_at <- NULL
+  status <- fabric_pbi_refresh_status(
+    handle,
+    .now = function() now
+  )
+  now <- now + 50
+  result <- fabric_pbi_refresh_wait(
+    status,
+    timeout = 20,
+    .now = function() now,
+    .sleep = function(seconds) {
+      slept <<- c(slept, seconds)
+      now <<- now + seconds
+    }
+  )
+  expect_equal(slept, 10)
+  expect_identical(calls, 2L)
+  expect_identical(result$state, "Completed")
+  expect_null(result$refresh$next_poll_at)
+})
+
 test_that("wait sleeps only the unelapsed submission Retry-After", {
   requested <- 0L
   slept <- numeric()
