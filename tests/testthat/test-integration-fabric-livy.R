@@ -92,6 +92,7 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   pending$wait(timeout = 300, poll_interval = 2)
   assignment <- pending$result()
   expect_equal(assignment$output$status, "ok")
+  session$wait(timeout = 300, poll_interval = 2)
   again <- session$run("print(fabricqueryr_shared_value)", kind = "pyspark")
   expect_match(paste(again$output$parsed, collapse = "\n"), "40")
 
