@@ -967,7 +967,7 @@ fabric_lakehouse_write_table <- function(
         detail_url <- paste0(
           catalog_url,
           "/tables/",
-          utils::URLencode(full_name, reserved = TRUE)
+          utils::URLencode(full_name, reserved = TRUE, repeated = TRUE)
         )
         detail_record <- tryCatch(
           .httr2_json(

@@ -471,7 +471,7 @@ fabric_warehouse_table <- function(
     httr2::request(paste0(
       .fabric_onelake_catalog_url(context),
       "/tables/",
-      utils::URLencode(full_name, reserved = TRUE)
+      utils::URLencode(full_name, reserved = TRUE, repeated = TRUE)
     )),
     catalog_name = context$item_id,
     schema_name = table_target$schema

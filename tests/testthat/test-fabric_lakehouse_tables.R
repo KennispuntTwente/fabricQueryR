@@ -56,6 +56,45 @@ test_that("Lakehouse schema discovery follows OneLake metadata pages", {
   expect_equal(audiences, rep(.fabric_audience$storage, 2L))
 })
 
+test_that("Lakehouse metadata encodes percent sequences literally", {
+  urls <- character()
+  record <- list(
+    name = "orders%20archive",
+    schema_name = "dbo",
+    columns = list()
+  )
+  httr2::local_mocked_responses(function(req) {
+    urls <<- c(urls, req$url)
+    body <- if (grepl("api.fabric.microsoft.com", req$url, fixed = TRUE)) {
+      list(data = list(list(name = record$name, format = "Delta")))
+    } else if (grepl("/tables?", req$url, fixed = TRUE)) {
+      list(tables = list(record))
+    } else {
+      record
+    }
+    lakehouse_table_test_response(body, url = req$url)
+  })
+  singular <- fabric_lakehouse_table(
+    lakehouse_table_test_item(),
+    record$name,
+    schema = "dbo",
+    token = "test-token"
+  )
+  plural <- fabric_lakehouse_tables(
+    lakehouse_table_test_item(),
+    schema = "dbo",
+    token = function(...) "test-token"
+  )
+  expect_identical(singular$name, record$name)
+  expect_identical(plural$name, record$name)
+  details <- urls[grepl("/tables/", urls, fixed = TRUE)]
+  expect_length(details, 2L)
+  expect_identical(
+    all(grepl("orders%2520archive", details, fixed = TRUE)),
+    TRUE
+  )
+})
+
 test_that("Lakehouse singular discovery merges Fabric and OneLake metadata", {
   calls <- character()
   audiences <- character()
