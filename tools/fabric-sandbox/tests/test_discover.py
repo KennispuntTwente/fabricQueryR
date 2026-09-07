@@ -27,8 +27,11 @@ class FakeFabricApi:
     def __exit__(self, *_args):
         return None
 
-    def find_item(self, _workspace_id, display_name, item_type):
+    def find_item(self, _workspace_id, display_name, item_type, *, required=True):
         self.found.append((display_name, item_type))
+        if item_type == "SQLDatabase" and getattr(self, "missing_sql_database", False):
+            assert not required
+            return None
         return {
             "id": f"{display_name}-id",
             "displayName": display_name,
@@ -339,10 +342,12 @@ def test_jobs_discovery_uses_only_job_items_and_scoped_revision(
 
 
 @pytest.mark.parametrize("provision_sql_database", [True, False])
+@pytest.mark.parametrize("missing_sql_database", [True, False])
 def test_discover_requires_and_serializes_all_targets(
     monkeypatch,
     tmp_path,
     provision_sql_database,
+    missing_sql_database,
 ):
     settings = SandboxSettings(
         workspace_id="workspace-id",
@@ -356,6 +361,7 @@ def test_discover_requires_and_serializes_all_targets(
         provision_sql_database=provision_sql_database,
     )
     fabric_api = FakeFabricApi()
+    fabric_api.missing_sql_database = missing_sql_database
     monkeypatch.setattr(
         "fabricqueryr_sandbox.discover.FabricApi",
         lambda _credential: fabric_api,
@@ -406,7 +412,7 @@ def test_discover_requires_and_serializes_all_targets(
         "TestArrowSemanticModel",
         "TestGraphQL",
     }
-    if provision_sql_database:
+    if provision_sql_database and not missing_sql_database:
         expected_items.add("TestSQLDatabase")
     assert set(manifest.items) == expected_items
     assert manifest.items["JobFixtures"] == {
@@ -482,7 +488,7 @@ def test_discover_requires_and_serializes_all_targets(
         "views": {"types": "fabricqueryr_sql_types_view"},
     }
     assert manifest.items.get("TestSQLDatabase") == (
-        expected_sql_database if provision_sql_database else None
+        expected_sql_database if provision_sql_database and not missing_sql_database else None
     )
     assert (("TestSQLDatabase", "SQLDatabase") in fabric_api.found) is (
         provision_sql_database

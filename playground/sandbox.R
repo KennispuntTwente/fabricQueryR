@@ -74,7 +74,12 @@ playground_item_type <- function(item) {
 }
 
 # Resolve required fixtures by the display-name and item-type pair
-playground_resolve_targets <- function(items, target_names, target_types) {
+playground_resolve_targets <- function(
+  items,
+  target_names,
+  target_types,
+  optional = character()
+) {
   if (!identical(names(target_names), names(target_types))) {
     cli::cli_abort("Playground target names and types must use the same keys")
   }
@@ -91,6 +96,9 @@ playground_resolve_targets <- function(items, target_names, target_types) {
     matches <- item_names == unname(target_names)[[index]] &
       item_types == unname(target_types)[[index]]
     count <- sum(matches)
+    if (count == 0L && names(target_names)[[index]] %in% optional) {
+      next
+    }
     if (count != 1L) {
       cli::cli_abort(c(
         "Could not resolve a required persistent sandbox item",
@@ -272,7 +280,12 @@ connect_playground_sandbox <- function(
     pipeline = "DataPipeline",
     spark_job = "SparkJobDefinition"
   )
-  targets <- playground_resolve_targets(items, target_names, target_types)
+  targets <- playground_resolve_targets(
+    items,
+    target_names,
+    target_types,
+    optional = "sql_database"
+  )
   names(items) <- make.unique(paste(item_types, item_names, sep = ":"))
 
   livy_authentication <- if (fabric_local_uses_client_credentials(auth_args)) {

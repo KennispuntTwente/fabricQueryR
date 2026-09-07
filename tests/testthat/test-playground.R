@@ -132,6 +132,15 @@ test_that("playground targets allow names shared by different item types", {
       kql_database = "kql"
     )
   )
+  optional <- environment$playground_resolve_targets(
+    items,
+    c(target_names, sql_database = "TestSQLDatabase"),
+    c(target_types, sql_database = "SQLDatabase"),
+    optional = "sql_database"
+  )
+  expect_named(optional, c(names(targets), "sql_database"))
+  expect_null(optional$sql_database)
+  expect_identical(optional[names(targets)], targets)
 
   ambiguous <- c(
     items,

@@ -201,14 +201,17 @@ class FabricApi:
         ).json()
 
     def find_item(
-        self, workspace_id: str, display_name: str, item_type: str
-    ) -> dict[str, Any]:
+        self, workspace_id: str, display_name: str, item_type: str,
+        *, required: bool = True,
+    ) -> dict[str, Any] | None:
         matches = [
             item
             for item in self.list_items(workspace_id)
             if item.get("displayName") == display_name
             and item.get("type") == item_type
         ]
+        if not matches and not required:
+            return None
         if len(matches) != 1:
             raise RuntimeError(
                 f"expected one {item_type} named {display_name!r}, found {len(matches)}"

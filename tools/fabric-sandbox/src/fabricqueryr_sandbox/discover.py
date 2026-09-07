@@ -438,7 +438,7 @@ def discover(settings: SandboxSettings) -> SandboxManifest:
         sql_database_item = None
         if settings.provision_sql_database:
             sql_database_item = api.find_item(
-                workspace_id, "TestSQLDatabase", "SQLDatabase"
+                workspace_id, "TestSQLDatabase", "SQLDatabase", required=False
             )
         mirrored_database_item = api.find_item(
             workspace_id,
