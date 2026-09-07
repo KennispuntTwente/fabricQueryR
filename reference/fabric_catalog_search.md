@@ -84,7 +84,11 @@ With `output = "r6"`, a list of
 objects or type-specific subclasses. With `output = "list"`, a list of
 `fabric_catalog_entry` records that also inherit from `fabric_item`.
 Both representations preserve the fields returned by Fabric and add the
-item workspace identity from the catalog hierarchy.
+item workspace identity from the catalog hierarchy. Workspace entries
+returned by unfiltered browsing become
+[FabricWorkspace](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+objects, or `fabric_catalog_entry` records inheriting
+`fabric_workspace`.
 
 ## Details
 

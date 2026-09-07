@@ -191,10 +191,16 @@ tibble:</p>
 <span>    <span class="st">"WHERE order_date &gt;= ?"</span>,</span>
 <span>    <span class="st">"ORDER BY order_date DESC"</span></span>
 <span>  <span class="op">)</span>,</span>
-<span>  params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2026-01-01"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2026-01-01"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="st">"driver"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">recent_orders</span><span class="op">)</span></span></code></pre></div>
+<p>This example explicitly accepts ODBC’s numeric conversion, which can
+lose precision. The default <code>numeric_policy = "exact"</code>
+rejects ODBC results with INT, BIGINT, DECIMAL, or NUMERIC columns. Use
+<code>backend = "adbc"</code> with the default exact policy to preserve
+numeric precision.</p>
 <p>Put changing values in <code>params</code> rather than pasting them
 into the SQL text. This handles quoting safely. Use
 <code>$sql_connect()</code> (<code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>) and
@@ -206,6 +212,7 @@ connection:</p>
 <span></span>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
 <span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT TOP 100 * FROM dbo.orders"</span><span class="op">)</span></span></code></pre></div>
+<p>Direct ‘DBI’ reads use the driver’s numeric conversion.</p>
 <p>The default SQL backend uses Microsoft ODBC Driver 18 for SQL Server.
 See <code><a href="../reference/fabric_sql_connect.html">?fabric_sql_connect</a></code> for the ODBC and ADBC setup
 choices.</p>

@@ -127,7 +127,9 @@ specifically required</p></dd>
 type-specific subclasses. With <code>output = "list"</code>, a list of
 <code>fabric_catalog_entry</code> records that also inherit from <code>fabric_item</code>. Both
 representations preserve the fields returned by Fabric and add the item
-workspace identity from the catalog hierarchy.</p>
+workspace identity from the catalog hierarchy.
+Workspace entries returned by unfiltered browsing become <a href="FabricItem.html">FabricWorkspace</a>
+objects, or <code>fabric_catalog_entry</code> records inheriting <code>fabric_workspace</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

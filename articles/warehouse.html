@@ -88,8 +88,14 @@ need to find or copy that address from the Fabric portal.</p>
 (<code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code>):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">sql_query</span><span class="op">(</span></span>
-<span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span></span>
+<span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="st">"driver"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>This example explicitly accepts ODBC’s numeric conversion, which can
+lose precision. The default <code>numeric_policy = "exact"</code>
+rejects ODBC results with INT, BIGINT, DECIMAL, or NUMERIC columns. Use
+<code>backend = "adbc"</code> with the default exact policy when numeric
+precision must be preserved.</p>
 <p>The method opens and closes the SQL connection for you. If you want
 to run several commands with ‘DBI’, use <code>$sql_connect()</code>
 (<code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>):</p>
@@ -98,6 +104,7 @@ to run several commands with ‘DBI’, use <code>$sql_connect()</code>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span><span class="op">)</span></span>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span></code></pre></div>
+<p>Direct ‘DBI’ reads use the driver’s numeric conversion.</p>
 <p>For a simple read, <code>$read_table()</code>
 (<code><a href="../reference/fabric_warehouse_read_table.html">fabric_warehouse_read_table()</a></code>) lets you name a table and
 optionally select columns or limit the rows, without writing SQL. It
