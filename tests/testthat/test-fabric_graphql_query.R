@@ -1,10 +1,3 @@
-graphql_request_body <- function(request) {
-  jsonlite::fromJSON(
-    rawToChar(request$body$data),
-    simplifyVector = FALSE
-  )
-}
-
 test_that("GraphQL endpoints resolve from URLs, IDs, and discovery records", {
   workspace_id <- "cfafbeb1-8037-4d0c-896e-a46fb27ff229"
   api_id <- "5b218778-e7a5-4d73-8187-f10824047715"
