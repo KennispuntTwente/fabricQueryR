@@ -1131,7 +1131,11 @@ kusto_parse_response <- function(
         )
       }
       key <- kusto_progressive_table_key(frame, type, tables, completed)
-      field_count <- kusto_require_count(frame, "FieldCount", type)
+      field_count <- if (!"FieldCount" %in% names(frame)) {
+        length(tables[[key]]$Columns)
+      } else {
+        kusto_require_count(frame, "FieldCount", type)
+      }
 
       if (field_count != length(tables[[key]]$Columns)) {
         kusto_abort_malformed(paste0(

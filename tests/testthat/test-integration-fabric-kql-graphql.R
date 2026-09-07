@@ -2,6 +2,19 @@
 # The tests query seeded Eventhouse and Warehouse data in the live sandbox,
 # covering types, parameters, pagination, mutations, and service errors
 
+test_that("progressive Kusto queries assemble live table fragments", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  result <- fabric_kql_query(
+    database$query_service_uri,
+    database = database$database_name,
+    query = "datatable(value:int)[1,2,3]",
+    request_properties = list(results_progressive_enabled = TRUE),
+    token = fabric_test_token_provider()
+  )
+  expect_identical(result$value, 1:3)
+})
+
 test_that("fabric_kql_query returns typed seeded Eventhouse data", {
   manifest <- fabric_test_manifest()
   database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")

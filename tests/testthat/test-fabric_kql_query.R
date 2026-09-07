@@ -958,6 +958,13 @@ test_that("multiple and progressive Kusto primary tables are assembled", {
   expect_named(result, c("First", "Second"))
   expect_equal(result$First$value, 3L)
   expect_equal(result$Second$label, "done")
+  frames[[3L]]$FieldCount <- NULL
+  frames[[4L]]$FieldCount <- NULL
+  expect_equal(kusto_parse_response(frames), result)
+  frames[[3L]]$Rows <- list(list(1L, 2L))
+  error <- rlang::catch_cnd(kusto_parse_response(frames))
+  expect_s3_class(error, "fabric_kql_protocol_error")
+  expect_match(conditionMessage(error), "row width")
 })
 
 test_that("Kusto completion, cancellation, malformed, and HTTP errors fail", {
