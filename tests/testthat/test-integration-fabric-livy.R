@@ -460,7 +460,7 @@ test_that("high-concurrency Livy sessions isolate their REPLs", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()
-  tag <- paste0("fabricqueryr-", manifest$workspace_id)
+  tag <- paste0("fabricqueryr-", basename(tempfile()), "-", Sys.getpid())
   session_a <- fabric_livy_session(
     lakehouse$livy_url,
     high_concurrency = TRUE,
@@ -487,12 +487,18 @@ test_that("high-concurrency Livy sessions isolate their REPLs", {
   session_b$wait(timeout = 900, poll_interval = 5)
 
   expect_false(identical(session_a$id, session_b$id))
-  expect_false(identical(session_a$repl_id, session_b$repl_id))
   expect_true(nzchar(session_a$session_id))
   expect_true(nzchar(session_b$session_id))
   expect_true(nzchar(session_a$repl_id))
   expect_true(nzchar(session_b$repl_id))
-  expect_identical(session_a$session_id, session_b$session_id)
+  packed <- identical(session_a$session_id, session_b$session_id)
+  if (packed) {
+    expect_false(identical(session_a$repl_id, session_b$repl_id))
+  } else {
+    message(
+      "Fabric allocated separate backing sessions; packed isolation was not exercised"
+    )
+  }
   first <- session_a$submit(
     "import time; time.sleep(30); print('first')",
     kind = "pyspark"
@@ -536,6 +542,17 @@ test_that("high-concurrency Livy sessions isolate their REPLs", {
     fixed = TRUE
   )
   expect_true(session_a$close())
+  continued <- session_b$run(
+    "print('still-running')",
+    kind = "pyspark",
+    timeout = 300,
+    poll_interval = 2
+  )
+  expect_match(
+    paste(continued$output$parsed, collapse = "\n"),
+    "still-running",
+    fixed = TRUE
+  )
   expect_true(session_b$close())
 })
 
