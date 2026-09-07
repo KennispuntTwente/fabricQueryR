@@ -262,6 +262,13 @@ after a timeout, so that session may already be closed. The kind-specific `sessi
 `batch` field contains safe metadata for logging; after serialization, a handle
 intentionally no longer carries its credential.
 
+Livy SQL results have a service-side row limit. The Fabric sandbox returned
+1,000 rows for `SELECT * FROM range(1001)` on 7 September 2026, with a
+`truncated` flag. The package raises `fabric_livy_partial_error` for that flag
+and retains the returned rows in `partial_data`. The limit can vary by service
+configuration. Use bounded queries or write large results to OneLake and read
+them through the table/file APIs for complete extraction.
+
 ## Use an Environment for repeatable configuration
 
 A published Fabric Environment can hold Spark settings and libraries shared by

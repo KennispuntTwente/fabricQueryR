@@ -1372,7 +1372,15 @@ fabric_livy_parse_sql_json <- function(value) {
       type = if (is.list(field)) field$type else NULL
     )
   })
-  fabric_livy_parse_table(list(headers = headers, data = value$data))
+  out <- fabric_livy_parse_table(list(headers = headers, data = value$data))
+  if (isTRUE(value$truncated)) {
+    .fabric_abort(
+      "Livy truncated the Spark SQL result. Use a bounded query or export the data to OneLake for a complete extraction.",
+      class = "fabric_livy_partial_error",
+      partial_data = out
+    )
+  }
+  out
 }
 
 # Convert a Livy table object into a tibble. Returns typed columns plus the Spark

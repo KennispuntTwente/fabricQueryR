@@ -39,6 +39,22 @@ test_that("Livy SQL timestamps preserve instants in non-UTC sessions", {
   expect_identical(binary$output$parsed$bytes, list(as.raw(c(0, 255, 128))))
   expect_identical(binary$output$parsed$empty_bytes, list(raw()))
   expect_identical(binary$output$parsed$missing_bytes, list(NULL))
+  count <- session$run(
+    "SELECT COUNT(*) AS n FROM range(1001)",
+    kind = "sql",
+    timeout = 300
+  )
+  expect_equal(as.numeric(count$output$parsed$n), 1001)
+  rows <- tryCatch(
+    session$run("SELECT * FROM range(1001)", kind = "sql", timeout = 300),
+    error = identity
+  )
+  if (inherits(rows, "fabric_livy_partial_error")) {
+    expect_gt(nrow(rows$partial_data), 0L)
+    expect_lt(nrow(rows$partial_data), 1001L)
+  } else {
+    expect_equal(nrow(rows$output$parsed), 1001L)
+  }
 })
 
 test_that("fabric_livy_query executes Spark and returns its output", {

@@ -1,3 +1,19 @@
+test_that("Livy reports SQL truncation with inspectable partial data", {
+  value <- list(
+    schema = list(
+      type = "struct",
+      fields = list(list(name = "id", type = "int"))
+    ),
+    data = list(list(1L)),
+    truncated = TRUE
+  )
+  error <- rlang::catch_cnd(fabric_livy_parse_sql_json(value))
+  expect_s3_class(error, "fabric_livy_partial_error")
+  expect_identical(error$partial_data$id, 1L)
+  value$truncated <- FALSE
+  expect_identical(fabric_livy_parse_sql_json(value)$id, 1L)
+})
+
 test_that("Livy decodes signed binary arrays including empty and NULL values", {
   expect_identical(
     fabric_livy_convert_column(
