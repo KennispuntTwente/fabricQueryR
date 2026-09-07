@@ -231,6 +231,12 @@ path, asks Fabric to perform a managed Delta load, waits for completion,
 and cleans up after confirmed success. Fabric can infer a missing
 table’s schema. Use Spark or a separately schema-controlled process when
 inference is not suitable.</p>
+<p>Column names are preserved exactly. The managed load endpoint
+accepted precomposed <code>caf\u00e9</code> but rejected decomposed
+<code>e\u0301</code> and connector punctuation in <code>x\u203fy</code>
+in the Fabric sandbox on 7 September 2026. This conflicts with the <a href="https://learn.microsoft.com/en-us/fabric/data-engineering/troubleshoot-lakehouse#delta-table-schema-errors" class="external-link">documented
+Unicode categories</a>. The package rejects those names before staging;
+explicitly normalize or rename them in your data if necessary.</p>
 </div>
 <div class="section level2">
 <h2 id="turn-existing-files-into-a-table">Turn existing files into a table<a class="anchor" aria-label="anchor" href="#turn-existing-files-into-a-table"></a>

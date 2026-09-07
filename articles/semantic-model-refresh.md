@@ -111,7 +111,7 @@ load <- lakehouse$write_table(
   mode = "overwrite"
 )
 
-refresh <- model$refresh(mode = "enhanced")
+refresh <- model$refresh(mode = "enhanced", type = "Full")
 completed <- model$refresh_wait(
   refresh,
   timeout = 1800,
@@ -123,6 +123,13 @@ Client-side `timeout` in `$refresh_wait()`
 ([`fabric_pbi_refresh_wait()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.md))
 only bounds how long R waits. Without `cancel_on_timeout = TRUE`, the
 Power BI refresh keeps running.
+
+Use `type = "Full"` to re-import updated source data and recalculate the
+model. Enhanced refresh defaults to `"Automatic"`, which processes
+partitions whose state is not Ready; a previously processed Import model
+can remain unchanged after its source data changes. See Microsoft’s
+[processing-type
+definitions](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#datasetrefreshtype).
 
 ## Use enhanced refresh controls
 

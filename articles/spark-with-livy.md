@@ -273,11 +273,23 @@ free-function wrappers.
 
 If a session, statement, or batch wait times out, the
 `fabric_livy_timeout_error` condition keeps the exact live object in its
-`handle` field. You can inspect `$status()` or request `$cancel()`
-through that handle in the current R process. The kind-specific
+`handle` field. You can inspect `$status()` through that handle in the
+current R process. Use `$close()` for a session and `$cancel()` for a
+statement or batch.
+[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md)
+attempts to close its temporary session on exit, including after a
+timeout, so that session may already be closed. The kind-specific
 `session`, `statement`, or `batch` field contains safe metadata for
 logging; after serialization, a handle intentionally no longer carries
 its credential.
+
+Livy SQL results have a service-side row limit. The Fabric sandbox
+returned 1,000 rows for `SELECT * FROM range(1001)` on 7 September 2026,
+with a `truncated` flag. The package raises `fabric_livy_partial_error`
+for that flag and retains the returned rows in `partial_data`. The limit
+can vary by service configuration. Use bounded queries or write large
+results to OneLake and read them through the table/file APIs for
+complete extraction.
 
 ## Use an Environment for repeatable configuration
 
