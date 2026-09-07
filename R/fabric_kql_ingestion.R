@@ -4303,13 +4303,13 @@ kusto_export_validate_decimal_schema <- function(
     if (
       !is.character(names) ||
         anyNA(names) ||
-        any(!nzchar(names)) ||
+        !all(nzchar(names)) ||
         !is.character(types) ||
         anyNA(types) ||
         !is.character(storage_types) ||
         anyNA(storage_types) ||
-        any(!nzchar(storage_types)) ||
-        any(!types %in% scalar_types)
+        !all(nzchar(storage_types)) ||
+        !all(types %in% scalar_types)
     ) {
       schema_error()
     }

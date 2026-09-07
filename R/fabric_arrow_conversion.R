@@ -102,7 +102,7 @@
   } else {
     logical()
   }
-  if (identical(logical_schema$format, "+s") && any(!valid)) {
+  if (identical(logical_schema$format, "+s") && !all(valid)) {
     column <- if (length(path)) paste(path, collapse = ".") else "<rows>"
     .fabric_abort(
       c(
@@ -124,7 +124,7 @@
       arrow_column = column
     )
   }
-  if (length(valid) && any(!valid)) {
+  if (length(valid) && !all(valid)) {
     rows <- rows[valid]
   }
   if (!length(rows)) {
@@ -252,7 +252,7 @@
           -1L
         }
       )
-      if (any(!validity) && !child_is_null) {
+      if (!all(validity) && !child_is_null) {
         child_validity <- nanoarrow::convert_buffer(
           child$buffers[[1L]],
           logical()
