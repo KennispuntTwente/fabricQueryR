@@ -950,6 +950,75 @@ test_that("Warehouse writes and projections preserve case-distinct columns", {
     }
   }
 })
+test_that("Warehouse CTAS and COPY preserve unsigned integer ranges", {
+  manifest <- fabric_test_manifest()
+  fabric_test_require_package("arrow")
+  token <- fabric_test_token_provider()
+  warehouse <- fabric_item(
+    manifest$workspace_id,
+    fabric_test_manifest_item(manifest, "TestWarehouse")$id,
+    type = "Warehouse",
+    token = token
+  )
+  lake <- fabric_item(
+    manifest$workspace_id,
+    fabric_test_manifest_item(manifest, "TestLakehouse")$id,
+    type = "Lakehouse",
+    token = token
+  )
+  con <- fabric_sql_connect(warehouse, token = token, verbose = FALSE)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  table <- paste0("fabricqueryr_unsigned_", Sys.getpid())
+  sql <- paste0("[dbo].[", table, "]")
+  on.exit(
+    DBI::dbExecute(con, paste("DROP TABLE IF EXISTS", sql)),
+    add = TRUE,
+    after = FALSE
+  )
+  types <- list(
+    arrow::uint8(),
+    arrow::uint16(),
+    arrow::uint32(),
+    arrow::uint64()
+  )
+  maxima <- c("255", "65535", "4294967295", "18446744073709551615")
+  columns <- lapply(seq_along(types), function(i) {
+    arrow::Array$create(c("0", maxima[[i]], NA))$cast(types[[i]])
+  })
+  names(columns) <- paste0("u", c(8, 16, 32, 64))
+  data <- do.call(arrow::Table$create, columns)
+  for (operation in c("create", "copy", "drop")) {
+    result <- fabric_warehouse_write_table(
+      warehouse,
+      table,
+      data,
+      staging_lakehouse = lake,
+      create_if_missing = TRUE,
+      mode = if (operation == "drop") "Overwrite" else "Append",
+      overwrite_method = "Drop",
+      token = token,
+      verbose = FALSE
+    )
+    expect_equal(result$rows, 3)
+    rows <- DBI::dbGetQuery(
+      con,
+      paste0(
+        "SELECT CONVERT(varchar(30), MAX(u8)) AS u8, CONVERT(varchar(30), MAX(u16)) AS u16, ",
+        "CONVERT(varchar(30), MAX(u32)) AS u32, CONVERT(varchar(30), MAX(u64)) AS u64 FROM ",
+        sql
+      )
+    )
+    expect_identical(unname(unlist(rows)), maxima)
+    counts <- DBI::dbGetQuery(
+      con,
+      paste0("SELECT COUNT(*) AS n, COUNT(u8) AS present FROM ", sql)
+    )
+    multiplier <- if (operation == "copy") 2 else 1
+    expect_equal(as.numeric(counts$n), 3 * multiplier)
+    expect_equal(as.numeric(counts$present), 2 * multiplier)
+  }
+})
+
 test_that("Warehouse CTAS and COPY preserve timezone-free timestamps as datetime2", {
   manifest <- fabric_test_manifest()
   fabric_test_require_package("arrow")

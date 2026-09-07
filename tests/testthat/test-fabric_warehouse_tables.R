@@ -1008,6 +1008,47 @@ test_that("Warehouse writer validates destinations before network I/O", {
   )
   expect_equal(calls, 0L)
 })
+test_that("Warehouse staging preserves unsigned integer ranges in supported types", {
+  skip_if_not_installed("arrow")
+  types <- list(
+    arrow::uint8(),
+    arrow::uint16(),
+    arrow::uint32(),
+    arrow::uint64()
+  )
+  maxima <- c("255", "65535", "4294967295", "18446744073709551615")
+  for (type in list(
+    arrow::duration("us"),
+    arrow::time64("ns"),
+    arrow::decimal256(40, 0)
+  )) {
+    data <- arrow::Table$create(schema = arrow::schema(value = type))
+    error <- rlang::catch_cnd(.fabric_warehouse_prepare_data(data))
+    expect_s3_class(error, "fabric_warehouse_arrow_error")
+  }
+  for (i in seq_along(types)) {
+    values <- c("0", maxima[[i]], NA)
+    data <- arrow::Table$create(
+      value = arrow::Array$create(values)$cast(types[[i]])
+    )
+    prepared <- .fabric_warehouse_prepare_data(data)
+    path <- withr::local_tempfile(fileext = ".parquet")
+    .fabric_parquet_write_stream(
+      prepared,
+      path,
+      "snappy",
+      "test",
+      "fabric_arrow_error"
+    )
+    decoded <- arrow::read_parquet(path, as_data_frame = FALSE)
+    expect_identical(
+      decoded$schema$fields[[1L]]$type$ToString(),
+      c("int16", "uint16", "uint32", "uint64")[[i]]
+    )
+    expect_identical(decoded$value$cast(arrow::utf8())$as_vector(), values)
+  }
+})
+
 test_that("Warehouse staging normalizes timestamp annotations without rounding", {
   skip_if_not_installed("arrow")
   columns <- lapply(c("s", "ms", "us"), function(unit) {

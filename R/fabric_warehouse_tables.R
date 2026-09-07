@@ -1022,6 +1022,31 @@ fabric_warehouse_write_table <- function(
     }
   )
   fields <- prepared$schema$fields
+  for (field in fields) {
+    type <- field$type
+    unsupported <- inherits(type, c("DurationType", "IntervalType")) ||
+      (inherits(type, "Time64") && type$unit() == arrow::TimeUnit$NANO) ||
+      (inherits(type, "DecimalType") && type$precision() > 38L)
+    if (unsupported) {
+      .fabric_abort(
+        paste0(
+          "Warehouse column `",
+          field$name,
+          "` has unsupported Arrow type ",
+          type$ToString(),
+          ". Explicitly cast it to a supported type before writing."
+        ),
+        class = c("fabric_warehouse_arrow_error", "fabric_warehouse_error")
+      )
+    }
+  }
+  unsigned_bytes <- vapply(
+    fields,
+    function(field) {
+      identical(field$type$ToString(), "uint8")
+    },
+    logical(1)
+  )
   timestamps <- vapply(
     fields,
     function(field) {
@@ -1029,7 +1054,7 @@ fabric_warehouse_write_table <- function(
     },
     logical(1)
   )
-  if (!any(timestamps)) {
+  if (!any(timestamps) && !any(unsigned_bytes)) {
     return(prepared)
   }
   for (field in fields[timestamps]) {
@@ -1055,6 +1080,14 @@ fabric_warehouse_write_table <- function(
       arguments$metadata <- field$metadata
     }
     do.call(arrow::field, arguments)
+  })
+  fields[unsigned_bytes] <- lapply(fields[unsigned_bytes], function(field) {
+    arrow::field(
+      field$name,
+      arrow::int16(),
+      nullable = field$nullable,
+      metadata = field$metadata
+    )
   })
   schema <- do.call(arrow::schema, fields)
   prepared$schema <- schema$WithMetadata(prepared$schema$metadata)
