@@ -2,6 +2,31 @@
 # These tests use the sandbox model to check target resolution, typed query
 # results, and the Arrow-based query path used for efficient data transfer
 
+test_that("post-load Full refresh imports a changed source marker", {
+  manifest <- fabric_test_manifest()
+  model <- fabric_test_marker_model(
+    manifest$workspace_id,
+    fabric_test_token_provider()
+  )
+  read_marker <- function() {
+    model$dax_query("EVALUATE 'Marker'")[[1L]][[1L]]
+  }
+  model$refresh_wait(
+    model$refresh(mode = "enhanced", type = "Full"),
+    timeout = 600
+  )
+  before <- read_marker()
+  Sys.sleep(2)
+  model$refresh_wait(
+    model$refresh(mode = "enhanced", type = "Full"),
+    timeout = 600
+  )
+  after <- read_marker()
+  expect_type(before, "character")
+  expect_length(before, 1L)
+  expect_false(identical(after, before))
+})
+
 test_that("JSON DAX queries retain Boolean Variant values", {
   manifest <- fabric_test_manifest()
   model <- fabric_test_manifest_item(manifest, "TestArrowSemanticModel")
