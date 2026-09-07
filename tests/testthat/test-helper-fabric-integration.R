@@ -1,4 +1,5 @@
 test_that("required Fabric integration mode fails instead of skipping", {
+  withr::local_options(fabricQueryR.integration_token_provider = NULL)
   old_required <- Sys.getenv("FABRIC_INTEGRATION_REQUIRED", unset = NA)
   old_manifest <- Sys.getenv("FABRIC_TEST_MANIFEST", unset = NA)
   old_token <- Sys.getenv("FABRICQUERYR_TEST_MISSING_TOKEN", unset = NA)
