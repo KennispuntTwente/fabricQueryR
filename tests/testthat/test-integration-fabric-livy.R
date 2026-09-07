@@ -2,6 +2,34 @@
 # These tests use the sandbox lakehouse to exercise one-off queries, reusable
 # sessions, concurrent sessions, and batch success, failure, and cancellation
 
+test_that("Livy SQL timestamps preserve instants in non-UTC sessions", {
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  auth <- fabric_test_azure_auth_config()
+  session <- do.call(
+    fabric_livy_session,
+    c(
+      list(
+        livy_url = lakehouse$livy_url,
+        conf = list("spark.sql.session.timeZone" = "Europe/Amsterdam"),
+        verbose = FALSE
+      ),
+      auth
+    )
+  )
+  on.exit(try(session$close(), silent = TRUE), add = TRUE)
+  session$wait(timeout = 900, poll_interval = 5)
+  result <- session$run(
+    "SELECT TIMESTAMP '2026-09-07 12:30:00+02:00' AS zoned",
+    kind = "sql",
+    timeout = 300
+  )
+  expect_equal(
+    unname(result$output$parsed$zoned),
+    as.POSIXct("2026-09-07 10:30:00", tz = "UTC")
+  )
+})
+
 test_that("fabric_livy_query executes Spark and returns its output", {
   manifest <- fabric_test_manifest()
   lakehouse <- manifest$items$TestLakehouse

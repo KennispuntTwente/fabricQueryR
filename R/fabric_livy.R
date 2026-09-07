@@ -1614,27 +1614,32 @@ fabric_livy_convert_column <- function(values, type) {
         if (is.na(value)) {
           return(NA_real_)
         }
-        normalized <- sub(
-          "([+-][0-9]{2}):([0-9]{2})$",
-          "\\1\\2",
-          value,
-          perl = TRUE
+        pattern <- paste0(
+          "^[0-9]{4}-[0-9]{2}-[0-9]{2}[T ]",
+          "[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[.][0-9]+)?",
+          "(Z|[+-](?:[01][0-9]|2[0-3]):?[0-5][0-9])?$"
         )
-        formats <- c(
-          "%Y-%m-%dT%H:%M:%OSZ",
-          "%Y-%m-%dT%H:%M:%OS%z",
-          "%Y-%m-%d %H:%M:%OS"
-        )
-
-        for (format in formats) {
-          candidate <- suppressWarnings(as.POSIXct(
-            normalized,
-            format = format,
-            tz = "UTC"
-          ))
-          if (!is.na(candidate)) return(as.numeric(candidate))
+        if (!grepl(pattern, value, perl = TRUE)) {
+          return(NA_real_)
         }
-        NA_real_
+        zone <- regmatches(value, regexpr("(Z|[+-][0-9]{2}:?[0-9]{2})$", value))
+        normalized <- sub("(Z|[+-][0-9]{2}:?[0-9]{2})$", "", value)
+        normalized <- sub("T", " ", normalized, fixed = TRUE)
+        candidate <- suppressWarnings(as.POSIXct(
+          normalized,
+          format = "%Y-%m-%d %H:%M:%OS",
+          tz = "UTC"
+        ))
+        offset <- 0
+        if (length(zone) && zone != "Z") {
+          zone <- gsub(":", "", zone, fixed = TRUE)
+          offset <- (as.numeric(substr(zone, 2L, 3L)) *
+            60 +
+            as.numeric(substr(zone, 4L, 5L))) *
+            60
+          if (startsWith(zone, "-")) offset <- -offset
+        }
+        as.numeric(candidate) - offset
       },
       numeric(1)
     )

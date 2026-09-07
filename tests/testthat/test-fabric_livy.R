@@ -1,3 +1,31 @@
+test_that("Livy timestamps fully parse offsets with either date separator", {
+  values <- list(
+    "2026-09-07 12:30:00+02:00",
+    "2026-09-07T12:30:00+0200",
+    "2026-09-07 05:00:00-05:30",
+    "2026-09-07T10:30:00Z",
+    "2026-09-07 10:30:00",
+    NULL
+  )
+  expected <- as.POSIXct(c(rep("2026-09-07 10:30:00", 5L), NA), tz = "UTC")
+  expect_equal(
+    unname(fabric_livy_convert_column(values, "timestamp")),
+    expected
+  )
+  for (value in c(
+    "2026-09-07 12:30:00junk",
+    "2026-09-07 12:30:00+25:00",
+    "2026-09-07T12:30:00Zjunk"
+  )) {
+    error <- rlang::catch_cnd(fabric_livy_convert_column(
+      list(value),
+      "timestamp"
+    ))
+    expect_s3_class(error, "error")
+    expect_match(conditionMessage(error), "timestamp")
+  }
+})
+
 test_that("Livy selects identity-aware OAuth audiences", {
   required_delegated <- paste0(
     "https://api.fabric.microsoft.com/",
