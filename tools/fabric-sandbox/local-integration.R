@@ -434,10 +434,19 @@ fabric_local_sandbox_uses_env_tokens <- function(auth_args) {
 }
 
 fabric_local_test_scope <- function(filter) {
-  if (grepl("onelake", filter, ignore.case = TRUE)) {
+  files <- list.files(
+    file.path(.fabric_local_repository, "tests", "testthat"),
+    pattern = "^test-.*[.]R$"
+  )
+  tests <- sub("[.]R$", "", sub("^test-", "", files))
+  matched <- tests[grepl(filter, tests)]
+  if (!length(matched)) {
+    return("all")
+  }
+  if (all(grepl("^integration-fabric-onelake($|-)", matched))) {
     return("onelake")
   }
-  if (grepl("jobs", filter, ignore.case = TRUE)) {
+  if (all(matched == "integration-fabric-jobs")) {
     return("jobs")
   }
   "all"

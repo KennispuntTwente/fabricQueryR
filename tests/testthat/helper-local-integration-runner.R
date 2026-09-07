@@ -16,6 +16,7 @@ fabric_test_local_runner <- function() {
   }
   environment <- new.env(parent = globalenv())
   sys.source(runner, envir = environment)
+  environment$.fabric_local_repository <- root
   environment
 }
 

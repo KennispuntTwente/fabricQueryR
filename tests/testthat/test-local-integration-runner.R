@@ -386,6 +386,15 @@ test_that("local runner selects only the audiences needed by its filter", {
     environment$fabric_local_test_scope("integration-fabric-jobs"),
     "jobs"
   )
+  for (filter in c(
+    "integration-fabric-(jobs|sql)",
+    "integration-fabric-(onelake|kql-graphql)",
+    "integration-fabric-(jobs|onelake)",
+    "does-not-exist"
+  )) {
+    expect_identical(environment$fabric_local_test_scope(filter), "all")
+    expect_identical(environment$fabric_local_test_audiences(filter), all)
+  }
 })
 
 test_that("local runner builds exact selective deployment arguments", {
