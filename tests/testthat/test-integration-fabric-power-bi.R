@@ -27,6 +27,27 @@ test_that("post-load Full refresh imports a changed source marker", {
   expect_false(identical(after, before))
 })
 
+test_that("Power BI JSON row limits fail after HTTP success", {
+  manifest <- fabric_test_manifest()
+  model <- fabric_test_manifest_item(manifest, "TestArrowSemanticModel")
+  error <- tryCatch(
+    fabric_pbi_dax_query(
+      workspace_id = manifest$workspace_id,
+      dataset_id = model$id,
+      dax = "EVALUATE GENERATESERIES(1, 100001)",
+      token = fabric_test_token_provider()
+    ),
+    error = identity
+  )
+  expect_s3_class(error, "error")
+  expect_match(
+    conditionMessage(error),
+    "incomplete DAX query result",
+    fixed = TRUE
+  )
+  expect_match(conditionMessage(error), "DaxRowCountNotSupported", fixed = TRUE)
+})
+
 test_that("JSON DAX queries retain Boolean Variant values", {
   manifest <- fabric_test_manifest()
   model <- fabric_test_manifest_item(manifest, "TestArrowSemanticModel")
