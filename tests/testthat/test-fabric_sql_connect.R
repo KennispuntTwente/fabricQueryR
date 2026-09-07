@@ -1,3 +1,28 @@
+test_that("SQL catalogs prefer explicit fields over display names", {
+  record <- list(
+    id = "11111111-1111-1111-1111-111111111111",
+    type = "Warehouse",
+    displayName = "Friendly name",
+    sql_connection_string = "Server=example.datawarehouse.fabric.microsoft.com;Initial Catalog=actual_catalog"
+  )
+  expect_identical(
+    fabric_sql_connection_info(record)$database,
+    "actual_catalog"
+  )
+  expect_identical(
+    fabric_sql_connection_info(record, database = "caller")$database,
+    "caller"
+  )
+  record$sql_database <- "record_catalog"
+  expect_identical(
+    fabric_sql_connection_info(record)$database,
+    "record_catalog"
+  )
+  record$sql_database <- NULL
+  record$sql_connection_string <- "example.datawarehouse.fabric.microsoft.com"
+  expect_identical(fabric_sql_connection_info(record)$database, "Friendly name")
+})
+
 test_that("SQL connection info parses portal strings and bare endpoints", {
   full <- fabric_sql_connection_info(
     paste0(

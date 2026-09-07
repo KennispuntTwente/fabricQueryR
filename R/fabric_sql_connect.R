@@ -106,20 +106,6 @@ fabric_sql_connection_info <- function(
         "sql_database",
         "databaseName"
       )
-
-    # Fabric SQL workloads commonly use their item name as the database
-    if (
-      is.null(database) &&
-        discovered_type %in%
-          c(
-            "lakehouse",
-            "warehouse",
-            "warehousesnapshot",
-            "mirroreddatabase"
-          )
-    ) {
-      database <- fabric_record_value(record, "displayName")
-    }
   } else {
     server_value <- server
   }
@@ -128,6 +114,20 @@ fabric_sql_connection_info <- function(
   fabric_sql_scalar(server_value, "server")
   parsed <- fabric_parse_sql_connection_string(server_value)
   database <- database %||% parsed$database
+  # Use the display name only when no authoritative catalog is available.
+  if (
+    !is.null(record) &&
+      is.null(database) &&
+      discovered_type %in%
+        c(
+          "lakehouse",
+          "warehouse",
+          "warehousesnapshot",
+          "mirroreddatabase"
+        )
+  ) {
+    database <- fabric_record_value(record, "displayName")
+  }
   if (!is.null(database) && !nzchar(trimws(database))) {
     .fabric_abort(
       "database must be one non-empty character value when supplied",
