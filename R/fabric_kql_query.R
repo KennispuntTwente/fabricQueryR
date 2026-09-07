@@ -1082,6 +1082,7 @@ kusto_parse_response <- function(
   table_order <- character()
   progressive_tables <- character()
   completed <- character()
+  inline_errors <- list()
 
   table_indexes <- if (length(frames) > 2L) {
     seq.int(2L, length(frames) - 1L)
@@ -1093,6 +1094,19 @@ kusto_parse_response <- function(
   for (index in table_indexes) {
     frame <- frames[[index]]
     type <- frame_types[[index]]
+    if (type %in% c("DataTable", "TableFragment") && is.list(frame$Rows)) {
+      failures <- vapply(
+        frame$Rows,
+        function(row) {
+          is.list(row) && !is.null(names(row)) && "OneApiErrors" %in% names(row)
+        },
+        logical(1)
+      )
+      for (failure in frame$Rows[failures]) {
+        inline_errors <- c(inline_errors, failure$OneApiErrors)
+      }
+      frame$Rows <- frame$Rows[!failures]
+    }
 
     if (identical(type, "DataTable")) {
       # Complete tables carry their schema and rows in one frame
@@ -1218,6 +1232,10 @@ kusto_parse_response <- function(
     ))
   }
   completion <- frames[[length(frames)]]
+  if (length(inline_errors)) {
+    completion$HasErrors <- TRUE
+    completion$OneApiErrors <- c(completion$OneApiErrors, inline_errors)
+  }
 
   # 3 Convert result tables ------------------------------------------------------------------------
 

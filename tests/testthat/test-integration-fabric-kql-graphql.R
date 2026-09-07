@@ -2,6 +2,29 @@
 # The tests query seeded Eventhouse and Warehouse data in the live sandbox,
 # covering types, parameters, pagination, mutations, and service errors
 
+test_that("inline and deferred Kusto truncation retain typed partial results", {
+  manifest <- fabric_test_manifest()
+  database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")
+  for (deferred in c(FALSE, TRUE)) {
+    error <- rlang::catch_cnd(
+      fabric_kql_query(
+        database$query_service_uri,
+        database = database$database_name,
+        query = "datatable(value:int)[1,2,3]",
+        request_properties = list(
+          truncationmaxrecords = 1L,
+          deferpartialqueryfailures = deferred
+        ),
+        token = fabric_test_token_provider()
+      ),
+      classes = "error"
+    )
+    expect_s3_class(error, "fabric_kql_partial_error")
+    expect_identical(error$partial_data$value, 1L)
+    expect_match(conditionMessage(error), "E_QUERY_RESULT_SET_TOO_LARGE")
+  }
+})
+
 test_that("progressive Kusto queries assemble live table fragments", {
   manifest <- fabric_test_manifest()
   database <- fabric_test_manifest_item(manifest, "TestKQLDatabase")

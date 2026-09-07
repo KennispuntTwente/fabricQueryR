@@ -1078,6 +1078,59 @@ test_that("Kusto results retain auxiliary frames and correlation metadata", {
   expect_null(attr(kusto_parse_response(frames), "kusto_raw_frames"))
 })
 
+test_that("inline Kusto errors are separated from data before conversion", {
+  errors <- list(list(
+    code = "E_QUERY_RESULT_SET_TOO_LARGE",
+    message = "truncated"
+  ))
+  for (width in c(1L, 2L)) {
+    for (progressive in c(FALSE, TRUE)) {
+      table <- list(
+        FrameType = if (progressive) "TableHeader" else "DataTable",
+        TableId = 0L,
+        TableKind = "PrimaryResult",
+        TableName = "PrimaryResult",
+        Columns = lapply(seq_len(width), function(i) {
+          list(ColumnName = paste0("value", i), ColumnType = "int")
+        })
+      )
+      rows <- list(as.list(seq_len(width)), list(OneApiErrors = errors))
+      frames <- list(list(
+        FrameType = "DataSetHeader",
+        Version = "v2.0",
+        IsProgressive = progressive
+      ))
+      if (progressive) {
+        frames <- c(
+          frames,
+          list(
+            table,
+            list(
+              FrameType = "TableFragment",
+              TableId = 0L,
+              TableFragmentType = "DataAppend",
+              Rows = rows
+            ),
+            list(FrameType = "TableCompletion", TableId = 0L, RowCount = 1L)
+          )
+        )
+      } else {
+        table$Rows <- rows
+        frames <- c(frames, list(table))
+      }
+      frames <- c(frames, list(kusto_test_completion(TRUE)))
+      error <- rlang::catch_cnd(kusto_parse_response(
+        frames,
+        retain_raw_frames = TRUE
+      ))
+      expect_s3_class(error, "fabric_kql_partial_error")
+      expect_identical(error$partial_data$value1, 1L)
+      expect_identical(error$completion$OneApiErrors, errors)
+      expect_identical(error$raw_frames, frames)
+    }
+  }
+})
+
 test_that("Kusto partial failures retain returned data and diagnostics", {
   frames <- list(
     list(FrameType = "DataSetHeader", Version = "v2.0", IsProgressive = FALSE),
