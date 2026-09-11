@@ -96,10 +96,8 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     include = "DefaultIdentity",
     token = token
   )
-  expect_setequal(
-    purrr::map_chr(identity_items, "id"),
-    purrr::map_chr(items, "id")
-  )
+  # Independent list requests need not see the same extra workspace items.
+  # Check the stable manifest fixtures in both responses instead.
   expected_items <- c(
     "TestLakehouse",
     "SeedFixtures",
@@ -123,6 +121,9 @@ test_that("Fabric discovery resolves sandbox workspaces and item targets", {
     discovered <- find_item(items, expected$id)
     expect_equal(discovered$type, expected$type, info = name)
     expect_equal(discovered$displayName, expected$display_name, info = name)
+    identity_item <- find_item(identity_items, expected$id)
+    expect_equal(identity_item$type, expected$type, info = name)
+    expect_equal(identity_item$displayName, expected$display_name, info = name)
   }
 
   lakehouses <- fabric_lakehouses(workspace, token = token)
