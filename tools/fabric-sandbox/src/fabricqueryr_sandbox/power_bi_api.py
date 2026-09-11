@@ -166,11 +166,29 @@ class PowerBiApi:
         self, workspace_id: str
     ) -> dict[str, Any]:
         """Delete stale fixture copies and create exactly one fresh model."""
-        for dataset in self.find_datasets(
-            workspace_id, SEMANTIC_MODEL_NAME
-        ):
-            self.delete_dataset(workspace_id, dataset["id"])
-        return self.create_test_semantic_model(workspace_id)
+        for attempt in range(1, self.max_attempts + 1):
+            # A failed POST may still have created a dataset. Reconcile the
+            # dedicated fixture name before retrying the whole reset operation.
+            for dataset in self.find_datasets(
+                workspace_id, SEMANTIC_MODEL_NAME
+            ):
+                self.delete_dataset(workspace_id, dataset["id"])
+            try:
+                return self.create_test_semantic_model(workspace_id)
+            except httpx.HTTPStatusError as error:
+                if (
+                    error.response.status_code not in RETRYABLE_STATUS_CODES
+                    or attempt == self.max_attempts
+                ):
+                    raise
+                delay = self._retry_after(error.response, 5.0 * attempt)
+            except (httpx.ReadTimeout, httpx.ReadError):
+                if attempt == self.max_attempts:
+                    raise
+                delay = 5.0 * attempt
+            if delay > 0:
+                self.sleep(delay)
+        raise AssertionError("Power BI fixture reset ended without a dataset")
 
     def add_test_rows(self, workspace_id: str, dataset_id: str) -> None:
         self.request(

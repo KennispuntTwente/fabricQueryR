@@ -132,6 +132,71 @@ def test_semantic_model_fixture_reset_removes_all_stale_copies():
     ]
 
 
+@pytest.mark.parametrize("failure", [500, 503, "timeout"])
+def test_fixture_reset_reconciles_ambiguous_creation_before_retry(failure):
+    datasets = [{"id": "unrelated", "name": "Other"}]
+    attempts = 0
+    deleted = []
+    delays = []
+
+    def handler(request):
+        nonlocal attempts
+        if request.method == "GET":
+            return httpx.Response(200, json={"value": list(datasets)})
+        if request.method == "DELETE":
+            dataset_id = request.url.path.split("/")[-1]
+            deleted.append(dataset_id)
+            datasets[:] = [d for d in datasets if d["id"] != dataset_id]
+            return httpx.Response(200)
+        assert request.method == "POST"
+        attempts += 1
+        dataset = {"id": f"created-{attempts}", "name": SEMANTIC_MODEL_NAME}
+        datasets.append(dataset)
+        if attempts == 1:
+            if failure == "timeout":
+                raise httpx.ReadTimeout("response lost", request=request)
+            return httpx.Response(failure, headers={"Retry-After": "2"})
+        return httpx.Response(201, json=dataset)
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=delays.append,
+    ) as api:
+        dataset = api.reset_test_semantic_model("workspace-id")
+
+    assert dataset["id"] == "created-2"
+    assert deleted == ["created-1"]
+    assert [d["id"] for d in datasets] == ["unrelated", "created-2"]
+    assert delays == ([5.0] if failure == "timeout" else [2.0])
+
+
+@pytest.mark.parametrize("status, expected_attempts", [(500, 3), (400, 1), (403, 1)])
+def test_fixture_reset_bounds_retries_and_preserves_permanent_errors(
+    status, expected_attempts
+):
+    attempts = 0
+
+    def handler(request):
+        nonlocal attempts
+        if request.method == "GET":
+            return httpx.Response(200, json={"value": []})
+        attempts += 1
+        return httpx.Response(status)
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+        max_attempts=3,
+    ) as api:
+        with pytest.raises(httpx.HTTPStatusError) as error:
+            api.reset_test_semantic_model("workspace-id")
+
+    assert error.value.response.status_code == status
+    assert attempts == expected_attempts
+
+
 def test_arrow_semantic_model_fixture_is_refreshed_and_verified(monkeypatch):
     requests = []
     refresh_reads = 0
