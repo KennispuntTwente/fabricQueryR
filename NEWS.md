@@ -81,14 +81,6 @@ token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for
 SQL and Livy is deprecated.
 
-* `fabric_graphql_query()` and `fabric_graphql_paginate()` now preserve decimal
-and exponent response numbers as exact source text by default. Set
-`numeric_policy = "double"` for the previous ordinary-double behavior.
-
-* `fabric_function_invoke()`, `fabric_graphql_query()`, and Livy response
-decoding now preserve unsafe whole-number JSON tokens as exact character text,
-including the complete unsigned 64-bit range.
-
 * `fabric_pbi_dax_query()` now accepts discovered semantic models or direct IDs,
 can test results for a user under row-level security, and reports incomplete
 Power BI results instead of silently returning them. An optional Arrow mode
@@ -105,27 +97,6 @@ Delta features should be read through SQL or Spark instead.
 
 * `fabric_livy_query()` table results now follow the declared Spark schema and
 preserve large whole numbers and decimals exactly.
-
-* KQL query parameters and ingestion metadata now preserve POSIX date-times at
-the service's 100-nanosecond resolution, including correct second-boundary
-rounding.
-
-* Exact Arrow-to-tibble conversion now supports nullable structs containing
-Arrow Null children, including OneLake IPC and Parquet reads.
-
-* Recursive JSON requests now spell IEEE-754 negative zero as `-0.0`, retaining
-its sign in KQL dynamic parameters and on GraphQL and User Data Function request
-wires. Because Fabric's job `Number` binder still normalizes negative zero,
-numeric job parameters now reject it locally and explain the exact `Text`
-alternative.
-
-* GraphQL variables now encode R missing values as JSON null and reject numeric
-NaN and infinities locally. Numeric `Automatic` job parameters likewise reject
-non-finite values instead of silently changing them to JSON strings.
-
-* Partial job schedule updates now replay omitted configuration JSON directly
-from Fabric, preserving future integer, decimal, exponent, signed-zero, overflow,
-and underflow tokens without routing them through R doubles.
 
 * `fabric_livy_query()` now bounds temporary-session cleanup with a separate
 deadline and reports both errors when statement execution and session deletion
