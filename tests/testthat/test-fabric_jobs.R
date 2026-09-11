@@ -265,7 +265,10 @@ test_that("job parameters serialize exactly representable integer64 values", {
         if (identical(type, "Text")) {
           expect_match(outgoing, paste0('"value":"', value, '"'), fixed = TRUE)
         } else {
-          expect_identical(as.numeric(decoded$value), as.numeric(value))
+          expect_identical(
+            as.numeric(decoded$value),
+            suppressWarnings(as.double(bit64::as.integer64(value)))
+          )
         }
       }
       record <- .fabric_job_parameters(list(list(
@@ -445,6 +448,7 @@ test_that("finite job numbers reject decimal binder loss before transport", {
   unsafe <- c(
     .Machine$double.xmin * .Machine$double.eps,
     1e-29,
+    as.numeric("0x1.fb0f6be50601ap-94"),
     adjacent,
     .Machine$double.xmax,
     2^96
@@ -484,7 +488,17 @@ test_that("safe Number tokens and explicit Text survive public submission", {
       )
     )
   })
-  safe <- c(0, 0.1, pi, 1e-28, 1e-20, 1 + .Machine$double.eps, 1e28)
+  # Use exact binary64 input: R's decimal parser can select the next double
+  # above 1e-28 on macOS ARM, which correctly fails the decimal binder check.
+  safe <- c(
+    0,
+    0.1,
+    pi,
+    as.numeric("0x1.fb0f6be506019p-94"),
+    1e-20,
+    1 + .Machine$double.eps,
+    1e28
+  )
   for (value in c(safe, -safe[safe != 0])) {
     for (type in list(NULL, "Number", "Automatic")) {
       fabric_job_run(
@@ -570,7 +584,7 @@ test_that("integer64 job parameters retain scalar and explicit integer validatio
     pi,
     1 + .Machine$double.eps,
     1e28,
-    1e-28
+    as.numeric("0x1.fb0f6be506019p-94")
   )) {
     expect_identical(
       .fabric_job_parameter("value", value, "Number")$value,
