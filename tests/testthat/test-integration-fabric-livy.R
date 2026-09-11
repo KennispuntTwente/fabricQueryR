@@ -568,6 +568,7 @@ test_that("high-concurrency Livy sessions isolate their REPLs", {
   expect_equal(assigned$output$status, "ok")
   isolated <- session_b$run(
     paste0(
+      "fabricqueryr_hc_survivor = 'session-b-only'\n",
       "print('FABRICQUERYR_HC_VARIABLE_VISIBLE=' + ",
       "str('fabricqueryr_hc_secret' in globals()))"
     ),
@@ -592,34 +593,66 @@ test_that("high-concurrency Livy sessions isolate their REPLs", {
   )
   expect_identical(recovered$id, session_a$id)
   expect_identical(recovered$repl_id, session_a$repl_id)
-  slow <- recovered$submit("import time; time.sleep(120)", kind = "pyspark")
+  # A driver-side sleep cannot be reliably interrupted by Livy. Cancel an
+  # executor task instead, then verify cancellation actually completed.
+  slow <- recovered$submit(
+    paste0(
+      "import time\n",
+      "spark.sparkContext.parallelize([1], 1).foreach(",
+      "lambda _: time.sleep(120))"
+    ),
+    kind = "pyspark"
+  )
   fabric_test_eventually(
     function() slow$status()$state,
     ready = function(state) identical(state, "running"),
     attempts = 30L,
     delay = 1
   )
+  if (packed) {
+    fabric_test_eventually(
+      function() {
+        active <- session_b$run(
+          paste0(
+            "print('FABRICQUERYR_HC_JOB_ACTIVE=' + ",
+            "str(len(spark.sparkContext.statusTracker().getActiveJobsIds()) > 0))"
+          ),
+          kind = "pyspark",
+          timeout = 60,
+          poll_interval = 1
+        )
+        paste(active$output$parsed, collapse = "\n")
+      },
+      ready = function(value) {
+        grepl("FABRICQUERYR_HC_JOB_ACTIVE=True", value, fixed = TRUE)
+      },
+      attempts = 30L,
+      delay = 1
+    )
+  }
   slow$cancel()
+  slow$wait(timeout = 300, poll_interval = 2, error_on_failure = FALSE)
+  expect_identical(slow$state, "cancelled")
   other <- session_b$run(
-    "print('continued-after-cancel')",
+    "print('continued-after-cancel=' + fabricqueryr_hc_survivor)",
     kind = "pyspark",
     timeout = 300
   )
   expect_match(
     paste(other$output$parsed, collapse = ""),
-    "continued-after-cancel",
+    "continued-after-cancel=session-b-only",
     fixed = TRUE
   )
   expect_true(session_a$close())
   continued <- session_b$run(
-    "print('still-running')",
+    "print('still-running=' + fabricqueryr_hc_survivor)",
     kind = "pyspark",
     timeout = 300,
     poll_interval = 2
   )
   expect_match(
     paste(continued$output$parsed, collapse = "\n"),
-    "still-running",
+    "still-running=session-b-only",
     fixed = TRUE
   )
   expect_true(session_b$close())
