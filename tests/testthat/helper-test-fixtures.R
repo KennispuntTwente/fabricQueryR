@@ -1720,6 +1720,7 @@ fabric_test_sql_item <- function(name, backend) {
     ),
     backend = backend,
     result = "arrow_stream",
+    numeric_policy = if (backend == "odbc") "driver" else "exact",
     token = sql_token,
     verbose = FALSE
   )
