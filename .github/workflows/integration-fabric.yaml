@@ -282,6 +282,7 @@ jobs:
             any::adbi,
             any::arrow,
             any::DBI,
+            any::dplyr,
             any::odbc,
             any::purrr,
             any::testthat,
