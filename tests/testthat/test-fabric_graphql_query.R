@@ -709,6 +709,109 @@ test_that("fabric_graphql_paginate passes opaque cursors and combines errors", {
   expect_equal(pages$variables$after, "page-one")
 })
 
+test_that("GraphQL pagination retains pages and failure context", {
+  first <- list(
+    data = list(
+      products = list(
+        items = list(list(id = 1L)),
+        hasNextPage = TRUE,
+        endCursor = "page-one"
+      )
+    )
+  )
+  for (failure in c(
+    "http",
+    "graphql",
+    "graphql_error_policy",
+    "path",
+    "flag",
+    "cursor",
+    "callback"
+  )) {
+    request_count <- 0L
+    httr2::local_mocked_responses(function(req) {
+      request_count <<- request_count + 1L
+      if (request_count == 1L) {
+        return(graphql_test_response(first, url = req$url))
+      }
+      if (failure == "http") {
+        return(httr2::response(status_code = 403L, url = req$url))
+      }
+      body <- switch(
+        failure,
+        graphql = list(
+          data = NULL,
+          errors = list(list(message = "Service rejected page"))
+        ),
+        graphql_error_policy = list(
+          data = NULL,
+          errors = list(list(message = "Service rejected page"))
+        ),
+        path = list(data = list()),
+        flag = list(data = list(products = list(hasNextPage = "yes"))),
+        cursor = list(data = list(products = list(hasNextPage = TRUE))),
+        callback = first
+      )
+      graphql_test_response(body, url = req$url)
+    })
+    extractor <- fabric_graphql_cursor("products")
+    callback_error <- rlang::error_cnd(
+      "custom_cursor_error",
+      message = "Callback failed"
+    )
+    error <- rlang::catch_cnd(fabric_graphql_paginate(
+      "https://api.fabric.microsoft.com/graphql",
+      query = "{ products { items { id } hasNextPage endCursor } }",
+      next_cursor = function(result) {
+        if (failure == "callback" && request_count > 1L) {
+          rlang::cnd_signal(callback_error)
+        }
+        extractor(result)
+      },
+      error_policy = if (failure == "graphql_error_policy") {
+        "error"
+      } else {
+        "return"
+      },
+      token = "token"
+    ))
+    expect_s3_class(error, "fabric_graphql_pagination_error")
+    expect_identical(error$pages$complete, FALSE)
+    expect_identical(error$pages$pages[[1L]]$data, first$data)
+    expect_identical(error$page_number, 2L)
+    expect_identical(error$cursor, "page-one")
+    expect_identical(error$variables$after, "page-one")
+    expect_identical(error$seen_cursors, "page-one")
+    expect_s3_class(error$parent, "error")
+    if (failure == "http") {
+      expect_null(error$result)
+      expect_length(error$pages$pages, 1L)
+    } else {
+      expect_s3_class(error$result, "fabric_graphql_result")
+      expect_length(error$pages$pages, 2L)
+    }
+    if (failure %in% c("graphql", "graphql_error_policy")) {
+      expect_s3_class(error$parent, "fabric_graphql_error")
+      expect_identical(
+        error$result$errors[[1L]]$message,
+        "Service rejected page"
+      )
+      expect_match(
+        conditionMessage(error),
+        "Service rejected page",
+        fixed = TRUE
+      )
+    }
+    if (failure == "callback") {
+      expect_s3_class(error$parent, "custom_cursor_error")
+      expect_identical(
+        conditionMessage(error$parent),
+        conditionMessage(callback_error)
+      )
+    }
+  }
+})
+
 test_that("GraphQL pagination reuses one AzureAuth credential", {
   token_requests <- 0L
   page <- 0L

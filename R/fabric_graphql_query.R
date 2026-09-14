@@ -367,6 +367,12 @@ fabric_graphql_schema <- function(
 #' available. Because every GraphQL schema can store pagination information in
 #' a different place, `next_cursor` tells the function where to find it
 #'
+#' Failures while paging raise `fabric_graphql_pagination_error`, retaining
+#' incomplete `pages`, the failing `result` (when available), request `variables`,
+#' `cursor`, `seen_cursors`, `page_number`, and the original condition as `parent`.
+#' Error-only GraphQL responses cannot continue pagination, even with
+#' `error_policy = "return"`. Partial data with usable cursors remains supported.
+#'
 #' @param next_cursor Function accepting a `fabric_graphql_result` and returning
 #'   the next opaque cursor, or `NULL` when pagination is complete. Use
 #'   [fabric_graphql_cursor()] for Fabric's normal connection fields
@@ -489,17 +495,51 @@ fabric_graphql_paginate <- function(
   # repeated cursors before they can create an endless loop
 
   for (page_number in seq_len(as.integer(max_pages))) {
-    result <- graphql_execute_context(context, variables)
-    pages[[page_number]] <- result
-    cursor <- next_cursor(result)
+    result <- NULL
+    cursor <- tryCatch(
+      {
+        result <- graphql_execute_context(context, variables)
+        pages[[page_number]] <- result
+        if (is.null(result$data) && length(result$errors)) {
+          .fabric_abort(
+            graphql_error_message(result$errors),
+            class = "fabric_graphql_error",
+            result = result,
+            errors = result$errors
+          )
+        }
+        candidate <- next_cursor(result)
+        if (!is.null(candidate)) {
+          candidate <- graphql_required_string(candidate, "next_cursor result")
+          if (candidate %in% seen) {
+            .fabric_abort("next_cursor returned a cursor that was already used")
+          }
+        }
+        candidate
+      },
+      error = function(error) {
+        failed_result <- result %||% error$result
+        if (
+          is.null(result) && inherits(failed_result, "fabric_graphql_result")
+        ) {
+          pages[[page_number]] <- failed_result
+        }
+        .fabric_abort(
+          "GraphQL pagination failed",
+          class = "fabric_graphql_pagination_error",
+          pages = graphql_pages_result(pages, variables, complete = FALSE),
+          result = failed_result,
+          variables = variables,
+          cursor = variables[[cursor_variable]],
+          seen_cursors = seen,
+          page_number = page_number,
+          parent = error,
+          call = NULL
+        )
+      }
+    )
     if (is.null(cursor)) {
       return(graphql_pages_result(pages, variables, complete = TRUE))
-    }
-    cursor <- graphql_required_string(cursor, "next_cursor result")
-    if (cursor %in% seen) {
-      .fabric_abort(
-        "next_cursor returned a cursor that was already used"
-      )
     }
     seen <- c(seen, cursor)
     variables[[cursor_variable]] <- cursor
@@ -514,6 +554,11 @@ fabric_graphql_paginate <- function(
     .format = TRUE,
     class = "fabric_graphql_pagination_error",
     pages = graphql_pages_result(pages, variables, complete = FALSE),
+    result = result,
+    variables = variables,
+    cursor = variables[[cursor_variable]],
+    seen_cursors = seen,
+    page_number = as.integer(max_pages),
     call = NULL
   )
 }

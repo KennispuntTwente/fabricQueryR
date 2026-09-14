@@ -106,6 +106,13 @@ Repeats \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} until the AP
 available. Because every GraphQL schema can store pagination information in
 a different place, \code{next_cursor} tells the function where to find it
 }
+\details{
+Failures while paging raise \code{fabric_graphql_pagination_error}, retaining
+incomplete \code{pages}, the failing \code{result} (when available), request \code{variables},
+\code{cursor}, \code{seen_cursors}, \code{page_number}, and the original condition as \code{parent}.
+Error-only GraphQL responses cannot continue pagination, even with
+\code{error_policy = "return"}. Partial data with usable cursors remains supported.
+}
 \examples{
 \dontrun{
 # Discover the GraphQL API that exposes the Products query
