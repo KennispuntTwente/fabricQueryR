@@ -180,6 +180,11 @@ FabricRecord <- R6::R6Class(
 #' typed Environment and User Data Function discovery; a typed helper and
 #' workload detail route do not by themselves imply a specialized R6 class.
 #'
+#' `FabricEventhouse` and `FabricKqlDatabase` share the KQL methods documented
+#' below under their internal `FabricKqlItem` superclass: `$query()`, `$tables()`,
+#' `$read_table()`, `$ingest()`, `$write_table()`, `$export()`,
+#' `$ingestion_status()`, and `$ingestion_wait()`.
+#'
 #' @format An [R6::R6Class] generator.
 #' @return The corresponding R6 generator.
 #' @examples
@@ -1008,9 +1013,7 @@ FabricMirroredDatabase <- R6::R6Class(
   )
 )
 
-#' KQL-capable Fabric item base
-#'
-#' @noRd
+#' @rdname FabricItem
 FabricKqlItem <- R6::R6Class(
   classname = "FabricKqlItem",
   inherit = FabricItem,
@@ -1020,7 +1023,8 @@ FabricKqlItem <- R6::R6Class(
     #' @description Run a KQL query.
     #' @param query One KQL query.
     #' @param ... Arguments forwarded to [fabric_kql_query()].
-    #' @returns A `fabric_kql_result`.
+    #' @returns A typed tibble, or a `fabric_kql_tables` list for multiple
+    #'   primary results; see [fabric_kql_query()].
     query = function(query, ...) {
       private$invoke(
         fabric_kql_query,
@@ -1043,7 +1047,7 @@ FabricKqlItem <- R6::R6Class(
     #' @description Read one KQL table.
     #' @param table Table name or discovered table row.
     #' @param ... Arguments forwarded to [fabric_kql_read_table()].
-    #' @returns A `fabric_kql_result`.
+    #' @returns A typed tibble with Kusto metadata attributes.
     read_table = function(table, ...) {
       private$invoke(
         fabric_kql_read_table,
@@ -1057,7 +1061,7 @@ FabricKqlItem <- R6::R6Class(
     #' @param sources Source URLs or source records.
     #' @param format Source data format.
     #' @param ... Arguments forwarded to [fabric_kql_ingest()].
-    #' @returns A `fabric_kql_ingestion_status`.
+    #' @returns A `fabric_kql_ingestion` handle.
     ingest = function(table, sources, format, ...) {
       private$invoke(
         fabric_kql_ingest,
@@ -1075,7 +1079,8 @@ FabricKqlItem <- R6::R6Class(
     #' @param table Destination table name.
     #' @param data Data frame or Arrow-compatible source.
     #' @param ... Arguments forwarded to [fabric_kql_write_table()].
-    #' @returns A `fabric_kql_ingestion_status`.
+    #' @returns A `fabric_kql_write_result` with ingestion status and staging
+    #'   disposition.
     write_table = function(table, data, ...) {
       private$invoke(
         fabric_kql_write_table,
@@ -1088,7 +1093,8 @@ FabricKqlItem <- R6::R6Class(
     #' @param query One KQL query.
     #' @param destination Destination Fabric item or OneLake target.
     #' @param ... Arguments forwarded to [fabric_kql_export()].
-    #' @returns A `fabric_kql_export` handle or completed result.
+    #' @returns A `fabric_kql_export_result` with operation state, artifact
+    #'   paths, and record counts.
     export = function(query, destination, ...) {
       private$invoke(
         fabric_kql_export,

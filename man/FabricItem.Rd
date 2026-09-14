@@ -8,6 +8,7 @@
 \alias{FabricWarehouseSnapshot}
 \alias{FabricSqlDatabase}
 \alias{FabricMirroredDatabase}
+\alias{FabricKqlItem}
 \alias{FabricEventhouse}
 \alias{FabricKqlDatabase}
 \alias{FabricGraphQLApi}
@@ -47,6 +48,11 @@ Other discovered types are returned as \code{FabricItem} objects with \verb{$det
 operate from discovery metadata. This generic fallback also applies to
 typed Environment and User Data Function discovery; a typed helper and
 workload detail route do not by themselves imply a specialized R6 class.
+
+\code{FabricEventhouse} and \code{FabricKqlDatabase} share the KQL methods documented
+below under their internal \code{FabricKqlItem} superclass: \verb{$query()}, \verb{$tables()},
+\verb{$read_table()}, \verb{$ingest()}, \verb{$write_table()}, \verb{$export()},
+\verb{$ingestion_status()}, and \verb{$ingestion_wait()}.
 }
 \examples{
 \dontrun{
@@ -1529,10 +1535,227 @@ delegated user identity.
 
 }
 \section{Super classes}{
-\code{FabricRecord} -> \code{\link[fabricQueryR:FabricItem]{FabricItem}} -> \code{FabricKqlItem} -> \code{FabricEventhouse}
+\code{FabricRecord} -> \code{\link[fabricQueryR:FabricItem]{FabricItem}} -> \code{FabricKqlItem}
+}
+\section{Methods}{
+\subsection{Public methods}{
+  \itemize{
+    \item \href{#method-FabricKqlItem-query}{\code{FabricKqlItem$query()}}
+    \item \href{#method-FabricKqlItem-tables}{\code{FabricKqlItem$tables()}}
+    \item \href{#method-FabricKqlItem-read_table}{\code{FabricKqlItem$read_table()}}
+    \item \href{#method-FabricKqlItem-ingest}{\code{FabricKqlItem$ingest()}}
+    \item \href{#method-FabricKqlItem-write_table}{\code{FabricKqlItem$write_table()}}
+    \item \href{#method-FabricKqlItem-export}{\code{FabricKqlItem$export()}}
+    \item \href{#method-FabricKqlItem-ingestion_status}{\code{FabricKqlItem$ingestion_status()}}
+    \item \href{#method-FabricKqlItem-ingestion_wait}{\code{FabricKqlItem$ingestion_wait()}}
+  }
+}
+\if{html}{\out{<details><summary>Inherited methods</summary>
+<ul>
+  <li><code>FabricRecord$as_list()</code></li>
+  <li><code>FabricRecord$field_names()</code></li>
+  <li><code>FabricRecord$get()</code></li>
+  <li><code>FabricRecord$print()</code></li>
+  <li><span class="pkg-link" data-pkg="fabricQueryR" data-topic="FabricItem" data-id="details"><a href='../../fabricQueryR/html/FabricItem.html#method-FabricItem-details'><code>FabricItem$details()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="fabricQueryR" data-topic="FabricItem" data-id="initialize"><a href='../../fabricQueryR/html/FabricItem.html#method-FabricItem-initialize'><code>FabricItem$initialize()</code></a></span></li>
+</ul>
+</details>}}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricKqlItem-query"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricKqlItem-query}{}}}
+\subsection{\code{FabricKqlItem$query()}}{
+  Run a KQL query.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricKqlItem$query(query, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{query}}{One KQL query.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_kql_query]{fabric_kql_query()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A typed tibble, or a \code{fabric_kql_tables} list for multiple
+primary results; see \code{\link[=fabric_kql_query]{fabric_kql_query()}}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricKqlItem-tables"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricKqlItem-tables}{}}}
+\subsection{\code{FabricKqlItem$tables()}}{
+  List KQL tables.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricKqlItem$tables(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_kql_tables]{fabric_kql_tables()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A table inventory tibble.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricKqlItem-read_table"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricKqlItem-read_table}{}}}
+\subsection{\code{FabricKqlItem$read_table()}}{
+  Read one KQL table.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricKqlItem$read_table(table, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{table}}{Table name or discovered table row.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_kql_read_table]{fabric_kql_read_table()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A typed tibble with Kusto metadata attributes.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricKqlItem-ingest"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricKqlItem-ingest}{}}}
+\subsection{\code{FabricKqlItem$ingest()}}{
+  Ingest existing sources into a KQL table.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricKqlItem$ingest(table, sources, format, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{table}}{Destination table name.}
+      \item{\code{sources}}{Source URLs or source records.}
+      \item{\code{format}}{Source data format.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_kql_ingest]{fabric_kql_ingest()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A \code{fabric_kql_ingestion} handle.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricKqlItem-write_table"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricKqlItem-write_table}{}}}
+\subsection{\code{FabricKqlItem$write_table()}}{
+  Write R or Arrow data to a KQL table.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricKqlItem$write_table(table, data, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{table}}{Destination table name.}
+      \item{\code{data}}{Data frame or Arrow-compatible source.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_kql_write_table]{fabric_kql_write_table()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A \code{fabric_kql_write_result} with ingestion status and staging
+disposition.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricKqlItem-export"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricKqlItem-export}{}}}
+\subsection{\code{FabricKqlItem$export()}}{
+  Export a KQL query to Fabric storage.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricKqlItem$export(query, destination, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{query}}{One KQL query.}
+      \item{\code{destination}}{Destination Fabric item or OneLake target.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_kql_export]{fabric_kql_export()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A \code{fabric_kql_export_result} with operation state, artifact
+paths, and record counts.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricKqlItem-ingestion_status"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricKqlItem-ingestion_status}{}}}
+\subsection{\code{FabricKqlItem$ingestion_status()}}{
+  Retrieve one KQL ingestion status snapshot.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricKqlItem$ingestion_status(ingestion, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{ingestion}}{Ingestion handle, status record, or operation ID.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_kql_ingestion_status]{fabric_kql_ingestion_status()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A \code{fabric_kql_ingestion_status} record.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-FabricKqlItem-ingestion_wait"></a>}}
+\if{latex}{\out{\hypertarget{method-FabricKqlItem-ingestion_wait}{}}}
+\subsection{\code{FabricKqlItem$ingestion_wait()}}{
+  Wait for a KQL ingestion to finish.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{FabricKqlItem$ingestion_wait(ingestion, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{ingestion}}{Ingestion handle, status record, or operation ID.}
+      \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_kql_ingestion_status]{fabric_kql_ingestion_status()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A terminal \code{fabric_kql_ingestion_status} record.
+  }
+}
+
 }
 \section{Super classes}{
-\code{FabricRecord} -> \code{\link[fabricQueryR:FabricItem]{FabricItem}} -> \code{FabricKqlItem} -> \code{FabricKqlDatabase}
+\code{FabricRecord} -> \code{\link[fabricQueryR:FabricItem]{FabricItem}} -> \code{\link[fabricQueryR:FabricKqlItem]{FabricKqlItem}} -> \code{FabricEventhouse}
+}
+\section{Super classes}{
+\code{FabricRecord} -> \code{\link[fabricQueryR:FabricItem]{FabricItem}} -> \code{\link[fabricQueryR:FabricKqlItem]{FabricKqlItem}} -> \code{FabricKqlDatabase}
 }
 \section{Super classes}{
 \code{FabricRecord} -> \code{\link[fabricQueryR:FabricItem]{FabricItem}} -> \code{FabricGraphQLApi}
