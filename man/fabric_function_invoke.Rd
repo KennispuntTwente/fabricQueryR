@@ -100,6 +100,9 @@ unique, non-empty camelCase names without underscores. Python keywords and
 Fabric's reserved \code{req}, \code{context}, and \code{reqInvocationId} names are rejected
 before a request is sent. A named atomic vector is converted to a named list;
 use \code{\link[=I]{I()}} around a one-element value when it must remain a JSON array.
+Supply datetimes as ISO 8601 strings with an explicit timezone and the
+desired fractional seconds. R \code{POSIXct} and \code{POSIXlt} objects are rejected,
+including inside lists and data frames, to avoid lossy JSON conversion.
 }
 
 \section{Permissions and authentication}{

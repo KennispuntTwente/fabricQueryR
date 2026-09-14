@@ -75,6 +75,9 @@
 #' Fabric's reserved `req`, `context`, and `reqInvocationId` names are rejected
 #' before a request is sent. A named atomic vector is converted to a named list;
 #' use [I()] around a one-element value when it must remain a JSON array.
+#' Supply datetimes as ISO 8601 strings with an explicit timezone and the
+#' desired fractional seconds. R `POSIXct` and `POSIXlt` objects are rejected,
+#' including inside lists and data frames, to avoid lossy JSON conversion.
 #'
 #' @section Permissions and authentication:
 #' Delegated authentication defaults to the narrower Power BI permission
@@ -324,6 +327,7 @@ function_validate_url <- function(function_url) {
 # Serialize a named top-level R object exactly once so its encoded request size
 # can be enforced before authentication or network activity
 function_serialize_parameters <- function(parameters) {
+  function_validate_datetimes(parameters)
   if (is.atomic(parameters) && !is.null(names(parameters))) {
     parameters <- as.list(parameters)
   }
@@ -366,6 +370,24 @@ function_serialize_parameters <- function(parameters) {
     )
   }
   as.character(encoded)
+}
+
+# Reject implicit datetime conversion before jsonlite can discard information.
+function_validate_datetimes <- function(value) {
+  if (inherits(value, "POSIXt")) {
+    .fabric_abort(
+      paste0(
+        "Datetime parameters must be ISO 8601 strings with an explicit ",
+        "timezone and the desired fractional seconds; convert POSIXct ",
+        "and POSIXlt values explicitly"
+      ),
+      class = "fabric_function_parameters_error"
+    )
+  }
+  if (is.list(value)) {
+    invisible(lapply(value, function_validate_datetimes))
+  }
+  invisible(NULL)
 }
 
 # Validate public-function parameter names against Fabric's Python model

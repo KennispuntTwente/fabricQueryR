@@ -75,6 +75,45 @@ test_that("function parameters support empty, named-vector, and data-frame objec
   )
 })
 
+test_that("function invocation rejects implicit datetime conversion before auth", {
+  stamp <- as.POSIXct("2026-09-14 12:34:56", tz = "Europe/Amsterdam") + 0.123456
+  for (value in list(
+    list(eventTime = stamp),
+    list(eventTime = as.POSIXlt(stamp)),
+    list(payload = list(events = list(stamp))),
+    list(events = data.frame(eventTime = stamp)),
+    data.frame(eventTime = stamp),
+    stats::setNames(stamp, "eventTime")
+  )) {
+    error <- rlang::catch_cnd(fabric_function_invoke(
+      function_test_url,
+      parameters = value,
+      token = function(...) stop("Authentication must not be attempted")
+    ))
+    expect_s3_class(error, "fabric_function_parameters_error")
+    expect_match(conditionMessage(error), "ISO 8601 strings", fixed = TRUE)
+  }
+})
+
+test_that("function invocation preserves explicit datetime strings", {
+  stamp <- "2026-09-14T12:34:56.123456+02:00"
+  captured <- NULL
+  httr2::local_mocked_responses(function(req) {
+    captured <<- jsonlite::fromJSON(rawToChar(req$body$data))
+    function_test_response(function_success_body(), url = req$url)
+  })
+  fabric_function_invoke(
+    function_test_url,
+    parameters = list(
+      eventTime = stamp,
+      events = data.frame(eventTime = stamp)
+    ),
+    token = "token"
+  )
+  expect_identical(captured$eventTime, stamp)
+  expect_identical(captured$events$eventTime, stamp)
+})
+
 test_that("function parameters preserve finite doubles across their full range", {
   values <- c(
     pi,
