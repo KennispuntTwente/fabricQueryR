@@ -212,9 +212,9 @@ export and writes the first result set directly to storage:
 lakehouse <- fabric_lakehouses("Telemetry workspace")[[1]]
 
 exported <- database$export(
-  query = "Events | where observed_at > ago(7d)",
+  query = "Events | where amount > 0",
   destination = lakehouse,
-  path = "Files/exports/events-weekly",
+  path = "Files/exports/events-positive-amount",
   format = "parquet",
   name_prefix = "events",
   compression_type = "snappy"

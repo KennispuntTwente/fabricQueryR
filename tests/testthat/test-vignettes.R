@@ -546,6 +546,7 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
     skip("Package vignette source is not available in installed test runs")
   }
   calls <- character()
+  written_columns <- character()
   ingestion_calls <- list()
   status <- function(...) {
     calls <<- c(calls, "status")
@@ -569,6 +570,7 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
     methods = list(
       write_table = function(..., data) {
         calls <<- c(calls, "write")
+        written_columns <<- names(data)
         list(
           status = list(state = "Succeeded"),
           rows = nrow(data),
@@ -589,8 +591,10 @@ test_that("Eventhouse vignette executes write, ingestion, and export flow", {
         calls <<- c(calls, "query")
         data.frame(id = 1L)
       },
-      export = function(...) {
+      export = function(..., query) {
         calls <<- c(calls, "export")
+        filter_column <- sub("^.*where ([a-z_]+) >.*$", "\\1", query)
+        expect_contains(written_columns, filter_column)
         list(
           state = "Succeeded",
           records = 1L,
