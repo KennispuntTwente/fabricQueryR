@@ -327,7 +327,19 @@ class PowerBiApi:
         deadline = time.monotonic() + timeout
         last_refresh: dict[str, Any] | None = None
         while time.monotonic() < deadline:
-            status_response = self.request("GET", refresh_url)
+            from_history = False
+            try:
+                status_response = self.request("GET", refresh_url)
+            except httpx.HTTPStatusError as error:
+                if error.response.status_code != 404:
+                    raise
+                # Standard refresh details may be unavailable. Correlate the
+                # accepted request with history instead of submitting again.
+                status_response = self.request(
+                    "GET",
+                    f"/groups/{workspace_id}/datasets/{dataset_id}/refreshes",
+                )
+                from_history = True
             if status_response.status_code not in {200, 202}:
                 raise RuntimeError(
                     "Power BI refresh status returned unexpected HTTP "
@@ -343,6 +355,11 @@ class PowerBiApi:
                 raise RuntimeError(
                     "Power BI refresh status did not return an object"
                 )
+            if from_history:
+                refresh = self._matching_refresh_history(refresh, refresh_id)
+                if refresh is None:
+                    self._wait_for_refresh_poll(status_response, deadline)
+                    continue
             last_refresh = refresh
             status = refresh.get("status")
             if not isinstance(status, str) or not status:
@@ -371,7 +388,9 @@ class PowerBiApi:
                     f"Power BI semantic model refresh ended in "
                     f"{terminal_failure}: {detail!r}"
                 )
-            if status_response.status_code == 200:
+            if status_response.status_code == 200 and (
+                not from_history or status != "Unknown"
+            ):
                 if status == "Completed":
                     return refresh
                 raise RuntimeError(
@@ -383,20 +402,42 @@ class PowerBiApi:
                     "Power BI in-progress refresh returned unexpected status "
                     f"{status!r}: {refresh!r}"
                 )
-            retry_after = status_response.headers.get("Retry-After")
-            try:
-                delay = max(0.0, float(retry_after or 5))
-            except ValueError:
-                delay = 5
-            if not math.isfinite(delay):
-                delay = 5
-            remaining = max(0.0, deadline - time.monotonic())
-            if delay > 0 and remaining > 0:
-                self.sleep(min(delay, remaining))
+            self._wait_for_refresh_poll(status_response, deadline)
         raise TimeoutError(
             "Power BI semantic model refresh did not finish in time; "
-            f"last status: {last_refresh!r}"
+            f"request ID: {refresh_id}; last status: {last_refresh!r}"
         )
+
+    @staticmethod
+    def _matching_refresh_history(
+        history: dict[str, Any], refresh_id: str
+    ) -> dict[str, Any] | None:
+        entries = history.get("value")
+        if not isinstance(entries, list) or not all(
+            isinstance(entry, dict) for entry in entries
+        ):
+            raise RuntimeError(
+                "Power BI refresh history did not return a list of objects"
+            )
+        matches = [
+            entry
+            for entry in entries
+            if isinstance(entry.get("requestId"), str)
+            and entry["requestId"].casefold() == refresh_id.casefold()
+        ]
+        if len(matches) > 1:
+            raise RuntimeError(
+                "Power BI refresh history returned duplicate request IDs"
+            )
+        return matches[0] if matches else None
+
+    def _wait_for_refresh_poll(
+        self, response: httpx.Response, deadline: float
+    ) -> None:
+        delay = self._retry_after(response, 5.0)
+        remaining = max(0.0, deadline - time.monotonic())
+        if delay > 0 and remaining > 0:
+            self.sleep(min(delay, remaining))
 
 
 def seed_test_semantic_model(

@@ -467,6 +467,166 @@ def test_import_refresh_rejects_conflicting_response_ids():
             api.refresh_import_model("workspace-id", "dataset-id")
 
 
+def test_import_refresh_falls_back_to_matching_history_after_404(monkeypatch):
+    requests = []
+    history_reads = 0
+    now = [0.0]
+    sleeps = []
+
+    def sleep(delay):
+        sleeps.append(delay)
+        now[0] += delay
+
+    def handler(request):
+        nonlocal history_reads
+        requests.append((request.method, request.url.path))
+        if request.method == "POST":
+            return httpx.Response(202, headers={"RequestId": "refresh-id"})
+        if request.url.path.endswith("/refreshes/refresh-id"):
+            return httpx.Response(404)
+        assert request.url.path.endswith("/refreshes")
+        history_reads += 1
+        entries = [{"requestId": "another-refresh", "status": "Completed"}]
+        if history_reads > 1:
+            entries.append(
+                {
+                    "requestId": "REFRESH-ID",
+                    "status": "Unknown" if history_reads == 2 else "Completed",
+                }
+            )
+        return httpx.Response(
+            200, json={"value": entries}, headers={"Retry-After": "2"}
+        )
+
+    monkeypatch.setattr(power_bi_api.time, "monotonic", lambda: now[0])
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        sleep=sleep,
+    ) as api:
+        refresh = api.refresh_import_model("workspace-id", "dataset-id")
+
+    assert refresh == {"requestId": "REFRESH-ID", "status": "Completed"}
+    assert history_reads == 3
+    assert sleeps == [2, 2]
+    assert sum(method == "POST" for method, _ in requests) == 1
+
+
+@pytest.mark.parametrize(
+    "status", ["Failed", "Disabled", "Cancelled", "TimedOut"]
+)
+def test_import_refresh_propagates_matching_history_failures(status):
+    def handler(request):
+        if request.method == "POST":
+            return httpx.Response(202, headers={"RequestId": "refresh-id"})
+        if request.url.path.endswith("/refreshes/refresh-id"):
+            return httpx.Response(404)
+        return httpx.Response(
+            200,
+            json={"value": [{
+                "requestId": "refresh-id",
+                "status": status,
+                "serviceExceptionJson": "bad source",
+            }]},
+        )
+
+    with PowerBiApi(
+        StaticCredential(), transport=httpx.MockTransport(handler)
+    ) as api:
+        with pytest.raises(
+            RuntimeError, match=f"ended in {status}.*bad source"
+        ):
+            api.refresh_import_model("workspace-id", "dataset-id")
+
+
+@pytest.mark.parametrize("status", [401, 403, 500])
+def test_import_refresh_does_not_hide_other_status_errors(status):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.method == "POST":
+            return httpx.Response(202, headers={"RequestId": "refresh-id"})
+        assert request.url.path.endswith("/refreshes/refresh-id")
+        return httpx.Response(status)
+
+    with PowerBiApi(
+        StaticCredential(),
+        transport=httpx.MockTransport(handler),
+        max_attempts=1,
+    ) as api:
+        with pytest.raises(httpx.HTTPStatusError) as error:
+            api.refresh_import_model("workspace-id", "dataset-id")
+
+    assert error.value.response.status_code == status
+    assert len(requests) == 2
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [],
+        [{"requestId": "another-refresh", "status": "Completed"}],
+        [{"requestId": "refresh-id", "status": "Unknown"}],
+    ],
+)
+def test_import_refresh_history_wait_is_bounded(entries, monkeypatch):
+    now = [0.0]
+    sleeps = []
+
+    def sleep(delay):
+        sleeps.append(delay)
+        now[0] += delay
+
+    def handler(request):
+        if request.method == "POST":
+            return httpx.Response(202, headers={"RequestId": "refresh-id"})
+        if request.url.path.endswith("/refreshes/refresh-id"):
+            return httpx.Response(404)
+        return httpx.Response(
+            200, json={"value": entries}, headers={"Retry-After": "600"}
+        )
+
+    monkeypatch.setattr(power_bi_api.time, "monotonic", lambda: now[0])
+    with PowerBiApi(
+        StaticCredential(), transport=httpx.MockTransport(handler), sleep=sleep
+    ) as api:
+        with pytest.raises(TimeoutError, match="did not finish in time"):
+            api.refresh_import_model("workspace-id", "dataset-id", timeout=3)
+
+    assert sleeps == [3]
+
+
+@pytest.mark.parametrize(
+    ("history", "message"),
+    [
+        ({}, "list of objects"),
+        ({"value": {}}, "list of objects"),
+        ({"value": [None]}, "list of objects"),
+        (
+            {"value": [
+                {"requestId": "refresh-id", "status": "Completed"},
+                {"requestId": "REFRESH-ID", "status": "Failed"},
+            ]},
+            "duplicate request IDs",
+        ),
+    ],
+)
+def test_import_refresh_rejects_malformed_or_ambiguous_history(history, message):
+    def handler(request):
+        if request.method == "POST":
+            return httpx.Response(202, headers={"RequestId": "refresh-id"})
+        if request.url.path.endswith("/refreshes/refresh-id"):
+            return httpx.Response(404)
+        return httpx.Response(200, json=history)
+
+    with PowerBiApi(
+        StaticCredential(), transport=httpx.MockTransport(handler)
+    ) as api:
+        with pytest.raises(RuntimeError, match=message):
+            api.refresh_import_model("workspace-id", "dataset-id")
+
+
 def test_import_refresh_requires_an_accepted_trigger_response():
     location = (
         "https://api.powerbi.com/v1.0/myorg/groups/workspace-id/"
