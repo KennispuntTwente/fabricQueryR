@@ -129,7 +129,7 @@ documentation_r6_call_matches <- function(call, signatures) {
   ))
 }
 
-documentation_external_methods <- c("Close", "set")
+documentation_external_methods <- c("Close", "read_next_batch", "set")
 
 vignette_mock_r6 <- function(fields = list(), methods = list(), class = NULL) {
   object <- new.env(parent = emptyenv())
