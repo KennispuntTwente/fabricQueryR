@@ -127,6 +127,15 @@ playground_livy_call <- function(fun, arguments, authentication) {
   do.call(fun, c(arguments, authentication))
 }
 
+# Preserve the sign-in flow when discovery stores the callback on R6 objects.
+playground_discovery_credential <- function(token, auth_args) {
+  credential <- fabricQueryR:::fabric_credential(token = token)
+  credential$client_credentials <- fabric_local_uses_client_credentials(
+    auth_args
+  )
+  credential
+}
+
 # Connect to the marked persistent workspace and discover its seeded targets
 connect_playground_sandbox <- function(
   workspace_name = "fabricqueryr-dev-dhrkoning",
@@ -186,6 +195,7 @@ connect_playground_sandbox <- function(
     auth_args
   )
   token <- fabric_local_token_provider(tokens)
+  credential <- playground_discovery_credential(token, auth_args)
 
   if (!is.null(expected_user_id)) {
     claims <- fabric_local_jwt_claims(
@@ -203,7 +213,7 @@ connect_playground_sandbox <- function(
   workspaces <- fabric_workspaces(
     roles = "Admin",
     prefer_workspace_endpoints = TRUE,
-    token = token
+    token = credential
   )
   matches <- Filter(
     function(workspace) {
@@ -241,7 +251,7 @@ connect_playground_sandbox <- function(
     workspace,
     detail = TRUE,
     detail_errors = "record",
-    token = token
+    token = credential
   )
   item_names <- vapply(items, playground_item_display_name, character(1))
   item_types <- vapply(items, playground_item_type, character(1))

@@ -177,3 +177,36 @@ test_that("playground examples do not embed live Fabric endpoints", {
     FALSE
   )
 })
+test_that("playground GraphQL objects retain application authentication", {
+  environment <- new.env(parent = globalenv())
+  sys.source(.playground_test_path("sandbox.R"), envir = environment)
+  audiences <- character()
+  provider <- function(audience, force_refresh = FALSE) {
+    audiences <<- c(audiences, audience)
+    if (!identical(audience, "https://api.fabric.microsoft.com/.default")) {
+      rlang::abort("No local AzureAuth token for audience")
+    }
+    "test-token"
+  }
+  credential <- environment$playground_discovery_credential(
+    provider,
+    list(auth_type = "client_credentials")
+  )
+  api <- fabric_r6_record(
+    list(
+      id = "11111111-1111-4111-8111-111111111111",
+      workspaceId = "22222222-2222-4222-8222-222222222222",
+      type = "GraphQLApi"
+    ),
+    legacy_class = c("fabric_item", "list"),
+    credential = credential
+  )
+  httr2::local_mocked_responses(function(req) {
+    graphql_test_response(list(data = list(typename = "Query")), url = req$url)
+  })
+  result <- api$query("{ typename: __typename }")
+  expect_identical(result$data$typename, "Query")
+  expect_identical(audiences, "https://api.fabric.microsoft.com/.default")
+  delegated <- environment$playground_discovery_credential(provider, list())
+  expect_identical(delegated$client_credentials, FALSE)
+})
