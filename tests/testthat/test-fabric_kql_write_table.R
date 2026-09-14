@@ -1506,6 +1506,44 @@ test_that("Eventhouse writer validates polling hooks before authentication", {
   expect_match(conditionMessage(error), ".now must be functions", fixed = TRUE)
 })
 
+test_that("Storage failures report uncertainty when deletion after download is enabled", {
+  skip_if_not_installed("arrow")
+  submitted <- NULL
+  local_mocked_bindings(
+    kusto_write_table_schema = function(...) character(),
+    kusto_write_assert_identity_schema = function(...) invisible(NULL),
+    kusto_ingestion_configuration = function(...) {
+      kql_write_test_configuration(
+        storage_containers = "https://account.blob.core.windows.net/ingest?sig=test",
+        preferred_upload_method = "Storage"
+      )
+    },
+    kusto_storage_upload = function(...) invisible(TRUE),
+    fabric_kql_ingest = function(...) {
+      submitted <<- list(...)
+      kql_write_test_ingestion()
+    },
+    fabric_kql_ingestion_status = function(...) kql_write_test_status("Failed"),
+    kusto_remove_staging = function(...) {
+      stop("Client must retain remaining sources")
+    }
+  )
+  for (cleanup in c(TRUE, FALSE)) {
+    result <- fabric_kql_write_table(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      "Raw",
+      data.frame(id = 1L),
+      database = "Telemetry",
+      token = "token",
+      cleanup = cleanup,
+      error_on_failure = FALSE
+    )
+    expect_identical(submitted$delete_after_download, cleanup)
+    expect_identical(result$status$state, "Failed")
+    expect_identical(result$staging_retained, if (cleanup) NA else TRUE)
+  }
+})
+
 test_that("confirmed failure follows the staging retention policy", {
   skip_if_not_installed("arrow")
   cleanup_calls <- 0L
