@@ -130,7 +130,10 @@ fabric_job_cancel(
   for doubles, `sprintf("%.17g", value)` supplies reversible text. The
   receiving job must handle these values as text. Fabric normalizes
   numeric negative zero to zero; pass `"-0.0"` with type `Text` when its
-  sign must be retained.
+  sign must be retained. R date-times must have whole-second precision.
+  Fractional seconds are rejected because Fabric's `DateTime` format
+  cannot preserve them; round or truncate explicitly before submission
+  if that loss is acceptable.
 
 - parameter_types:
 

@@ -140,6 +140,12 @@ fabric_onelake_write_file(
   Columns omitted from the schema follow `csv_numeric`. Use
   [`arrow::utf8()`](https://arrow.apache.org/docs/r/reference/data-type.html)
   to preserve all spelling, including leading zeros in identifiers.
+  Arrow infers omitted column types from an initial block, not the
+  entire file. Later values incompatible with that type raise an error,
+  including oversized integers after small integers, or text after an
+  all-null block. Supply explicit types for such columns, for example
+  `arrow::schema(id = arrow::utf8(), label = arrow::utf8())`, to read
+  all blocks consistently without losing the original text.
 
 - csv_numeric:
 

@@ -253,13 +253,23 @@ memory:
 
 ``` r
 
-stream <- lakehouse$read_table(
-  table = "large_orders",
-  result = "arrow_stream"
-)
-reader <- arrow::as_record_batch_reader(stream)
-orders <- reader$read_table()
-reader$Close()
+local({
+  stream <- lakehouse$read_table(
+    table = "large_orders",
+    result = "arrow_stream"
+  )
+  on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+  reader <- arrow::as_record_batch_reader(stream)
+  on.exit(reader$Close(), add = TRUE, after = FALSE)
+  row_count <- 0
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) break
+    # Process or write this batch before reading the next one.
+    row_count <- row_count + batch$num_rows
+  }
+  row_count
+})
 ```
 
 The stream is disk-backed and single-use. Close the Arrow reader when
