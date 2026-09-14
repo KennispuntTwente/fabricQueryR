@@ -503,6 +503,25 @@ test_that("Fabric job history and daily and weekly schedules complete a lifecycl
   listed_ids <- vapply(schedules, `[[`, character(1), "id")
   expect_true(all(c(daily$id, weekly$id) %in% listed_ids))
 
+  for (schedule in schedules[vapply(
+    schedules,
+    function(x) {
+      x$id %in% c(daily$id, weekly$id)
+    },
+    logical(1)
+  )]) {
+    configuration <- schedule$configuration
+    configuration$localTimeZoneId <- "W. Europe Standard Time"
+    updated <- fabric_job_schedule_update(
+      item,
+      schedule,
+      configuration = configuration,
+      enabled = FALSE,
+      token = token
+    )
+    expect_identical(updated$time_zone_id, configuration$localTimeZoneId)
+  }
+
   expect_true(fabric_job_schedule_delete(
     item,
     daily,
@@ -593,6 +612,15 @@ test_that("Cron and monthly Fabric schedules complete live lifecycles", {
   expect_equal(created$Cron$configuration$interval, 37L)
   expect_false(created$Monthly$enabled)
   expect_equal(created$Monthly$type, "Monthly")
+  configuration <- created$Monthly$configuration
+  configuration$localTimeZoneId <- "W. Europe Standard Time"
+  updated <- fabric_job_schedule_update(
+    item,
+    created$Monthly,
+    configuration = configuration,
+    token = token
+  )
+  expect_identical(updated$time_zone_id, configuration$localTimeZoneId)
   expect_equal(created$Monthly$configuration$recurrence, 1L)
   expect_equal(
     created$Monthly$configuration$occurrence$occurrenceType,

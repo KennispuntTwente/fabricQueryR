@@ -920,6 +920,7 @@ print.fabric_job_schedule <- function(x, ...) {
       response = body
     )
   }
+  configuration <- .fabric_job_schedule_return_configuration(configuration)
   service_state <- body$state %||% body$status
   auto_disabled_marker <- body$autoDisabled %||% body$isAutoDisabled
   auto_disabled <- if (
@@ -969,6 +970,46 @@ print.fabric_job_schedule <- function(x, ...) {
     ),
     class = "fabric_job_schedule"
   )
+}
+
+# Normalize only documented response fields; keep raw and future fields intact.
+.fabric_job_schedule_return_configuration <- function(configuration) {
+  if (!configuration$type %in% .fabric_schedule_types) {
+    return(configuration)
+  }
+  for (field in c("times", "weekdays")) {
+    value <- configuration[[field]]
+    if (
+      is.list(value) &&
+        is.null(names(value)) &&
+        length(value) &&
+        all(vapply(
+          value,
+          function(x) {
+            is.character(x) && length(x) == 1L && !is.na(x)
+          },
+          logical(1)
+        ))
+    ) {
+      configuration[[field]] <- unlist(value, use.names = FALSE)
+    }
+  }
+  # Fabric documents UTC boundaries but can omit the suffix in responses.
+  for (field in c("startDateTime", "endDateTime")) {
+    value <- configuration[[field]]
+    if (
+      is.character(value) &&
+        length(value) == 1L &&
+        !is.na(value) &&
+        grepl(
+          "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?$",
+          value
+        )
+    ) {
+      configuration[[field]] <- paste0(value, "Z")
+    }
+  }
+  configuration
 }
 
 .fabric_job_schedule_configuration <- function(configuration) {

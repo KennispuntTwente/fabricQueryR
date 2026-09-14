@@ -513,6 +513,54 @@ test_that("unknown future schedule types use the documented escape hatch", {
   expect_equal(schedule$configuration$source$kind, "OneLakeEvent")
 })
 
+test_that("fetched schedule configurations can be edited and resubmitted", {
+  for (type in c("Daily", "Weekly", "Monthly")) {
+    configuration <- unclass(scheduler_test_configuration(type))
+    configuration$startDateTime <- "2026-10-01T00:00:00"
+    configuration$endDateTime <- "2027-10-01T00:00:00"
+    configuration$times <- as.list(configuration$times)
+    if (type == "Weekly") {
+      configuration$weekdays <- as.list(configuration$weekdays)
+    }
+    original <- scheduler_test_response(configuration = configuration)
+    sent <- NULL
+    local_mocked_bindings(
+      .httr2_collection = function(...) list(original),
+      .fabric_job_request = function(..., payload = NULL) {
+        if (is.null(payload)) {
+          return(list(status_code = 200L, body = original))
+        }
+        sent <<- payload$configuration
+        list(
+          status_code = 200L,
+          body = scheduler_test_response(configuration = sent)
+        )
+      }
+    )
+    fetched <- fabric_job_schedules(scheduler_test_item(), token = "token")[[
+      1L
+    ]]
+    edited <- fetched$configuration
+    edited$localTimeZoneId <- "W. Europe Standard Time"
+    updated <- fabric_job_schedule_update(
+      scheduler_test_item(),
+      fetched,
+      configuration = edited,
+      token = "token"
+    )
+    expect_identical(fetched$raw$configuration, configuration)
+    expect_identical(sent$startDateTime, "2026-10-01T00:00:00Z")
+    expect_identical(sent$times, unlist(configuration$times))
+    expect_identical(updated$time_zone_id, "W. Europe Standard Time")
+    if (type == "Weekly") {
+      expect_identical(sent$weekdays, unlist(configuration$weekdays))
+    }
+    if (type == "Monthly") {
+      expect_identical(sent$occurrence, configuration$occurrence)
+    }
+  }
+})
+
 test_that("partial schedule updates preserve service-required fields", {
   calls <- list()
   service_configuration <- scheduler_test_configuration("Daily")
@@ -566,9 +614,9 @@ test_that("partial schedule updates preserve service-required fields", {
   expect_equal(calls[[2L]]$payload$configuration$type, "Daily")
   expect_equal(
     calls[[2L]]$payload$configuration$startDateTime,
-    "2026-10-01T00:00:00"
+    "2026-10-01T00:00:00Z"
   )
-  expect_equal(calls[[2L]]$payload$configuration$times, list("09:30"))
+  expect_equal(calls[[2L]]$payload$configuration$times, "09:30")
   expect_equal(
     calls[[2L]]$payload$executionData$parameters$marker,
     "keep"
