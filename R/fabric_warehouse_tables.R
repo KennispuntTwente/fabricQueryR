@@ -184,6 +184,7 @@ fabric_warehouse_tables <- function(
 #' orders <- fabric_warehouse_read_table(
 #'   warehouse,
 #'   table,
+#'   backend = "adbc",
 #'   limit = 1000
 #' )
 #'

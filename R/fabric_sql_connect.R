@@ -563,7 +563,7 @@ fabric_sql_connect <- function(
 #' sql <- paste("SELECT TOP 100 * FROM", table)
 #'
 #' # Run the resulting read-only query and collect a tibble
-#' result <- fabric_sql_query(warehouse, sql)
+#' result <- fabric_sql_query(warehouse, sql, backend = "adbc")
 #'
 #' # Return Arrow-native batches instead of converting to a data frame
 #' stream <- fabric_sql_query(
