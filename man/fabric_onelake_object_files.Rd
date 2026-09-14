@@ -101,7 +101,13 @@ choose the same custom marker for writing and reading when needed.}
 \item{col_types}{Optional Arrow Schema specifying CSV column types, such as
 \code{arrow::schema(amount = arrow::decimal128(38, 15), id = arrow::uint64())}.
 Columns omitted from the schema follow \code{csv_numeric}. Use \code{arrow::utf8()}
-to preserve all spelling, including leading zeros in identifiers.}
+to preserve all spelling, including leading zeros in identifiers.
+Arrow infers omitted column types from an initial block, not the entire
+file. Later values incompatible with that type raise an error, including
+oversized integers after small integers, or text after an all-null block.
+Supply explicit types for such columns, for example
+\code{arrow::schema(id = arrow::utf8(), label = arrow::utf8())}, to read all
+blocks consistently without losing the original text.}
 
 \item{csv_numeric}{CSV numeric inference policy. The default, \code{"exact"},
 retains inferred floating-point columns as character strings to avoid

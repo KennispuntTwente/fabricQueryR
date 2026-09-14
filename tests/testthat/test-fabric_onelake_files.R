@@ -300,6 +300,48 @@ test_that("OneLake CSV column schemas retain exact decimals and uint64 values", 
   }
 })
 
+test_that("explicit CSV schemas handle values beyond the inference block", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  # More than Arrow's default 1 MiB inference block for each column.
+  prefix <- rep("1,NA", 300000L)
+  writeLines(c("id,label", prefix, "18446744073709551615,late text"), fixture)
+  local_mocked_bindings(fabric_onelake_download = function(dest, ...) {
+    file.copy(fixture, dest)
+    invisible(dest)
+  })
+  for (output in c("tibble", "arrow_stream")) {
+    read <- function(schema = NULL) {
+      value <- fabric_onelake_read_file(
+        "workspace",
+        "item",
+        "Files/blocks.csv",
+        result = output,
+        col_types = schema
+      )
+      if (output == "arrow_stream") {
+        on.exit(nanoarrow::nanoarrow_pointer_release(value), add = TRUE)
+        .fabric_arrow_exact_tibble(value)
+      } else {
+        value
+      }
+    }
+    # Test both late type changes independently as well as their workaround.
+    for (schema in list(
+      arrow::schema(label = arrow::utf8()),
+      arrow::schema(id = arrow::utf8())
+    )) {
+      error <- rlang::catch_cnd(read(schema), classes = "error")
+      expect_s3_class(error, "error")
+    }
+    rows <- read(arrow::schema(id = arrow::utf8(), label = arrow::utf8()))
+    expect_equal(nrow(rows), length(prefix) + 1L)
+    expect_identical(tail(rows$id, 1L), "18446744073709551615")
+    expect_identical(tail(rows$label, 1L), "late text")
+    expect_identical(sum(is.na(rows$label)), length(prefix))
+  }
+})
+
 test_that("OneLake CSV inference and partial schemas are explicit", {
   skip_if_not_installed("arrow")
   fixture <- withr::local_tempfile(fileext = ".csv")

@@ -222,6 +222,12 @@ NULL
 #'   `arrow::schema(amount = arrow::decimal128(38, 15), id = arrow::uint64())`.
 #'   Columns omitted from the schema follow `csv_numeric`. Use `arrow::utf8()`
 #'   to preserve all spelling, including leading zeros in identifiers.
+#'   Arrow infers omitted column types from an initial block, not the entire
+#'   file. Later values incompatible with that type raise an error, including
+#'   oversized integers after small integers, or text after an all-null block.
+#'   Supply explicit types for such columns, for example
+#'   `arrow::schema(id = arrow::utf8(), label = arrow::utf8())`, to read all
+#'   blocks consistently without losing the original text.
 #' @param csv_numeric CSV numeric inference policy. The default, `"exact"`,
 #'   retains inferred floating-point columns as character strings to avoid
 #'   rounding decimals or oversized integers. Inferred integer columns retain
