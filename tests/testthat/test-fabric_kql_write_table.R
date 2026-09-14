@@ -690,6 +690,38 @@ test_that("KQL identity writes validate the authoritative table schema", {
   expect_s3_class(mismatch, "fabric_kql_schema_error")
 })
 
+test_that("unsupported existing KQL column types raise actionable schema errors", {
+  skip_if_not_installed("arrow")
+  for (type in c("timespan", "System.TimeSpan", "future_type")) {
+    local_mocked_bindings(
+      kusto_export_management = function(...) {
+        schema <- jsonlite::toJSON(
+          list(OrderedColumns = list(list(Name = "id", CslType = type))),
+          auto_unbox = TRUE
+        )
+        list(tables = list(tibble::tibble(TableName = "Raw", Schema = schema)))
+      },
+      kusto_ingestion_configuration = function(...) {
+        stop("Must fail before staging")
+      }
+    )
+    error <- rlang::catch_cnd(fabric_kql_write_table(
+      "https://ingest-cluster.kusto.fabric.microsoft.com",
+      "Raw",
+      data.frame(id = 1L),
+      database = "Telemetry",
+      token = "token"
+    ))
+    expect_s3_class(error, "fabric_kql_schema_error")
+    expect_match(conditionMessage(error), type, fixed = TRUE)
+    expect_match(
+      conditionMessage(error),
+      "supported type before writing",
+      fixed = TRUE
+    )
+  }
+})
+
 test_that("KQL identity writes reject schema mismatches before staging", {
   skip_if_not_installed("arrow")
   configuration_calls <- 0L

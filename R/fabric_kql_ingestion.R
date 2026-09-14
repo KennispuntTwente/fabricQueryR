@@ -2758,14 +2758,17 @@ kusto_write_schema_type <- function(column, error_class) {
     real = "real",
     string = "string"
   )
-  canonical <- unname(aliases[[normalized]])
-  if (is.null(canonical)) {
+  if (!normalized %in% names(aliases)) {
     .fabric_abort(
-      paste0("Kusto returned an unsupported target column type: ", value),
+      paste0(
+        "Kusto returned an unsupported target column type: ",
+        value,
+        ". Convert the target column to a supported type before writing"
+      ),
       class = error_class
     )
   }
-  canonical
+  unname(aliases[[normalized]])
 }
 
 kusto_write_assert_identity_schema <- function(
