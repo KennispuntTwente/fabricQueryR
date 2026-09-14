@@ -107,7 +107,9 @@
 #'   Fabric-managed first-level folder. Keep `TRUE` for normal uploads
 #' @param allow_managed_tables Whether to allow direct changes below `Tables/`
 #'   Keep `FALSE` for normal use: changing Delta files directly can corrupt a
-#'   managed table
+#'   managed table. This guard checks only the supplied path and does not resolve
+#'   shortcuts. A path below `Files/` can reach a managed table through a shortcut;
+#'   writes or deletion of descendants then change the shortcut target's data.
 #' @param confirm Safety switch that must be explicitly set to `TRUE` before
 #'   deletion is attempted
 #'
@@ -250,6 +252,9 @@ NULL
 #'   on a discovered object is preferred when this argument is omitted.
 #' @param allow_managed_tables Whether direct writes below `Tables/` are
 #'   permitted. Keep the safe default, `FALSE`, for managed Delta tables.
+#'   This guard checks only the supplied path and does not resolve shortcuts.
+#'   A `Files/` shortcut can lead to a managed table, where writes change the
+#'   target's data even with `allow_managed_tables = FALSE`.
 #' @param chunk_size Upload chunk size in bytes.
 #'
 #' @return `fabric_onelake_read_file()` returns a tibble or a disk-backed

@@ -161,7 +161,9 @@ Fabric-managed first-level folder. Keep \code{TRUE} for normal uploads}
 
 \item{allow_managed_tables}{Whether to allow direct changes below \verb{Tables/}
 Keep \code{FALSE} for normal use: changing Delta files directly can corrupt a
-managed table}
+managed table. This guard checks only the supplied path and does not resolve
+shortcuts. A path below \verb{Files/} can reach a managed table through a shortcut;
+writes or deletion of descendants then change the shortcut target's data.}
 
 \item{chunk_size}{Upload chunk size in bytes. The default suits most files;
 larger values make fewer requests but use more memory}

@@ -133,7 +133,10 @@ Dataset/Scanner/query, RecordBatchReader, or Arrow-compatible array stream.}
 \item{create_parents}{Whether missing parent directories are created.}
 
 \item{allow_managed_tables}{Whether direct writes below \verb{Tables/} are
-permitted. Keep the safe default, \code{FALSE}, for managed Delta tables.}
+permitted. Keep the safe default, \code{FALSE}, for managed Delta tables.
+This guard checks only the supplied path and does not resolve shortcuts.
+A \verb{Files/} shortcut can lead to a managed table, where writes change the
+target's data even with \code{allow_managed_tables = FALSE}.}
 
 \item{chunk_size}{Upload chunk size in bytes.}
 }
