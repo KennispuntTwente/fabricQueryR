@@ -663,6 +663,7 @@ test_that("Livy batches cover success, failure, and cancellation", {
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()
   storage_token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  run_id <- kusto_ingestion_source_id()
   marker <- function() {
     fabric_onelake_read_delta_table(
       table_path = lakehouse$tables$livy_batch_result,
@@ -680,7 +681,8 @@ test_that("Livy batches cover success, failure, and cancellation", {
       if (
         !inherits(value, "try-error") &&
           nrow(value) == 1L &&
-          identical(value$mode[[1L]], expected_mode)
+          identical(value$mode[[1L]], expected_mode) &&
+          identical(value$run_id[[1L]], run_id)
       ) {
         return(value)
       }
@@ -699,7 +701,7 @@ test_that("Livy batches cover success, failure, and cancellation", {
     lakehouse$livy_url,
     file = lakehouse$livy_batch_file,
     name = "fabricqueryr-batch-success",
-    args = "success",
+    args = c("success", run_id),
     target_lakehouse_id = lakehouse$id,
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
@@ -730,7 +732,7 @@ test_that("Livy batches cover success, failure, and cancellation", {
     lakehouse$livy_url,
     file = lakehouse$livy_batch_file,
     name = "fabricqueryr-batch-failure",
-    args = "failure",
+    args = c("failure", run_id),
     target_lakehouse_id = lakehouse$id,
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
@@ -750,7 +752,7 @@ test_that("Livy batches cover success, failure, and cancellation", {
     lakehouse$livy_url,
     file = lakehouse$livy_batch_file,
     name = "fabricqueryr-batch-cancel",
-    args = "slow",
+    args = c("slow", run_id),
     target_lakehouse_id = lakehouse$id,
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
