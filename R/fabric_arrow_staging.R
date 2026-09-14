@@ -195,6 +195,7 @@
   current_path <- NULL
   current_rows <- 0
   paths <- character()
+  created_paths <- character()
   rows_per_file <- numeric()
   bytes_per_file <- numeric()
   buffer_bytes_per_file <- numeric()
@@ -209,7 +210,7 @@
         try(output$close(), silent = TRUE)
       }
       if (!complete) {
-        unlink(unique(c(paths, current_path)), force = TRUE)
+        unlink(created_paths, force = TRUE)
       }
     },
     add = TRUE
@@ -242,6 +243,7 @@
           )
         }
         output <<- arrow::FileOutputStream$create(current_path)
+        created_paths <<- c(created_paths, current_path)
         writer <<- arrow::ParquetFileWriter$create(
           prepared$schema,
           output,
