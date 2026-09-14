@@ -85,8 +85,7 @@ test_that("semantic-model refresh completes with history and execution details",
     commit_mode = "Transactional",
     objects = "Facts",
     max_parallelism = 2L,
-    retry_count = 1L,
-    timeout = "00:10:00",
+    retry_count = 4L,
     token = token
   )
   expect_s3_class(refresh, "fabric_pbi_refresh")

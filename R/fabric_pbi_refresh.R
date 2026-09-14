@@ -52,7 +52,7 @@
 #'   refresh attempts
 #' @param timeout In `fabric_pbi_refresh()`, an optional `HH:MM:SS` limit for
 #'   each enhanced attempt; Power BI defaults to five hours per attempt and
-#'   limits all attempts to 24 hours. In
+#'   stops retries after 24 hours of elapsed runtime from the first attempt. In
 #'   `fabric_pbi_refresh_wait()`, the maximum number of seconds to wait on the
 #'   client before raising a separate client-side timeout
 #' @param top Maximum history entries to return. Power BI retains 20 to 60
@@ -954,14 +954,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     .pbi_refresh_whole_number(retry_count, "retry_count", minimum = 0)
     retry_count <- as.integer(retry_count)
   }
-  timeout_seconds <- .pbi_refresh_timeout(refresh_timeout)
-  attempt_timeout_seconds <- timeout_seconds %||% (5 * 60 * 60)
-  attempts <- (retry_count %||% 0L) + 1L
-  if (attempt_timeout_seconds * attempts > 24 * 60 * 60) {
-    .fabric_abort(
-      "timeout multiplied by all attempts cannot exceed 24 hours"
-    )
-  }
+  .pbi_refresh_timeout(refresh_timeout)
 
   payload <- Filter(
     Negate(is.null),

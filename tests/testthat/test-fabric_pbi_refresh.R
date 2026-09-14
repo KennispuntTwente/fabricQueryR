@@ -396,7 +396,7 @@ test_that("refresh payload validation enforces Power BI contracts", {
     ),
     "Transactional"
   )
-  expect_error(
+  expect_no_error(
     .pbi_refresh_payload(
       "enhanced",
       NULL,
@@ -408,10 +408,9 @@ test_that("refresh payload validation enforces Power BI contracts", {
       NULL,
       2L,
       "09:00:00"
-    ),
-    "24 hours"
+    )
   )
-  expect_error(
+  expect_no_error(
     .pbi_refresh_payload(
       "enhanced",
       NULL,
@@ -423,8 +422,7 @@ test_that("refresh payload validation enforces Power BI contracts", {
       NULL,
       4L,
       NULL
-    ),
-    "24 hours"
+    )
   )
   expect_no_error(.pbi_refresh_payload(
     "enhanced",

@@ -146,7 +146,7 @@ refresh attempts}
 
 \item{timeout}{In \code{fabric_pbi_refresh()}, an optional \code{HH:MM:SS} limit for
 each enhanced attempt; Power BI defaults to five hours per attempt and
-limits all attempts to 24 hours. In
+stops retries after 24 hours of elapsed runtime from the first attempt. In
 \code{fabric_pbi_refresh_wait()}, the maximum number of seconds to wait on the
 client before raising a separate client-side timeout}
 
