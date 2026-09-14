@@ -1,3 +1,5 @@
+# Fabric integration coverage: global and regional generic OneLake endpoints
+
 test_that("Delta reads use global and regional generic OneLake endpoints", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()

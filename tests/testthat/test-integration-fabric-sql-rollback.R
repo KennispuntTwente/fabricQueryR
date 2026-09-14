@@ -1,3 +1,5 @@
+# Fabric integration coverage: Warehouse overwrite rollback after load failures
+
 test_that("Warehouse overwrite rolls back destructive SQL when loading fails", {
   fabric_test_require_package("arrow")
   manifest <- fabric_test_manifest()
