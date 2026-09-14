@@ -115,7 +115,10 @@ For other exact integers or decimals, pass character values with type
 \code{Text}; for doubles, \code{sprintf("\%.17g", value)} supplies reversible text.
 The receiving job must handle these values as text.
 Fabric normalizes numeric negative zero to zero;
-pass \code{"-0.0"} with type \code{Text} when its sign must be retained.}
+pass \code{"-0.0"} with type \code{Text} when its sign must be retained.
+R date-times must have whole-second precision. Fractional seconds are
+rejected because Fabric's \code{DateTime} format cannot preserve them; round or
+truncate explicitly before submission if that loss is acceptable.}
 
 \item{parameter_types}{Optional named character vector overriding inferred
 parameter types. Supported values are \code{VariableReference}, \code{Integer},

@@ -54,6 +54,9 @@
 #'   The receiving job must handle these values as text.
 #'   Fabric normalizes numeric negative zero to zero;
 #'   pass `"-0.0"` with type `Text` when its sign must be retained.
+#'   R date-times must have whole-second precision. Fractional seconds are
+#'   rejected because Fabric's `DateTime` format cannot preserve them; round or
+#'   truncate explicitly before submission if that loss is acceptable.
 #' @param parameter_types Optional named character vector overriding inferred
 #'   parameter types. Supported values are `VariableReference`, `Integer`,
 #'   `Number`, `Text`, `Boolean`, `DateTime`, `Guid`, and `Automatic`. Use this
@@ -2582,6 +2585,16 @@ print.fabric_job_instance <- function(x, ...) {
   # R date objects become the UTC text format expected by Fabric
   if (date_time_value) {
     if (inherits(value, c("POSIXct", "POSIXlt"))) {
+      seconds <- as.numeric(as.POSIXct(value))
+      if (!is.finite(seconds) || seconds != trunc(seconds)) {
+        .fabric_abort(
+          sprintf(
+            "DateTime parameter `%s` must have whole-second precision; round or truncate explicitly before submission",
+            name
+          ),
+          class = "fabric_job_parameter_precision_error"
+        )
+      }
       value <- format(
         as.POSIXct(value),
         "%Y-%m-%dT%H:%M:%SZ",

@@ -39,3 +39,35 @@
       Error in `.fabric_job_parameter()`:
       ! Fabric parameter `value` must be one non-missing scalar
 
+# job date-times reject fractional seconds before serialization
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = type))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must have whole-second precision; round or truncate explicitly before submission
+
+---
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = type))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must have whole-second precision; round or truncate explicitly before submission
+
+---
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = type))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must have whole-second precision; round or truncate explicitly before submission
+
+---
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = type))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must have whole-second precision; round or truncate explicitly before submission
+

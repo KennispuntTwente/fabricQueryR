@@ -2727,3 +2727,20 @@ test_that("job recovery budgets start after the initial Retry-After wait", {
     expect_equal(now, started + retry_after + 1)
   }
 })
+test_that("job date-times reject fractional seconds before serialization", {
+  timestamp <- as.POSIXct("2026-08-07 12:34:56", tz = "UTC") + 0.75
+  for (value in list(timestamp, as.POSIXlt(timestamp))) {
+    for (type in c("DateTime", "Automatic")) {
+      expect_snapshot(
+        .fabric_job_parameters(list(watermark = value), c(watermark = type)),
+        error = TRUE
+      )
+    }
+  }
+  expect_identical(
+    .fabric_job_parameters(list(watermark = trunc(timestamp, "secs")))[[
+      1L
+    ]]$value,
+    "2026-08-07T12:34:56Z"
+  )
+})
