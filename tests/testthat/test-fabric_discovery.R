@@ -1369,6 +1369,35 @@ test_that("item collections preserve nested service records", {
   expect_identical(items[[1L]]$tags, record$tags)
 })
 
+test_that("fabric_item accesses shared items without workspace hydration", {
+  workspace_id <- "11111111-1111-4111-8111-111111111111"
+  item_id <- "22222222-2222-4222-8222-222222222222"
+  calls <- character()
+  httr2::local_mocked_responses(function(req) {
+    calls <<- c(calls, req$url)
+    if (!grepl(paste0("/items/", item_id), req$url, fixed = TRUE)) {
+      return(httr2::response(status_code = 403L, url = req$url))
+    }
+    discovery_response(
+      list(id = item_id, displayName = "Shared notebook", type = "Notebook"),
+      req$url
+    )
+  })
+  item <- fabric_item(workspace_id, item_id, detail = FALSE, token = "token")
+  expect_identical(item$id, item_id)
+  expect_identical(item$workspaceId, workspace_id)
+  expect_identical(
+    calls,
+    paste0(
+      .fabric_api_base,
+      "/workspaces/",
+      workspace_id,
+      "/items/",
+      item_id
+    )
+  )
+})
+
 test_that("fabric_item resolves names and rejects type mismatches", {
   local_mocked_bindings(
     fabric_resolve_workspace = function(...) {

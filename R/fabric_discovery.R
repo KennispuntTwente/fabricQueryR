@@ -416,7 +416,11 @@ fabric_items <- function(
 #'   subclass. With `output = "list"`, one `fabric_item` record containing the
 #'   item's name, ID, type, workspace, and available connection details
 #' @details
-#' The caller needs access to the workspace for the core item lookup.
+#' GUID-based lookup requires read access to the item. A workspace GUID is used
+#' directly without requesting workspace details, so directly shared items do
+#' not require a workspace role. Name lookup requires permission to list the
+#' relevant workspaces or items. To reuse workspace-specific endpoints, pass a
+#' discovered workspace object; alternatively, supply `api_base` explicitly.
 #' Workload-specific enrichment additionally requires
 #' `Item.Read.All`/`Item.ReadWrite.All` or the applicable workload-specific read
 #' scope and access to the item. Microsoft currently limits User Data Function
@@ -458,7 +462,17 @@ fabric_item <- function(
 ) {
   # 1 Resolve authentication and workspace ---------------------------------------------------------
 
-  # Establish the workspace first because both item lookup routes need its ID
+  # Direct item access needs only the workspace ID, not workspace permissions.
+  # A discovered workspace can still supply workspace-specific endpoints.
+
+  if (
+    is.character(workspace) &&
+      length(workspace) == 1L &&
+      !is.na(workspace) &&
+      fabric_is_guid(workspace)
+  ) {
+    workspace <- list(id = workspace)
+  }
 
   output <- .fabric_r6_output(output)
   api_base_supplied <- !missing(api_base)

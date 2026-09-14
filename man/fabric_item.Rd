@@ -91,7 +91,11 @@ Use this when you know the item's name or ID and do not need to list every
 item in the workspace
 }
 \details{
-The caller needs access to the workspace for the core item lookup.
+GUID-based lookup requires read access to the item. A workspace GUID is used
+directly without requesting workspace details, so directly shared items do
+not require a workspace role. Name lookup requires permission to list the
+relevant workspaces or items. To reuse workspace-specific endpoints, pass a
+discovered workspace object; alternatively, supply \code{api_base} explicitly.
 Workload-specific enrichment additionally requires
 \code{Item.Read.All}/\code{Item.ReadWrite.All} or the applicable workload-specific read
 scope and access to the item. Microsoft currently limits User Data Function
