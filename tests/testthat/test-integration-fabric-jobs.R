@@ -2,6 +2,98 @@
 # These tests run sandbox notebooks, pipelines, and Spark job definitions, then
 # check successful runs as well as failure, timeout, and cancellation behavior
 
+test_that("an enabled Fabric schedule executes its notebook parameters", {
+  manifest <- fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  fixture <- fabric_test_manifest_item(manifest, "JobFixtures")
+  item <- list(
+    id = fixture$id,
+    workspaceId = manifest$workspace_id,
+    type = fixture$type
+  )
+  marker <- paste0("scheduled-", kusto_ingestion_source_id())
+  seen <- vapply(
+    fabric_job_instances(item, token = token),
+    `[[`,
+    character(1),
+    "id"
+  )
+  start <- trunc(Sys.time(), "secs") + 120
+  schedule <- fabric_job_schedule_create(
+    item,
+    fabric_job_schedule_config(
+      "Cron",
+      start_time = start,
+      end_time = start + 600,
+      time_zone = "UTC",
+      interval = 60L
+    ),
+    enabled = TRUE,
+    # RunNotebook schedules use the workload's String type, not REST's Text.
+    execution_data = list(
+      executionData = list(compute = "Spark"),
+      parameters = list(
+        list(name = "mode", value = "success", type = "String"),
+        list(name = "marker", value = marker, type = "String")
+      )
+    ),
+    token = token
+  )
+  on.exit(
+    fabric_job_schedule_delete(item, schedule, confirm = TRUE, token = token),
+    add = TRUE
+  )
+
+  deadline <- Sys.time() + 1200
+  matched <- NULL
+  repeat {
+    history <- fabric_job_instances(item, token = token)
+    for (instance in history) {
+      if (
+        instance$id %in%
+          seen ||
+          !identical(instance$invoke_type, "Scheduled") ||
+          !identical(instance$status, "Completed")
+      ) {
+        next
+      }
+      completed <- fabric_job_status(
+        instance,
+        notebook_details = TRUE,
+        respect_retry_after = FALSE
+      )
+      if (
+        identical(
+          completed$exit_value,
+          paste0("fabricqueryr-job-success:", marker)
+        )
+      ) {
+        matched <- completed
+        break
+      }
+      if (!is.null(completed$exit_value) && nzchar(completed$exit_value)) {
+        seen <- c(seen, instance$id)
+      }
+    }
+    if (!is.null(matched)) {
+      break
+    }
+    if (Sys.time() >= deadline) {
+      rlang::abort(
+        "Enabled schedule did not return its unique notebook marker in time"
+      )
+    }
+    Sys.sleep(5)
+  }
+  expect_identical(matched$status, "Completed")
+  expect_identical(matched$invoke_type, "Scheduled")
+  expect_identical(
+    matched$exit_value,
+    paste0("fabricqueryr-job-success:", marker)
+  )
+  expect_gte(as.numeric(matched$start_time), as.numeric(start))
+})
+
 test_that("Fabric item jobs complete, fail, time out, and cancel", {
   manifest <- fabric_test_manifest()
   token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
