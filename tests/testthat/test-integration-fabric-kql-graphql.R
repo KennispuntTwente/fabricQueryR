@@ -782,14 +782,8 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
     client_id = auth$client_id,
     auth_args = auth$auth_args
   )
-  expect_equal(
-    api$graphql_endpoint,
-    sub(
-      "^https://api[.]fabric[.]microsoft[.]com",
-      sub("/+$", "", api$workspaceApiEndpoint),
-      provisioned$endpoint
-    )
-  )
+  expect_equal(api$graphql_endpoint, provisioned$endpoint)
+  expect_null(api$workspaceApiEndpoint)
   root_field <- provisioned$root_field
 
   result <- api$query(
@@ -833,6 +827,34 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
   )
   expect_identical(result$data[[root_field]]$items[[1L]]$amount, "10.50")
   expect_null(result$data[[root_field]]$items[[2L]]$amount)
+})
+
+test_that("GraphQL discovery by workspace name uses workspace-specific endpoints", {
+  manifest <- fabric_test_manifest()
+  provisioned <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  api <- fabric_item(
+    manifest$workspace_name,
+    provisioned$id,
+    type = "GraphQLApi",
+    token = fabric_test_token_provider()
+  )
+  expect_match(api$workspaceApiEndpoint, "^https://")
+  expect_equal(
+    api$graphql_endpoint,
+    sub(
+      "^https://api[.]fabric[.]microsoft[.]com",
+      sub("/+$", "", api$workspaceApiEndpoint),
+      provisioned$endpoint
+    )
+  )
+
+  result <- api$query(
+    "{ __typename }",
+    error_policy = "error",
+    audience = "https://api.fabric.microsoft.com/.default"
+  )
+  expect_length(result$errors, 0L)
+  expect_identical(result$data$`__typename`, "Query")
 })
 
 test_that("Fabric GraphQL introspection succeeds or is specifically disabled", {
