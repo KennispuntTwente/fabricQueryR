@@ -627,10 +627,10 @@ fabric_delta_target_uri <- function(target) {
     .fabric_abort("The resolved OneLake target has no DFS host")
   }
 
-  # delta-rs 1.6.x cannot parse Fabric's workspace-private ABFSS authority.
-  # Keep the logical URI parser-compatible and pass the private host as a
+  # delta-rs 1.6.x cannot parse private or generic OneLake ABFSS authorities.
+  # Keep the logical URI parser-compatible and pass the selected host as a
   # separate storage endpoint so requests still use the discovered route.
-  if (!is.null(onelake_workspace_host_guid(host))) {
+  if (!is.null(fabric_delta_storage_endpoint(target))) {
     host <- "onelake.dfs.fabric.microsoft.com"
   }
 
@@ -665,12 +665,17 @@ fabric_delta_target_uri <- function(target) {
   paste0(prefix, "/", onelake_encode_path(target$path))
 }
 
-#' Return a workspace-private Blob endpoint for delta-rs
+#' Return a custom OneLake storage endpoint for delta-rs
 #' @keywords internal
 #' @noRd
-# Uses a resolved OneLake `target`; returns a private endpoint or `NULL`
+# Uses a resolved OneLake `target`; returns a custom endpoint or `NULL`
 fabric_delta_storage_endpoint <- function(target) {
   host <- httr2::url_parse(target$dfs_base)$hostname
+  if (
+    grepl("^(?:[a-z0-9]+-)?api[.]onelake[.]fabric[.]microsoft[.]com$", host)
+  ) {
+    return(paste0("https://", host))
+  }
   if (is.null(onelake_workspace_host_guid(host))) {
     return(NULL)
   }

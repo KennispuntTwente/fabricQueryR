@@ -1043,3 +1043,24 @@ test_that("Delta normalization preserves ordinary large buffer types", {
     )
   }
 })
+test_that("generic OneLake Delta endpoints preserve their selected storage route", {
+  for (host in c(
+    "api.onelake.fabric.microsoft.com",
+    "westeurope-api.onelake.fabric.microsoft.com"
+  )) {
+    target <- onelake_resolve_target(
+      "workspace",
+      "item.Lakehouse",
+      "Tables/dbo/orders",
+      dfs_base = paste0("https://", host)
+    )
+    expect_identical(
+      fabric_delta_target_uri(target),
+      "abfss://workspace@onelake.dfs.fabric.microsoft.com/item.Lakehouse/Tables/dbo/orders"
+    )
+    expect_identical(
+      fabric_delta_storage_endpoint(target),
+      paste0("https://", host)
+    )
+  }
+})
