@@ -33,6 +33,9 @@ Suggests:
     withr
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+Config/Needs/ci:
+    adbcdrivermanager=url::https://cloud.r-project.org/src/contrib/Archive/adbcdrivermanager/adbcdrivermanager_0.23.0-2.tar.gz,
+    adbi=url::https://cloud.r-project.org/src/contrib/Archive/adbi/adbi_0.1.2.tar.gz
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Imports: 

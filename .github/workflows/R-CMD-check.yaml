@@ -22,6 +22,8 @@ jobs:
         with:
           dependencies: '"hard"'
           extra-packages: any::devtools, any::testthat, any::withr, any::assertthat, any::purrr
+          install-pandoc: false
+          install-quarto: false
       - name: Exercise both writers with the minimum Arrow version
         shell: Rscript {0}
         run: |
@@ -93,7 +95,8 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: any::rcmdcheck, any::devtools
-          needs: check
+          # Config/Needs/ci supplies tested releases of archived ADBC packages.
+          needs: check, ci
 
       - uses: r-lib/actions/check-r-package@v2
         with:

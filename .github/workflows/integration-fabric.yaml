@@ -277,6 +277,8 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           dependencies: 'c("Depends", "Imports", "LinkingTo")'
+          # Config/Needs/ci supplies tested releases of archived ADBC packages.
+          needs: ci
           extra-packages: >-
             any::adbcdrivermanager,
             any::adbi,
