@@ -162,7 +162,11 @@ item's name, ID, type, workspace, and available connection details</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The caller needs access to the workspace for the core item lookup.
+    <p>GUID-based lookup requires read access to the item. A workspace GUID is used
+directly without requesting workspace details, so directly shared items do
+not require a workspace role. Name lookup requires permission to list the
+relevant workspaces or items. To reuse workspace-specific endpoints, pass a
+discovered workspace object; alternatively, supply <code>api_base</code> explicitly.
 Workload-specific enrichment additionally requires
 <code>Item.Read.All</code>/<code>Item.ReadWrite.All</code> or the applicable workload-specific read
 scope and access to the item. Microsoft currently limits User Data Function

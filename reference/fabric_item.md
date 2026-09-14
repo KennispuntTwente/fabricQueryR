@@ -123,13 +123,17 @@ and available connection details
 
 ## Details
 
-The caller needs access to the workspace for the core item lookup.
-Workload-specific enrichment additionally requires
-`Item.Read.All`/`Item.ReadWrite.All` or the applicable workload-specific
-read scope and access to the item. Microsoft currently limits User Data
-Function detail retrieval to delegated user identities, so its automatic
-default is lightweight. Set `detail = TRUE` explicitly when using a
-supported identity
+GUID-based lookup requires read access to the item. A workspace GUID is
+used directly without requesting workspace details, so directly shared
+items do not require a workspace role. Name lookup requires permission
+to list the relevant workspaces or items. To reuse workspace-specific
+endpoints, pass a discovered workspace object; alternatively, supply
+`api_base` explicitly. Workload-specific enrichment additionally
+requires `Item.Read.All`/`Item.ReadWrite.All` or the applicable
+workload-specific read scope and access to the item. Microsoft currently
+limits User Data Function detail retrieval to delegated user identities,
+so its automatic default is lightweight. Set `detail = TRUE` explicitly
+when using a supported identity
 
 ## References
 

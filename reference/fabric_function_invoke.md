@@ -126,7 +126,10 @@ underscores. Python keywords and Fabric's reserved `req`, `context`, and
 `reqInvocationId` names are rejected before a request is sent. A named
 atomic vector is converted to a named list; use
 [`I()`](https://rdrr.io/r/base/AsIs.html) around a one-element value
-when it must remain a JSON array.
+when it must remain a JSON array. Supply datetimes as ISO 8601 strings
+with an explicit timezone and the desired fractional seconds. R
+`POSIXct` and `POSIXlt` objects are rejected, including inside lists and
+data frames, to avoid lossy JSON conversion.
 
 ## Permissions and authentication
 

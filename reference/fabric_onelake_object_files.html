@@ -223,7 +223,10 @@ Dataset/Scanner/query, RecordBatchReader, or Arrow-compatible array stream.</p><
 
 <dt id="arg-allow-managed-tables">allow_managed_tables<a class="anchor" aria-label="anchor" href="#arg-allow-managed-tables"></a></dt>
 <dd><p>Whether direct writes below <code>Tables/</code> are
-permitted. Keep the safe default, <code>FALSE</code>, for managed Delta tables.</p></dd>
+permitted. Keep the safe default, <code>FALSE</code>, for managed Delta tables.
+This guard checks only the supplied path and does not resolve shortcuts.
+A <code>Files/</code> shortcut can lead to a managed table, where writes change the
+target's data even with <code>allow_managed_tables = FALSE</code>.</p></dd>
 
 
 <dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>

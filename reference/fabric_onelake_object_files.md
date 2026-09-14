@@ -189,7 +189,10 @@ fabric_onelake_write_file(
 - allow_managed_tables:
 
   Whether direct writes below `Tables/` are permitted. Keep the safe
-  default, `FALSE`, for managed Delta tables.
+  default, `FALSE`, for managed Delta tables. This guard checks only the
+  supplied path and does not resolve shortcuts. A `Files/` shortcut can
+  lead to a managed table, where writes change the target's data even
+  with `allow_managed_tables = FALSE`.
 
 - chunk_size:
 

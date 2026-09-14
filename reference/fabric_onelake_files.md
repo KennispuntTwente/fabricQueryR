@@ -215,7 +215,11 @@ fabric_onelake_delete(
 - allow_managed_tables:
 
   Whether to allow direct changes below `Tables/` Keep `FALSE` for
-  normal use: changing Delta files directly can corrupt a managed table
+  normal use: changing Delta files directly can corrupt a managed table.
+  This guard checks only the supplied path and does not resolve
+  shortcuts. A path below `Files/` can reach a managed table through a
+  shortcut; writes or deletion of descendants then change the shortcut
+  target's data.
 
 - chunk_size:
 

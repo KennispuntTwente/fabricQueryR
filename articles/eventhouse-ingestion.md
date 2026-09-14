@@ -51,9 +51,14 @@ written$staging_retained
 ```
 
 The function writes temporary Parquet data, uploads it to Fabric, queues
-the ingestion, waits for a final status, and deletes staging only after
-confirmed success. `create_if_missing = TRUE` creates a basic table from
-the R object’s columns when needed.
+the ingestion, and waits for a final status. With the default
+`cleanup = TRUE`, service-owned Storage sources may be deleted after
+download, before ingestion succeeds. OneLake staging is removed only
+after confirmed success. Set `cleanup = FALSE` to retain Storage sources
+for recovery; a failed Storage batch otherwise reports
+`staging_retained = NA` because source retention is unknown.
+`create_if_missing = TRUE` creates a basic table from the R object’s
+columns when needed.
 
 For an existing table, the source names and types must match. Supply a
 predefined Parquet `mapping` or explicit `column_types` when inference
@@ -224,9 +229,9 @@ directly to storage:
 lakehouse <- fabric_lakehouses("Telemetry workspace")[[1]]
 
 exported <- database$export(
-  query = "Events | where observed_at > ago(7d)",
+  query = "Events | where amount > 0",
   destination = lakehouse,
-  path = "Files/exports/events-weekly",
+  path = "Files/exports/events-positive-amount",
   format = "parquet",
   name_prefix = "events",
   compression_type = "snappy"

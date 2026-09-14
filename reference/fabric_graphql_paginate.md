@@ -149,6 +149,15 @@ request and `complete` is `TRUE` when the callback reported no next page
 Results are kept page-by-page because the requested schema shape can
 vary
 
+## Details
+
+Failures while paging raise `fabric_graphql_pagination_error`, retaining
+incomplete `pages`, the failing `result` (when available), request
+`variables`, `cursor`, `seen_cursors`, `page_number`, and the original
+condition as `parent`. Error-only GraphQL responses cannot continue
+pagination, even with `error_policy = "return"`. Partial data with
+usable cursors remains supported.
+
 ## Examples
 
 ``` r

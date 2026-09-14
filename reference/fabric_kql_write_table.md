@@ -3,7 +3,10 @@
 Serializes an R or Arrow object to Parquet, uploads it using the storage
 container or OneLake folder preferred by the Kusto ingestion service,
 submits tracked queued ingestion, waits for the terminal per-file
-result, and removes staging only after a confirmed success.
+result, and manages staging cleanup. With `cleanup = TRUE`, Storage
+sources may be deleted after download, before ingestion succeeds;
+OneLake staging is removed only after confirmed success. Use
+`cleanup = FALSE` to retain Storage sources for recovery.
 
 ## Usage
 

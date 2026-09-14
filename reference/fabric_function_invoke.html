@@ -158,7 +158,10 @@ and objects as inputs. The top-level <code>parameters</code> object therefore ne
 unique, non-empty camelCase names without underscores. Python keywords and
 Fabric's reserved <code>req</code>, <code>context</code>, and <code>reqInvocationId</code> names are rejected
 before a request is sent. A named atomic vector is converted to a named list;
-use <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</a></code> around a one-element value when it must remain a JSON array.</p>
+use <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</a></code> around a one-element value when it must remain a JSON array.
+Supply datetimes as ISO 8601 strings with an explicit timezone and the
+desired fractional seconds. R <code>POSIXct</code> and <code>POSIXlt</code> objects are rejected,
+including inside lists and data frames, to avoid lossy JSON conversion.</p>
     </div>
     <div class="section level2">
     <h2 id="permissions-and-authentication">Permissions and authentication<a class="anchor" aria-label="anchor" href="#permissions-and-authentication"></a></h2>

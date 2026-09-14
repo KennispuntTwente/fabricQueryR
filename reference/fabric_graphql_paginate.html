@@ -184,6 +184,14 @@ the final <code>variables</code>. <code>pages</code> contains one <code>fabric_g
 request and <code>complete</code> is <code>TRUE</code> when the callback reported no next page
 Results are kept page-by-page because the requested schema shape can vary</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Failures while paging raise <code>fabric_graphql_pagination_error</code>, retaining
+incomplete <code>pages</code>, the failing <code>result</code> (when available), request <code>variables</code>,
+<code>cursor</code>, <code>seen_cursors</code>, <code>page_number</code>, and the original condition as <code>parent</code>.
+Error-only GraphQL responses cannot continue pagination, even with
+<code>error_policy = "return"</code>. Partial data with usable cursors remains supported.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

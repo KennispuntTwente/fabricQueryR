@@ -44,6 +44,11 @@ discovery metadata. This generic fallback also applies to typed
 Environment and User Data Function discovery; a typed helper and
 workload detail route do not by themselves imply a specialized R6 class.
 
+`FabricEventhouse` and `FabricKqlDatabase` share the KQL methods
+documented below under their internal `FabricKqlItem` superclass:
+`$query()`, `$tables()`, `$read_table()`, `$ingest()`, `$write_table()`,
+`$export()`, `$ingestion_status()`, and `$ingestion_wait()`.
+
 ## Super class
 
 `FabricRecord` -\> `FabricWorkspace`
@@ -1647,6 +1652,255 @@ Read a Delta table directly from OneLake.
 #### Returns
 
 A tibble or Arrow stream.
+
+## Super classes
+
+`FabricRecord` -\> `FabricItem` -\> `FabricKqlItem`
+
+## Methods
+
+### Public methods
+
+- [`FabricKqlItem$query()`](#method-FabricKqlItem-query)
+
+- [`FabricKqlItem$tables()`](#method-FabricKqlItem-tables)
+
+- [`FabricKqlItem$read_table()`](#method-FabricKqlItem-read_table)
+
+- [`FabricKqlItem$ingest()`](#method-FabricKqlItem-ingest)
+
+- [`FabricKqlItem$write_table()`](#method-FabricKqlItem-write_table)
+
+- [`FabricKqlItem$export()`](#method-FabricKqlItem-export)
+
+- [`FabricKqlItem$ingestion_status()`](#method-FabricKqlItem-ingestion_status)
+
+- [`FabricKqlItem$ingestion_wait()`](#method-FabricKqlItem-ingestion_wait)
+
+Inherited methods
+
+- `FabricRecord$as_list()`
+- `FabricRecord$field_names()`
+- `FabricRecord$get()`
+- `FabricRecord$print()`
+- [`FabricItem$details()`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.html#method-details)
+- [`FabricItem$initialize()`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.html#method-initialize)
+
+------------------------------------------------------------------------
+
+### `FabricKqlItem$query()`
+
+Run a KQL query.
+
+#### Usage
+
+    FabricKqlItem$query(query, ...)
+
+#### Arguments
+
+- `query`:
+
+  One KQL query.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md).
+
+#### Returns
+
+A typed tibble, or a `fabric_kql_tables` list for multiple primary
+results; see
+[`fabric_kql_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_query.md).
+
+------------------------------------------------------------------------
+
+### `FabricKqlItem$tables()`
+
+List KQL tables.
+
+#### Usage
+
+    FabricKqlItem$tables(...)
+
+#### Arguments
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_kql_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_tables.md).
+
+#### Returns
+
+A table inventory tibble.
+
+------------------------------------------------------------------------
+
+### `FabricKqlItem$read_table()`
+
+Read one KQL table.
+
+#### Usage
+
+    FabricKqlItem$read_table(table, ...)
+
+#### Arguments
+
+- `table`:
+
+  Table name or discovered table row.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_kql_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_read_table.md).
+
+#### Returns
+
+A typed tibble with Kusto metadata attributes.
+
+------------------------------------------------------------------------
+
+### `FabricKqlItem$ingest()`
+
+Ingest existing sources into a KQL table.
+
+#### Usage
+
+    FabricKqlItem$ingest(table, sources, format, ...)
+
+#### Arguments
+
+- `table`:
+
+  Destination table name.
+
+- `sources`:
+
+  Source URLs or source records.
+
+- `format`:
+
+  Source data format.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_kql_ingest()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md).
+
+#### Returns
+
+A `fabric_kql_ingestion` handle.
+
+------------------------------------------------------------------------
+
+### `FabricKqlItem$write_table()`
+
+Write R or Arrow data to a KQL table.
+
+#### Usage
+
+    FabricKqlItem$write_table(table, data, ...)
+
+#### Arguments
+
+- `table`:
+
+  Destination table name.
+
+- `data`:
+
+  Data frame or Arrow-compatible source.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md).
+
+#### Returns
+
+A `fabric_kql_write_result` with ingestion status and staging
+disposition.
+
+------------------------------------------------------------------------
+
+### `FabricKqlItem$export()`
+
+Export a KQL query to Fabric storage.
+
+#### Usage
+
+    FabricKqlItem$export(query, destination, ...)
+
+#### Arguments
+
+- `query`:
+
+  One KQL query.
+
+- `destination`:
+
+  Destination Fabric item or OneLake target.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_kql_export()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_export.md).
+
+#### Returns
+
+A `fabric_kql_export_result` with operation state, artifact paths, and
+record counts.
+
+------------------------------------------------------------------------
+
+### `FabricKqlItem$ingestion_status()`
+
+Retrieve one KQL ingestion status snapshot.
+
+#### Usage
+
+    FabricKqlItem$ingestion_status(ingestion, ...)
+
+#### Arguments
+
+- `ingestion`:
+
+  Ingestion handle, status record, or operation ID.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_kql_ingestion_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md).
+
+#### Returns
+
+A `fabric_kql_ingestion_status` record.
+
+------------------------------------------------------------------------
+
+### `FabricKqlItem$ingestion_wait()`
+
+Wait for a KQL ingestion to finish.
+
+#### Usage
+
+    FabricKqlItem$ingestion_wait(ingestion, ...)
+
+#### Arguments
+
+- `ingestion`:
+
+  Ingestion handle, status record, or operation ID.
+
+- `...`:
+
+  Arguments forwarded to
+  [`fabric_kql_ingestion_status()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_ingest.md).
+
+#### Returns
+
+A terminal `fabric_kql_ingestion_status` record.
 
 ## Super classes
 

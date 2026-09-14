@@ -103,9 +103,14 @@ a new test table while learning:</p>
 <span><span class="va">written</span><span class="op">$</span><span class="va">rows</span></span>
 <span><span class="va">written</span><span class="op">$</span><span class="va">staging_retained</span></span></code></pre></div>
 <p>The function writes temporary Parquet data, uploads it to Fabric,
-queues the ingestion, waits for a final status, and deletes staging only
-after confirmed success. <code>create_if_missing = TRUE</code> creates a
-basic table from the R object’s columns when needed.</p>
+queues the ingestion, and waits for a final status. With the default
+<code>cleanup = TRUE</code>, service-owned Storage sources may be
+deleted after download, before ingestion succeeds. OneLake staging is
+removed only after confirmed success. Set <code>cleanup = FALSE</code>
+to retain Storage sources for recovery; a failed Storage batch otherwise
+reports <code>staging_retained = NA</code> because source retention is
+unknown. <code>create_if_missing = TRUE</code> creates a basic table
+from the R object’s columns when needed.</p>
 <p>For an existing table, the source names and types must match. Supply
 a predefined Parquet <code>mapping</code> or explicit
 <code>column_types</code> when inference is not appropriate. See
@@ -246,9 +251,9 @@ storage:</p>
 <code class="sourceCode R"><span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_typed_items.html">fabric_lakehouses</a></span><span class="op">(</span><span class="st">"Telemetry workspace"</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">exported</span> <span class="op">&lt;-</span> <span class="va">database</span><span class="op">$</span><span class="fu">export</span><span class="op">(</span></span>
-<span>  query <span class="op">=</span> <span class="st">"Events | where observed_at &gt; ago(7d)"</span>,</span>
+<span>  query <span class="op">=</span> <span class="st">"Events | where amount &gt; 0"</span>,</span>
 <span>  destination <span class="op">=</span> <span class="va">lakehouse</span>,</span>
-<span>  path <span class="op">=</span> <span class="st">"Files/exports/events-weekly"</span>,</span>
+<span>  path <span class="op">=</span> <span class="st">"Files/exports/events-positive-amount"</span>,</span>
 <span>  format <span class="op">=</span> <span class="st">"parquet"</span>,</span>
 <span>  name_prefix <span class="op">=</span> <span class="st">"events"</span>,</span>
 <span>  compression_type <span class="op">=</span> <span class="st">"snappy"</span></span>

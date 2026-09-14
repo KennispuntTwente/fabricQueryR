@@ -259,7 +259,9 @@ Fabric-managed first-level folder. Keep <code>TRUE</code> for normal uploads</p>
 <dt id="arg-allow-managed-tables">allow_managed_tables<a class="anchor" aria-label="anchor" href="#arg-allow-managed-tables"></a></dt>
 <dd><p>Whether to allow direct changes below <code>Tables/</code>
 Keep <code>FALSE</code> for normal use: changing Delta files directly can corrupt a
-managed table</p></dd>
+managed table. This guard checks only the supplied path and does not resolve
+shortcuts. A path below <code>Files/</code> can reach a managed table through a shortcut;
+writes or deletion of descendants then change the shortcut target's data.</p></dd>
 
 
 <dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>

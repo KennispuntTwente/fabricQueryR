@@ -11,6 +11,7 @@ Find Fabric workspaces, items, and workload-specific connection details
   [`FabricWarehouseSnapshot`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
   [`FabricSqlDatabase`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
   [`FabricMirroredDatabase`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
+  [`FabricKqlItem`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
   [`FabricEventhouse`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
   [`FabricKqlDatabase`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
   [`FabricGraphQLApi`](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
