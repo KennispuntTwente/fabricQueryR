@@ -786,7 +786,9 @@ kusto_ingestion_source_url <- function(value) {
   } else {
     tolower(parsed$scheme %||% "")
   }
-  valid_credentials <- if (identical(scheme, "abfss")) {
+  valid_credentials <- if (inherits(parsed, "try-error")) {
+    FALSE
+  } else if (identical(scheme, "abfss")) {
     nzchar(parsed$username %||% "") && !nzchar(parsed$password %||% "")
   } else {
     !nzchar(parsed$username %||% "") && !nzchar(parsed$password %||% "")

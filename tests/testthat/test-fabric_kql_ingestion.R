@@ -972,3 +972,12 @@ test_that("ingestion property validation fails before authentication", {
     fixed = TRUE
   )
 })
+test_that("malformed ingestion source URLs produce a validation error", {
+  for (url in c(
+    "https://[",
+    "https://[invalid]/file.csv",
+    "abfss://w@[/file"
+  )) {
+    expect_snapshot(kusto_ingestion_source_url(url), error = TRUE)
+  }
+})

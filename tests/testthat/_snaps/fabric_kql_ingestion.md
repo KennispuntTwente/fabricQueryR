@@ -11,3 +11,27 @@
       x `sources` contains 2 files
       i Submit each source separately with its own stable key or omit `ingest_if_not_exists`
 
+# malformed ingestion source URLs produce a validation error
+
+    Code
+      kusto_ingestion_source_url(url)
+    Condition
+      Error in `kusto_ingestion_source_url()`:
+      ! each source url must be a valid https:// or abfss:// storage source
+
+---
+
+    Code
+      kusto_ingestion_source_url(url)
+    Condition
+      Error in `kusto_ingestion_source_url()`:
+      ! each source url must be a valid https:// or abfss:// storage source
+
+---
+
+    Code
+      kusto_ingestion_source_url(url)
+    Condition
+      Error in `kusto_ingestion_source_url()`:
+      ! each source url must be a valid https:// or abfss:// storage source
+
