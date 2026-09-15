@@ -252,8 +252,8 @@ test_that("bulk shortcut creation submits validated transforms as an LRO", {
         )
       ),
       list(
-        path = "Files/imports",
-        name = "customers",
+        path = "Files/Imports",
+        name = "orders",
         target = list(
           adlsGen2 = list(
             connectionId = shortcut_test_connection_id,
@@ -279,6 +279,17 @@ test_that("bulk shortcut creation submits validated transforms as an LRO", {
     fixed = TRUE
   )
   expect_length(body, 2L)
+  expect_identical(
+    vapply(body, `[[`, character(1), "path"),
+    c(
+      "Files/imports",
+      "Files/Imports"
+    )
+  )
+  expect_identical(
+    vapply(body, `[[`, character(1), "name"),
+    c("orders", "orders")
+  )
   expect_equal(body[[1L]]$target$oneLake$path, "Files/csv/orders")
   expect_equal(body[[1L]]$transform$type, "csvToDelta")
   expect_true(body[[1L]]$transform$includeSubfolders)

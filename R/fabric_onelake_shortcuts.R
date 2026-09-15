@@ -364,11 +364,11 @@ fabric_onelake_shortcuts_bulk_create <- function(
       )
     }
   )
-  identities <- tolower(vapply(
+  identities <- vapply(
     requests,
     function(request) paste(request$path, request$name, sep = "/"),
     character(1)
-  ))
+  )
   if (anyDuplicated(identities)) {
     .fabric_abort(
       "`shortcuts` contains duplicate path and name combinations",
