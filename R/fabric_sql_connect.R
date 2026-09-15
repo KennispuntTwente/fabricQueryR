@@ -894,7 +894,9 @@ fabric_sql_validate_query_statement <- function(sql) {
     "WAITFOR",
     "WHILE"
   )
-  write_capable <- any(c("INTO", non_query_tokens) %in% select_tokens)
+  # A CTE may precede INSERT ... SELECT: the write token can occur before
+  # the first top-level SELECT, so inspect the complete statement.
+  write_capable <- any(c("INTO", non_query_tokens) %in% tokens)
   valid <- valid_start && valid_selects && !write_capable
   if (!valid) {
     fabric_sql_statement_error()

@@ -947,6 +947,33 @@ test_that("fabric_sql_query accepts exactly one read-only SELECT", {
   )
 })
 
+test_that("CTE writes are rejected before authentication or connection", {
+  local_mocked_bindings(
+    fabric_sql_connect = function(...) stop("Unexpected connection")
+  )
+  statements <- c(
+    "WITH src AS (SELECT 1 AS id) INSERT INTO dbo.target (id) SELECT id FROM src",
+    paste0(
+      ";WITH a AS (SELECT 1 AS id), b AS (SELECT id FROM a) ",
+      "INSERT /* write before SELECT */ INTO dbo.target SELECT id FROM b"
+    )
+  )
+  for (backend in c("odbc", "adbc")) {
+    for (sql in statements) {
+      error <- rlang::catch_cnd(fabric_sql_query(
+        "server.datawarehouse.fabric.microsoft.com",
+        sql,
+        backend = backend,
+        token = function(...) stop("Unexpected authentication")
+      ))
+      expect_s3_class(error, "fabric_sql_statement_error")
+    }
+  }
+  expect_silent(fabric_sql_validate_query_statement(
+    "WITH [insert] AS (SELECT 1 AS id) SELECT id FROM [insert]"
+  ))
+})
+
 test_that("ADBC parameter translation ignores SQL literals and comments", {
   sql <- paste0(
     "SELECT ?, '?', \"?\", [?], [a]]?], ",
