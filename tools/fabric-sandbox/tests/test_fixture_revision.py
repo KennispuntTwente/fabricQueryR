@@ -16,6 +16,8 @@ from fabricqueryr_sandbox.fixture_revision import (
     write_fixture_revision,
 )
 from fabricqueryr_sandbox.settings import SandboxSettings
+from fabricqueryr_sandbox.deployment_revision import record_deployments
+from fabricqueryr_sandbox.deploy import deploy
 
 
 RUNTIME_CONTRACT = {
@@ -221,7 +223,7 @@ def test_fixture_revision_covers_runtime_and_deployment_contract(tmp_path):
     )
     job_notebook.write_text("job-notebook-v2\n", encoding="utf-8")
     different_job_notebook = fixture_revision(settings, RUNTIME_CONTRACT)
-    assert different_job_notebook != different_terraform
+    assert different_job_notebook == different_terraform
 
     graphql_api = (
         settings.repository_root
@@ -251,7 +253,7 @@ def test_jobs_fixture_revision_excludes_unrelated_services(tmp_path):
         / "JobFixtures.Notebook/notebook-content.py"
     )
     job_notebook.write_text("job-notebook-v2\n", encoding="utf-8")
-    assert fixture_revision(settings, RUNTIME_CONTRACT, scope="jobs") != first
+    assert fixture_revision(settings, RUNTIME_CONTRACT, scope="jobs") == first
 
 
 def test_onelake_fixture_revision_excludes_unrelated_services(tmp_path):
@@ -296,6 +298,7 @@ def test_fixture_revision_round_trip_and_verification(tmp_path):
     settings = make_settings(tmp_path)
     service = FakeService()
     expected = fixture_revision(settings, RUNTIME_CONTRACT)
+    record_deployments(settings, "workspace-id", "lakehouse-id", service_client=service)
 
     write_fixture_revision(
         "workspace-id",
@@ -360,6 +363,7 @@ def test_jobs_fixture_revision_uses_an_independent_marker(tmp_path):
     settings = make_settings(tmp_path)
     service = FakeService()
     expected = fixture_revision(settings, RUNTIME_CONTRACT, scope="jobs")
+    record_deployments(settings, "workspace-id", "lakehouse-id", service_client=service)
 
     write_fixture_revision(
         "workspace-id",
@@ -386,6 +390,45 @@ def test_jobs_fixture_revision_uses_an_independent_marker(tmp_path):
     files = service.filesystems["workspace-id"].files
     assert f"lakehouse-id/{JOBS_FIXTURE_REVISION_PATH}" in files
     assert f"lakehouse-id/{FIXTURE_REVISION_PATH}" not in files
+
+
+@pytest.mark.parametrize("scope", ["all", "jobs"])
+def test_selective_deployment_refreshes_definitions_without_reseeding(tmp_path, monkeypatch, scope):
+    settings = replace(make_settings(tmp_path), non_schema_lakehouse_id="other-lakehouse")
+    service = FakeService()
+    monkeypatch.setattr("fabricqueryr_sandbox.deployment_revision._service", lambda *_: service)
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.get_credential", lambda: "credential")
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.FabricWorkspace", lambda **kwargs: kwargs)
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.append_feature_flag", lambda *_: None)
+    published = []
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.publish_all_items",
+        lambda workspace, items_to_include: published.append(items_to_include),
+    )
+    deploy(settings)
+    revision = fixture_revision(settings, RUNTIME_CONTRACT, scope=scope)
+    write_fixture_revision(
+        "workspace-id", "lakehouse-id", revision,
+        runtime_contract=RUNTIME_CONTRACT, service_client=service, scope=scope,
+    )
+    def verify():
+        return verify_fixture_revision(
+            settings, "workspace-id", "lakehouse-id", service_client=service, scope=scope,
+        )
+    assert verify() == revision
+    item = "TestPipeline.DataPipeline"
+    pipeline = settings.workspace_definition_dir / item / "pipeline-content.json"
+    pipeline.write_text('{"activities": []}\n', encoding="utf-8")
+    assert fixture_revision(settings, RUNTIME_CONTRACT, scope=scope) == revision
+    with pytest.raises(RuntimeError, match="need deployment: TestPipeline.DataPipeline"):
+        verify()
+    deploy(settings, items=[item])
+    assert published == [None, [item]]
+    assert verify() == revision
+    (settings.fixture_dir / "basic.csv").write_text("id,name\n2,changed\n", encoding="utf-8")
+    deploy(settings, items=[item])
+    with pytest.raises(RuntimeError, match="fixture revision mismatch"):
+        verify()
 
 
 def test_onelake_fixture_revision_uses_an_independent_marker(tmp_path):

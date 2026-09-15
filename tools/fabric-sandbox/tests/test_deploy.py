@@ -18,6 +18,16 @@ class StaticCredential:
         return AccessToken("test-token", 4_102_444_800)
 
 
+@pytest.fixture(autouse=True)
+def recorded_deployments(monkeypatch):
+    records = []
+    monkeypatch.setattr(
+        "fabricqueryr_sandbox.deploy.record_deployments",
+        lambda *args, **kwargs: records.append((args, kwargs)),
+    )
+    return records
+
+
 def test_seed_notebook_ids_are_parameterized():
     repository_root = Path(__file__).parents[3]
     notebook = (
@@ -324,7 +334,7 @@ def test_deploy_binds_terraform_lakehouse_id(monkeypatch, tmp_path):
     assert published == [(workspaces[0], {"items_to_include": None})]
 
 
-def test_deploy_selects_exact_repository_items(monkeypatch, tmp_path):
+def test_deploy_selects_exact_repository_items(monkeypatch, tmp_path, recorded_deployments):
     settings = SandboxSettings(
         workspace_id="workspace-id",
         lakehouse_id="lakehouse-id",
@@ -387,6 +397,18 @@ def test_deploy_selects_exact_repository_items(monkeypatch, tmp_path):
             },
         )
     ]
+    assert recorded_deployments[0][0] == (
+        settings, "workspace-id", "lakehouse-id",
+        ["JobFixtures.Notebook", "TestPipeline.DataPipeline"],
+    )
+
+    recorded_deployments.clear()
+    def fail_publish(*args, **kwargs):
+        raise RuntimeError("publication failed")
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.publish_all_items", fail_publish)
+    with pytest.raises(RuntimeError, match="publication failed"):
+        deploy(settings, items=["TestPipeline.DataPipeline"])
+    assert recorded_deployments == []
 
 
 def test_deploy_resolves_persistent_targets_by_name(monkeypatch, tmp_path):

@@ -100,16 +100,7 @@ def _fixture_inputs(
         ]
         workspace_inputs = [
             settings.workspace_definition_dir / "parameter.yml",
-            *(
-                settings.workspace_definition_dir / item
-                for item in (
-                    "SeedFixtures.Notebook",
-                    "JobFixtures.Notebook",
-                    "TestPipeline.DataPipeline",
-                    "TestSparkJob.SparkJobDefinition",
-                    "TestEnvironment.Environment",
-                )
-            ),
+            settings.workspace_definition_dir / "SeedFixtures.Notebook",
         ]
         workspace_files = sorted(
             path
@@ -153,6 +144,12 @@ def _fixture_inputs(
                 if path.is_file()
                 and "__pycache__" not in path.parts
                 and path.suffix != ".pyc"
+                and (
+                    path.parent == settings.workspace_definition_dir
+                    or "SeedFixtures.Notebook" in path.relative_to(
+                        settings.workspace_definition_dir
+                    ).parts
+                )
             )
         terraform_files = sorted(
             path
@@ -192,7 +189,7 @@ def fixture_revision(
     *,
     scope: str = "all",
 ) -> str:
-    """Hash every source that materially defines deployed Delta fixtures."""
+    """Hash seeded data inputs independently of separately deployed items."""
     _validate_scope(scope)
     digest = sha256()
     digest.update(b"fixture_scope\0")
@@ -353,4 +350,10 @@ def verify_fixture_revision(
             f"deployed={deployed}, expected={expected}. "
             "Rebuild or reseed the Fabric sandbox before running integration tests."
         )
+    from .deployment_revision import verify_deployments
+
+    verify_deployments(
+        settings, workspace_id, lakehouse_id,
+        service_client=service_client, scope=scope,
+    )
     return expected

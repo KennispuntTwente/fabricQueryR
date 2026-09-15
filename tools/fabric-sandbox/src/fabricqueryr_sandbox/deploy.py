@@ -6,6 +6,7 @@ from os import environ
 from fabric_cicd import FabricWorkspace, append_feature_flag, publish_all_items
 
 from .credentials import get_credential
+from .deployment_revision import record_deployments
 from .fabric_api import FabricApi
 from .settings import SandboxSettings
 
@@ -120,3 +121,6 @@ def deploy(
         token_credential=credential,
     )
     publish_all_items(workspace, items_to_include=selected)
+    record_deployments(
+        settings, workspace_id, lakehouse_id, selected, credential=credential,
+    )
