@@ -107,3 +107,47 @@ test_that("CI distinguishes skipped integration tests from executed coverage", {
     "FAILED"
   )
 })
+
+test_that("CI credentials renew expired tokens and recover through nested providers", {
+  helper <- test_path("..", "..", "tools", "fabric-sandbox", "ci-integration.R")
+  skip_if_not(file.exists(helper), "tools/ is excluded from the built package")
+  env <- new.env(parent = baseenv())
+  sys.source(helper, env)
+  withr::local_envvar(c(
+    FABRIC_TEST_AUTH_TENANT_ID = "tenant",
+    FABRIC_TEST_AUTH_CLIENT_ID = "client",
+    FABRIC_TEST_AUTH_CLIENT_SECRET = "test-secret"
+  ))
+  acquired <- fake_azure_token()
+  acquisitions <- 0L
+  local_mocked_bindings(
+    get_azure_token = function(...) {
+      acquisitions <<- acquisitions + 1L
+      expect_identical(list(...)$auth_type, "client_credentials")
+      acquired
+    },
+    .package = "AzureAuth"
+  )
+  withr::local_options(
+    fabricQueryR.integration_token_provider = env$fabric_ci_token_provider()
+  )
+  provider <- fabric_test_token_provider()
+  expect_identical(provider(.fabric_audience$fabric), "azure-token")
+  acquired$valid <- FALSE
+  expect_identical(provider(.fabric_audience$fabric), "azure-token-refreshed")
+  expect_identical(acquired$refreshes, 1L)
+
+  requests <- 0L
+  httr2::local_mocked_responses(function(req) {
+    requests <<- requests + 1L
+    json_response(
+      status = if (requests == 1L) 401L else 200L,
+      body = list(value = list()),
+      url = req$url
+    )
+  })
+  expect_identical(fabric_workspaces(token = provider), list())
+  expect_identical(requests, 2L)
+  expect_identical(acquired$refreshes, 2L)
+  expect_identical(acquisitions, 1L)
+})

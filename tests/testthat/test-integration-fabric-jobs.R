@@ -96,7 +96,7 @@ test_that("an enabled Fabric schedule executes its notebook parameters", {
 
 test_that("Fabric item jobs complete, fail, time out, and cancel", {
   manifest <- fabric_test_manifest()
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  token <- fabric_test_token_provider()
   notebook <- fabric_test_manifest_item(manifest, "JobFixtures")
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   item <- list(
@@ -362,8 +362,8 @@ test_that("notebook numbers guard decimal narrowing and preserve exact Text", {
 
 test_that("Fabric pipeline and Spark job definition jobs complete", {
   manifest <- fabric_test_manifest()
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
-  storage_token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  token <- fabric_test_token_provider()
+  storage_token <- fabric_test_token_provider()
   fixtures <- c("TestPipeline", "TestSparkJob")
 
   for (name in fixtures) {
@@ -399,7 +399,7 @@ test_that("Fabric pipeline and Spark job definition jobs complete", {
 
 test_that("Fabric job history and daily and weekly schedules complete a lifecycle", {
   manifest <- fabric_test_manifest()
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  token <- fabric_test_token_provider()
   fixture <- fabric_test_manifest_item(manifest, "TestPipeline")
   item <- list(
     id = fixture$id,
@@ -540,7 +540,7 @@ test_that("Fabric job history and daily and weekly schedules complete a lifecycl
 
 test_that("Cron and monthly Fabric schedules complete live lifecycles", {
   manifest <- fabric_test_manifest()
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  token <- fabric_test_token_provider()
   fixture <- fabric_test_manifest_item(manifest, "TestPipeline")
   item <- list(
     id = fixture$id,
@@ -719,7 +719,7 @@ test_that("disabled schedule updates preserve numeric execution data in Fabric",
 
 test_that("notebook and Spark schedule defaults complete live lifecycles", {
   manifest <- fabric_test_manifest()
-  token <- fabric_test_token("FABRIC_TEST_API_TOKEN")
+  token <- fabric_test_token_provider()
   cases <- list(
     JobFixtures = "RunNotebook",
     TestSparkJob = "SparkJob"

@@ -349,7 +349,7 @@ test_that("fabric_pbi_dax_query consumes the Arrow DAX API", {
     manifest,
     "TestArrowSemanticModel"
   )
-  token <- fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+  token <- fabric_test_token_provider()
   query <- paste(
     "EVALUATE",
     "SELECTCOLUMNS(",

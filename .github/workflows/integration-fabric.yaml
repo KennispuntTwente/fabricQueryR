@@ -399,6 +399,7 @@ jobs:
     env: &integration_env
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
       FABRIC_INTEGRATION_REQUIRED: "true"
+      FABRIC_TEST_REFRESHABLE_AUTH: "true"
       FABRIC_TEST_AUTH_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       FABRIC_TEST_AUTH_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       FABRIC_TEST_DENIED_WORKSPACE_ID: ${{ vars.FABRIC_TEST_DENIED_WORKSPACE_ID }}
@@ -476,26 +477,6 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Acquire short-lived test tokens
-        run: |
-          storage_token="$(az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv)"
-          sql_token="$(az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv)"
-          api_token="$(az account get-access-token --resource https://api.fabric.microsoft.com/ --query accessToken -o tsv)"
-          pbi_token="$(az account get-access-token --resource https://analysis.windows.net/powerbi/api --query accessToken -o tsv)"
-          kusto_token="$(az account get-access-token --resource https://api.kusto.windows.net --query accessToken -o tsv)"
-          echo "::add-mask::$storage_token"
-          echo "::add-mask::$sql_token"
-          echo "::add-mask::$api_token"
-          echo "::add-mask::$pbi_token"
-          echo "::add-mask::$kusto_token"
-          {
-            echo "FABRIC_TEST_STORAGE_TOKEN=$storage_token"
-            echo "FABRIC_TEST_SQL_TOKEN=$sql_token"
-            echo "FABRIC_TEST_API_TOKEN=$api_token"
-            echo "FABRIC_TEST_PBI_TOKEN=$pbi_token"
-            echo "FABRIC_TEST_KUSTO_TOKEN=$kusto_token"
-          } >> "$GITHUB_ENV"
 
       - name: Acquire least-privilege Fabric token
         if: matrix.filter == 'integration-fabric-auth-discovery'

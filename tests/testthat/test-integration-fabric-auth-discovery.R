@@ -2,6 +2,30 @@
 # These tests use the live sandbox credentials and manifest to confirm that a
 # user can sign in, find the provisioned workspace, and resolve its test items
 
+test_that("live Fabric rejects a stale token and the provider renews it", {
+  manifest <- fabric_test_manifest()
+  auth <- fabric_test_azure_auth_config()
+  credential <- fabric_credential(
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args
+  )
+  # Acquire once before the rejection so recovery exercises refresh(), too.
+  invisible(fabric_get_token(credential, .fabric_audience$fabric))
+  refreshes <- logical()
+  real_provider <- function(audience, force_refresh = FALSE) {
+    refreshes <<- c(refreshes, force_refresh)
+    if (length(refreshes) == 1L) {
+      return("deliberately-invalid-integration-token")
+    }
+    fabric_get_token(credential, audience, force_refresh)
+  }
+  withr::local_options(fabricQueryR.integration_token_provider = real_provider)
+  workspaces <- fabric_workspaces(token = fabric_test_token_provider())
+  expect_identical(refreshes, c(FALSE, TRUE))
+  expect_true(manifest$workspace_id %in% purrr::map_chr(workspaces, "id"))
+})
+
 test_that("fabricQueryR acquires a live Fabric token through AzureAuth", {
   manifest <- fabric_test_manifest()
   expected_lane <- Sys.getenv("FABRIC_SPARK_RUNTIME_LANE")

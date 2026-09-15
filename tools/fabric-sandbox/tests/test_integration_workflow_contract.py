@@ -198,14 +198,6 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     persistent = (
         repository_root / ".github/workflows/fabric-sandbox.yaml"
     ).read_text()
-    resources = [
-        "https://storage.azure.com/",
-        "https://database.windows.net/",
-        "https://api.fabric.microsoft.com/",
-        "https://analysis.windows.net/powerbi/api",
-        "https://api.kusto.windows.net",
-    ]
-
     provision = integration.split("\n  prepare_r:", maxsplit=1)[0]
     assert provision.index("Sign in to Azure with OIDC") < provision.index(
         "Seed test data"
@@ -219,10 +211,11 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     assert "Acquire sandbox access tokens" not in persistent
     assert "FABRIC_SANDBOX_USE_ENV_TOKENS" not in persistent
 
-    acquire = integration.index("Acquire short-lived test tokens")
-    assert integration.index("setup-r-dependencies@v2") < acquire
-    assert acquire < integration.index("Run Fabric integration tests")
-    assert all(resource in integration for resource in resources)
+    assert 'FABRIC_TEST_REFRESHABLE_AUTH: "true"' in integration
+    assert "Acquire short-lived test tokens" not in integration
+    run = integration.split("- name: Run Fabric integration tests", maxsplit=1)[1]
+    assert "FABRIC_TEST_AUTH_CLIENT_SECRET:" in run
+    assert "run_fabric_ci_integration()" in run
 
 
 def test_provisioning_retries_only_transient_provider_timeouts():

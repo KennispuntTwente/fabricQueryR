@@ -1,3 +1,38 @@
+# Use the configured application credential throughout a lane, including token
+# expiry and HTTP 401 recovery. Create it lazily after test_local loads the package.
+fabric_ci_token_provider <- function() {
+  credential <- NULL
+  function(audience, force_refresh = FALSE) {
+    if (is.null(credential)) {
+      variables <- c(
+        "FABRIC_TEST_AUTH_TENANT_ID",
+        "FABRIC_TEST_AUTH_CLIENT_ID",
+        "FABRIC_TEST_AUTH_CLIENT_SECRET"
+      )
+      values <- Sys.getenv(variables)
+      if (any(!nzchar(values))) {
+        stop(
+          paste(
+            "Refreshable CI authentication requires:",
+            paste(variables[!nzchar(values)], collapse = ", ")
+          ),
+          call. = FALSE
+        )
+      }
+      credential <<- fabricQueryR:::fabric_credential(
+        tenant_id = values[[1L]],
+        client_id = values[[2L]],
+        auth_args = list(
+          password = values[[3L]],
+          auth_type = "client_credentials",
+          use_cache = FALSE
+        )
+      )
+    }
+    fabricQueryR:::fabric_get_token(credential, audience, force_refresh)
+  }
+}
+
 # Report executed coverage separately from optional tests that only skipped.
 fabric_ci_integration_summary <- function(results, filter) {
   rows <- as.data.frame(results)
@@ -52,6 +87,12 @@ run_fabric_ci_integration <- function(
   required = fabric_ci_lane_required(filter),
   .test = testthat::test_local
 ) {
+  if (identical(Sys.getenv("FABRIC_TEST_REFRESHABLE_AUTH"), "true")) {
+    old <- options(
+      fabricQueryR.integration_token_provider = fabric_ci_token_provider()
+    )
+    on.exit(options(old), add = TRUE)
+  }
   results <- .test(filter = filter, stop_on_failure = FALSE)
   summary <- fabric_ci_integration_summary(results, filter)
   path <- Sys.getenv("GITHUB_STEP_SUMMARY")

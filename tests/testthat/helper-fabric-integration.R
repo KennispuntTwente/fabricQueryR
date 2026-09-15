@@ -178,7 +178,7 @@ fabric_test_token_variables <- c(
   "https://api.kusto.windows.net/.default" = "FABRIC_TEST_KUSTO_TOKEN"
 )
 
-fabric_test_token <- function(variable) {
+fabric_test_token <- function(variable, force_refresh = FALSE) {
   provider <- getOption("fabricQueryR.integration_token_provider")
   token <- if (is.null(provider)) {
     Sys.getenv(variable)
@@ -188,7 +188,11 @@ fabric_test_token <- function(variable) {
         "fabricQueryR.integration_token_provider must be a function"
       )
     }
-    provider(fabric_test_token_audience(variable))
+    fabric_call_token_provider(
+      provider,
+      fabric_test_token_audience(variable),
+      force_refresh
+    )
   }
   fabric_test_skip_or_fail(
     !nzchar(token),
@@ -217,20 +221,17 @@ fabric_test_token_audience <- function(variable) {
   names(fabric_test_token_variables)[[index]]
 }
 
-fabric_test_provisioned_token <- function(audience) {
-  fabric_test_token(fabric_test_token_variable(audience))
+fabric_test_provisioned_token <- function(audience, force_refresh = FALSE) {
+  fabric_test_token(fabric_test_token_variable(audience), force_refresh)
 }
 
 fabric_test_token_provider <- function(
   acquire = fabric_test_provisioned_token
 ) {
-  cache <- new.env(parent = emptyenv())
+  # The underlying credential owns expiry-aware caching. Caching bearer strings
+  # here would hide expiry and prevent rejected-token retries from refreshing it.
   function(audience, force_refresh = FALSE) {
-    key <- gsub("[^A-Za-z0-9]", "_", audience)
-    if (isTRUE(force_refresh) || is.null(cache[[key]])) {
-      cache[[key]] <- acquire(audience)
-    }
-    cache[[key]]
+    fabric_call_token_provider(acquire, audience, force_refresh)
   }
 }
 

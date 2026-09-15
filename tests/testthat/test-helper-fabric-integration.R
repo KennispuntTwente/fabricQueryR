@@ -106,21 +106,24 @@ test_that("the preview runtime lane remains a Runtime 2.0 alias", {
   expect_no_error(fabric_test_runtime_lane("runtime2"))
 })
 
-test_that("live token providers acquire by audience and cache until refresh", {
+test_that("live token providers delegate expiry checks and forced refresh", {
   calls <- character()
-  provider <- fabric_test_token_provider(function(audience) {
+  refreshes <- logical()
+  provider <- fabric_test_token_provider(function(audience, force_refresh) {
     calls <<- c(calls, audience)
+    refreshes <<- c(refreshes, force_refresh)
     paste0("token-", length(calls))
   })
 
   expect_identical(provider("scope-a"), "token-1")
-  expect_identical(provider("scope-a"), "token-1")
-  expect_identical(provider("scope-b"), "token-2")
+  expect_identical(provider("scope-a"), "token-2")
+  expect_identical(provider("scope-b"), "token-3")
   expect_identical(
     provider("scope-a", force_refresh = TRUE),
-    "token-3"
+    "token-4"
   )
-  expect_identical(calls, c("scope-a", "scope-b", "scope-a"))
+  expect_identical(calls, c("scope-a", "scope-a", "scope-b", "scope-a"))
+  expect_identical(refreshes, c(FALSE, FALSE, FALSE, TRUE))
 })
 
 test_that("live token providers use the token provisioned for each audience", {

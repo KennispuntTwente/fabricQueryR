@@ -660,7 +660,7 @@ test_that("Livy batches cover success, failure, and cancellation", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   auth <- fabric_test_azure_auth_config()
-  storage_token <- fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+  storage_token <- fabric_test_token_provider()
   run_id <- kusto_ingestion_source_id()
   marker <- function() {
     fabric_onelake_read_delta_table(
