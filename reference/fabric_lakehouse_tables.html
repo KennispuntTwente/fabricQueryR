@@ -371,8 +371,10 @@ decimal field when decimal precision and scale must be explicit. Fabric's
 Load to Tables flow does not accept a caller-defined destination schema, so
 use Spark or another schema-controlled writer when inference is unsuitable.</p>
 <p>To preserve names exactly, <code>fabric_lakehouse_write_table()</code> requires unique
-column names containing only Unicode letters, numbers, and underscores, up
-to Fabric's documented 128-character limit.</p>
+column names containing only Unicode letters, decimal digits, and underscores,
+up to Fabric's documented 128-character limit. Use precomposed letters:
+managed Parquet loads reject decomposed combining marks, connector punctuation
+other than underscore, and numeric symbols such as superscript digits.</p>
     </div>
     <div class="section level2">
     <h2 id="failure-and-cleanup-behavior">Failure and cleanup behavior<a class="anchor" aria-label="anchor" href="#failure-and-cleanup-behavior"></a></h2>

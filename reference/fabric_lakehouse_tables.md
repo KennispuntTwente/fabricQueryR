@@ -329,8 +329,11 @@ destination schema, so use Spark or another schema-controlled writer
 when inference is unsuitable.
 
 To preserve names exactly, `fabric_lakehouse_write_table()` requires
-unique column names containing only Unicode letters, numbers, and
-underscores, up to Fabric's documented 128-character limit.
+unique column names containing only Unicode letters, decimal digits, and
+underscores, up to Fabric's documented 128-character limit. Use
+precomposed letters: managed Parquet loads reject decomposed combining
+marks, connector punctuation other than underscore, and numeric symbols
+such as superscript digits.
 
 ## Failure and cleanup behavior
 
