@@ -533,7 +533,7 @@ test_that("high-concurrency Livy sessions isolate their REPLs", {
   if (packed) {
     expect_false(identical(session_a$repl_id, session_b$repl_id))
   } else {
-    message(
+    testthat::skip(
       "Fabric allocated separate backing sessions; packed isolation was not exercised"
     )
   }
