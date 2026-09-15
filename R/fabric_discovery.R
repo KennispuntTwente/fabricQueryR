@@ -1611,13 +1611,13 @@ fabric_add_derived_targets <- function(record, api_base) {
             "powerbi://api.powerbi.com/v2.0/",
             tenant_id,
             "/home/myworkspace/",
-            utils::URLencode(owner, reserved = TRUE)
+            utils::URLencode(owner, reserved = TRUE, repeated = TRUE)
           )
         }
       } else {
         paste0(
           "powerbi://api.powerbi.com/v1.0/myorg/",
-          utils::URLencode(workspace_name, reserved = TRUE)
+          utils::URLencode(workspace_name, reserved = TRUE, repeated = TRUE)
         )
       }
 

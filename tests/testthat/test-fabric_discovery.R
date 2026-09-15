@@ -972,6 +972,44 @@ test_that("typed workload discovery uses its documented detail routes", {
   )
 })
 
+test_that("derived XMLA targets preserve literal percent escapes in names", {
+  for (workspace in c(
+    "Sales%20 West",
+    "Sales%2FWest",
+    "Sales & West",
+    "Sales/West"
+  )) {
+    model <- fabric_add_derived_targets(
+      list(
+        type = "SemanticModel",
+        displayName = "Model",
+        workspaceDisplayName = workspace
+      ),
+      .fabric_api_base
+    )
+    expect_identical(
+      pbi_parse_connstr(model$dax_connection_string)$workspace,
+      workspace
+    )
+  }
+  personal <- fabric_add_derived_targets(
+    list(
+      type = "SemanticModel",
+      displayName = "Model",
+      workspaceType = "Personal",
+      workspaceTenantId = "11111111-1111-4111-8111-111111111111",
+      workspaceOwner = "owner%20@example.com",
+      workspaceDisplayName = "My Workspace"
+    ),
+    .fabric_api_base
+  )
+  expect_match(
+    personal$dax_connection_string,
+    "owner%2520%40example.com",
+    fixed = TRUE
+  )
+})
+
 test_that("personal workspace identity builds a documented v2 DAX target", {
   local_mocked_bindings(
     fabric_resolve_workspace = function(...) {
