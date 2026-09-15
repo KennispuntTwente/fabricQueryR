@@ -446,7 +446,7 @@ fabric_local_test_scope <- function(filter) {
   if (all(grepl("^integration-fabric-onelake($|-)", matched))) {
     return("onelake")
   }
-  if (all(matched == "integration-fabric-jobs")) {
+  if (all(grepl("^integration-fabric-jobs($|-)", matched))) {
     return("jobs")
   }
   "all"

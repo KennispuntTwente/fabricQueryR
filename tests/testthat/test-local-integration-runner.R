@@ -386,6 +386,10 @@ test_that("local runner selects only the audiences needed by its filter", {
     environment$fabric_local_test_scope("integration-fabric-jobs"),
     "jobs"
   )
+  expect_identical(
+    environment$fabric_local_test_scope("integration-fabric-jobs-overrides"),
+    "jobs"
+  )
   for (filter in c(
     "integration-fabric-(jobs|sql)",
     "integration-fabric-(onelake|kql-graphql)",
