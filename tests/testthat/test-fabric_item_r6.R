@@ -531,7 +531,7 @@ test_that("Item detail methods retain the Fabric API discovery origin", {
 
   expect_identical(item$details(), "details-result")
   expect_identical(
-    calls$details$workspace,
+    calls$details$workspace$id,
     "22222222-2222-4222-8222-222222222222"
   )
   expect_identical(calls$details$item, item$id)
@@ -822,7 +822,7 @@ test_that("Workspace and generic item methods all delegate their context", {
     calls
   )
   expect_identical(call$item, item$id)
-  expect_identical(call$workspace, item$workspaceId)
+  expect_identical(call$workspace$id, item$workspaceId)
   expect_identical(call$output, "r6")
 })
 
@@ -1348,6 +1348,49 @@ test_that("R6 Livy session creation keeps discovery application authentication",
     list(.fabric_audience$fabric, .fabric_audience$power_bi)
   )
 })
+test_that("item refresh preserves workspace identity and OneLake routing", {
+  dfs <- "https://22222222222242228222222222222222.z22.dfs.fabric.microsoft.com"
+  for (type in c("Lakehouse", "SemanticModel")) {
+    record <- r6_test_record(type)$as_list()
+    record$workspaceDisplayName <- "Private Workspace"
+    record$workspaceType <- "Personal"
+    record$workspaceTenantId <- "33333333-3333-4333-8333-333333333333"
+    record$workspaceOwner <- "owner@example.com"
+    record$workspaceOneLakeDfsEndpoint <- dfs
+    item <- fabric_r6_record(
+      record,
+      class(record),
+      fabric_credential(token = "token")
+    )
+    httr2::local_mocked_responses(function(req) {
+      body <- list(id = record$id, type = type, displayName = "Updated item")
+      httr2::response(
+        200L,
+        headers = list("content-type" = "application/json"),
+        body = charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE))
+      )
+    })
+    fresh <- item$details(detail = FALSE)
+    expect_identical(fresh$displayName, "Updated item")
+    for (name in c(
+      "workspaceDisplayName",
+      "workspaceType",
+      "workspaceTenantId",
+      "workspaceOwner"
+    )) {
+      expect_identical(fresh$get(name), record[[name]])
+    }
+    expect_identical(onelake_resolve_target(NULL, fresh)$dfs_base, dfs)
+    if (type == "SemanticModel") {
+      expect_match(
+        fresh$dax_connection_string,
+        "/home/myworkspace/owner",
+        fixed = TRUE
+      )
+    }
+  }
+})
+
 test_that("generic item details fetch current Core metadata and deletions", {
   for (type in c("Report", "UserDataFunction")) {
     item <- r6_test_record(type)

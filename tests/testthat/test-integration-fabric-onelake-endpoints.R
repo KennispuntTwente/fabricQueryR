@@ -1,5 +1,33 @@
 # Fabric integration coverage: global and regional generic OneLake endpoints
 
+test_that("refreshed discovery objects retain their workspace OneLake endpoint", {
+  manifest <- fabric_test_manifest()
+  provider <- fabric_test_token_provider()
+  workspaces <- fabric_workspaces(
+    prefer_workspace_endpoints = TRUE,
+    token = provider
+  )
+  workspace <- Filter(function(x) x$id == manifest$workspace_id, workspaces)[[
+    1L
+  ]]
+  item <- fabric_item(
+    workspace,
+    manifest$items$TestLakehouse$id,
+    token = provider
+  )
+  fresh <- item$details()
+  expect_identical(
+    fresh$workspaceOneLakeDfsEndpoint,
+    item$workspaceOneLakeDfsEndpoint
+  )
+  expect_identical(fresh$workspaceDisplayName, workspace$displayName)
+  expect_identical(
+    onelake_resolve_target(NULL, fresh)$dfs_base,
+    workspace$oneLakeEndpoints$dfsEndpoint
+  )
+  expect_s3_class(fresh$onelake_list("Files"), "tbl_df")
+})
+
 test_that("Delta reads use global and regional generic OneLake endpoints", {
   manifest <- fabric_test_manifest()
   fabric_test_use_delta_runtime()

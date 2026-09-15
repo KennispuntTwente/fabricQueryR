@@ -440,9 +440,22 @@ FabricItem <- R6::R6Class(
     #' @returns A new `FabricItem` object or one of its subclasses.
     details = function(...) {
       workspace_id <- private$workspace_id()
+      workspace <- Filter(
+        Negate(is.null),
+        list(
+          id = workspace_id,
+          displayName = private$value("workspaceDisplayName"),
+          type = private$value("workspaceType"),
+          tenantId = private$value("workspaceTenantId"),
+          ownerUserPrincipalName = private$value("workspaceOwner"),
+          apiEndpoint = private$value("workspaceApiEndpoint"),
+          oneLakeEndpoints = private$record$workspaceOneLakeEndpoints %||%
+            list(dfsEndpoint = private$value("workspaceOneLakeDfsEndpoint"))
+        )
+      )
       private$invoke(
         fabric_item,
-        args = list(workspace = workspace_id, item = self$id),
+        args = list(workspace = workspace, item = self$id),
         dots = list(...),
         output = "r6"
       )
