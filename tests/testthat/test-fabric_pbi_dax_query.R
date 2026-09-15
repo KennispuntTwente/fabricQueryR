@@ -10,6 +10,26 @@ test_that("pbi_parse_connstr parses full conn str", {
   expect_equal(p$dataset, "Dataset One")
 })
 
+test_that("tenant-qualified XMLA targets never resolve in the current tenant", {
+  local_mocked_bindings(
+    pbi_get_group_id_by_name = function(...) stop("Unexpected workspace lookup")
+  )
+  for (tenant in c("fabrikam.com", pbi_test_workspace_id)) {
+    conn <- paste0(
+      "Data Source=powerbi://api.powerbi.com/v1.0/",
+      tenant,
+      "/Sales;Initial Catalog=Sales"
+    )
+    expect_identical(pbi_parse_connstr(conn)$tenant_id, tenant)
+    error <- rlang::catch_cnd(fabric_pbi_dax_query(
+      conn,
+      dax = "EVALUATE ROW(\"value\", 1)",
+      token = function(...) stop("Unexpected token acquisition")
+    ))
+    expect_s3_class(error, "fabric_pbi_tenant_target_error")
+  }
+})
+
 test_that("pbi_parse_connstr supports bare powerbi:// and Catalog alias", {
   conn <- "powerbi://api.powerbi.com/v1.0/myorg/Another%20WS/;Catalog=MyData;"
   p <- fabricQueryR:::pbi_parse_connstr(conn)

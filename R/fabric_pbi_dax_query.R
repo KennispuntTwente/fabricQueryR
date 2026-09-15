@@ -12,6 +12,9 @@
 #' the semantic model settings. IDs are the most reliable choice for scheduled
 #' code. For a model in My Workspace, supply `dataset_id` and set
 #' `my_workspace = TRUE`
+#' Tenant-qualified XMLA connection strings cannot be safely resolved by name
+#' through the tenant-relative REST API. For B2B access, omit `connstr`, supply
+#' `workspace_id` and `dataset_id`, and authenticate to the target tenant.
 #'
 #' @section Choosing a response format:
 #' Keep `api = "json"` for ordinary queries and broad compatibility. It returns
@@ -581,7 +584,13 @@ pbi_parse_connstr <- function(conn) {
     workspace = workspace_name,
     dataset = dataset_name,
     personal = is_personal,
-    tenant_id = if (is_personal) personal[[2L]] else NULL,
+    tenant_id = if (is_personal) {
+      personal[[2L]]
+    } else if (!identical(tolower(shared[[2L]]), "myorg")) {
+      utils::URLdecode(shared[[2L]])
+    } else {
+      NULL
+    },
     owner = if (is_personal) utils::URLdecode(personal[[3L]]) else NULL
   )
 }
@@ -610,6 +619,17 @@ pbi_resolve_ids_from_connstr <- function(
         "my_workspace = TRUE instead"
       ),
       class = "fabric_pbi_personal_workspace_error"
+    )
+  }
+
+  if (!is.null(p$tenant_id)) {
+    .fabric_abort(
+      paste0(
+        "Tenant-qualified XMLA targets cannot be resolved safely through ",
+        "the tenant-relative Power BI REST API. Omit connstr, supply ",
+        "workspace_id and dataset_id, and authenticate to the target tenant"
+      ),
+      class = "fabric_pbi_tenant_target_error"
     )
   }
 
