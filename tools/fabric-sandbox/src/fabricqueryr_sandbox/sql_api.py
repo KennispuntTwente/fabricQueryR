@@ -15,6 +15,7 @@ SQL_COPT_SS_ACCESS_TOKEN = 1256
 SQL_FIXTURE_TABLE = "fabricqueryr_sql_types"
 SQL_FIXTURE_VIEW = "fabricqueryr_sql_types_view"
 SQL_MUTATION_TABLE = "fabricqueryr_sql_mutations"
+SQL_GRAPHQL_TABLE = "fabricqueryr_graphql"
 
 
 def _sql_target(connection_string: str, database: str) -> tuple[str, str]:
@@ -258,6 +259,16 @@ def seed_sql_fixture(
                 ):
                     raise RuntimeError(
                         f"SQL mutation fixture verification failed for {database}"
+                    )
+                cursor.execute(f"DROP TABLE IF EXISTS dbo.{SQL_GRAPHQL_TABLE}")
+                cursor.execute(create_statement(SQL_GRAPHQL_TABLE))
+                cursor.execute(insert_statement(SQL_GRAPHQL_TABLE))
+                graphql_row = cursor.execute(
+                    f"SELECT COUNT(*), SUM(amount) FROM dbo.{SQL_GRAPHQL_TABLE}"
+                ).fetchone()
+                if graphql_row is None or graphql_row[0] != 3 or float(graphql_row[1]) != 30.5:
+                    raise RuntimeError(
+                        f"GraphQL fixture verification failed for {database}"
                     )
             return
         except pyodbc.Error as error:

@@ -969,7 +969,7 @@ test_that("Fabric GraphQL executes a live mutation", {
       try(
         DBI::dbExecute(
           con,
-          "DELETE FROM dbo.fabricqueryr_sql_types WHERE id = -99"
+          "DELETE FROM dbo.fabricqueryr_graphql WHERE id = -99"
         ),
         silent = TRUE
       )
@@ -979,7 +979,7 @@ test_that("Fabric GraphQL executes a live mutation", {
   )
   DBI::dbExecute(
     con,
-    "DELETE FROM dbo.fabricqueryr_sql_types WHERE id = -99"
+    "DELETE FROM dbo.fabricqueryr_graphql WHERE id = -99"
   )
 
   result <- fabric_graphql_query(
@@ -1013,7 +1013,7 @@ test_that("Fabric GraphQL executes a live mutation", {
     con,
     paste(
       "SELECT id, name, category, amount",
-      "FROM dbo.fabricqueryr_sql_types",
+      "FROM dbo.fabricqueryr_graphql",
       "WHERE id = -99"
     )
   )
@@ -1021,6 +1021,12 @@ test_that("Fabric GraphQL executes a live mutation", {
   expect_equal(created$name, "mutation")
   expect_equal(created$category, "M")
   expect_equal(as.numeric(created$amount), 12.5)
+  read_fixture <- DBI::dbGetQuery(
+    con,
+    "SELECT COUNT(*) AS n, SUM(amount) AS total FROM dbo.fabricqueryr_sql_types"
+  )
+  expect_equal(read_fixture$n, 3L)
+  expect_equal(as.numeric(read_fixture$total), 30.5)
 })
 
 test_that("Fabric GraphQL surfaces schema and authentication failures", {

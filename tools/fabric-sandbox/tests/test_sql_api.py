@@ -142,6 +142,10 @@ def test_seed_sql_fixture_can_publish_warehouse_mutations():
     assert statements[11].startswith("SELECT COUNT(*), SUM(amount)")
     assert statements[12].startswith("SELECT COUNT(*), SUM(amount)")
     assert statements[13].startswith("SELECT COUNT(*), SUM(amount)")
+    assert statements[14] == "DROP TABLE IF EXISTS dbo.fabricqueryr_graphql"
+    assert statements[15].startswith("CREATE TABLE dbo.fabricqueryr_graphql")
+    assert statements[16].startswith("INSERT INTO dbo.fabricqueryr_graphql")
+    assert statements[17] == "SELECT COUNT(*), SUM(amount) FROM dbo.fabricqueryr_graphql"
 
 
 def test_wait_for_sql_fixture_retries_until_rows_are_queryable(monkeypatch):

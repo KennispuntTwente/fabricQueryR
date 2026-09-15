@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from .sql_api import SQL_GRAPHQL_TABLE
+
 
 GRAPHQL_API_NAME = "TestGraphQL"
 GRAPHQL_TYPE = "fabricqueryr_basic"
 GRAPHQL_ROOT_FIELD = "fabricqueryr_basics"
 GRAPHQL_CREATE_FIELD = "createfabricqueryr_basic"
-GRAPHQL_SOURCE_OBJECT = "dbo.fabricqueryr_sql_types"
+GRAPHQL_SOURCE_OBJECT = f"dbo.{SQL_GRAPHQL_TABLE}"
 
 
 def graphql_definition(

@@ -5,6 +5,7 @@ from fabricqueryr_sandbox.graphql_api import (
     GRAPHQL_TYPE,
     graphql_definition,
 )
+from fabricqueryr_sandbox.sql_api import SQL_FIXTURE_TABLE, SQL_MUTATION_TABLE
 
 
 def test_graphql_definition_exposes_the_writable_warehouse_table():
@@ -22,6 +23,10 @@ def test_graphql_definition_exposes_the_writable_warehouse_table():
     exposed = source["objects"][0]
     assert exposed["graphqlType"] == GRAPHQL_TYPE
     assert exposed["sourceObject"] == GRAPHQL_SOURCE_OBJECT
+    assert GRAPHQL_SOURCE_OBJECT == "dbo.fabricqueryr_graphql"
+    assert GRAPHQL_SOURCE_OBJECT not in {
+        f"dbo.{SQL_FIXTURE_TABLE}", f"dbo.{SQL_MUTATION_TABLE}",
+    }
     assert exposed["sourceObjectType"] == "Table"
     assert exposed["actions"] == {
         "Query": "Enabled",
