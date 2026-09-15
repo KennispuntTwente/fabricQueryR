@@ -154,7 +154,10 @@ artifacts in a Fabric item's <code>Files/</code> area</p><ul><li><p><code>fabric
 
 <dl><dt id="arg-workspace">workspace<a class="anchor" aria-label="anchor" href="#arg-workspace"></a></dt>
 <dd><p>Workspace name, ID, object from <code><a href="fabric_workspaces.html">fabric_workspaces()</a></code>, or a
-complete OneLake HTTPS/ABFSS path</p></dd>
+complete OneLake HTTPS/ABFSS path
+When <code>item</code> contains a workspace ID, a supplied workspace name must match
+its recorded <code>workspaceDisplayName</code>. If that name is unavailable, supply
+the workspace ID or a discovered workspace object instead.</p></dd>
 
 
 <dt id="arg-item">item<a class="anchor" aria-label="anchor" href="#arg-item"></a></dt>

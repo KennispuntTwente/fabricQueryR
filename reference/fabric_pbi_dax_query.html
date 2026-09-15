@@ -192,7 +192,10 @@ extraction, verify expected row counts or query bounded partitions</p>
 supply workspace and dataset IDs, or a Power BI connection string copied from
 the semantic model settings. IDs are the most reliable choice for scheduled
 code. For a model in My Workspace, supply <code>dataset_id</code> and set
-<code>my_workspace = TRUE</code></p>
+<code>my_workspace = TRUE</code>
+Tenant-qualified XMLA connection strings cannot be safely resolved by name
+through the tenant-relative REST API. For B2B access, omit <code>connstr</code>, supply
+<code>workspace_id</code> and <code>dataset_id</code>, and authenticate to the target tenant.</p>
     </div>
     <div class="section level2">
     <h2 id="choosing-a-response-format">Choosing a response format<a class="anchor" aria-label="anchor" href="#choosing-a-response-format"></a></h2>

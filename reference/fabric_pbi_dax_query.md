@@ -153,7 +153,10 @@ The easiest input is an item from
 You can instead supply workspace and dataset IDs, or a Power BI
 connection string copied from the semantic model settings. IDs are the
 most reliable choice for scheduled code. For a model in My Workspace,
-supply `dataset_id` and set `my_workspace = TRUE`
+supply `dataset_id` and set `my_workspace = TRUE` Tenant-qualified XMLA
+connection strings cannot be safely resolved by name through the
+tenant-relative REST API. For B2B access, omit `connstr`, supply
+`workspace_id` and `dataset_id`, and authenticate to the target tenant.
 
 ## Choosing a response format
 

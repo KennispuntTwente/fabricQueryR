@@ -109,7 +109,10 @@ fabric_onelake_delete(
 
   Workspace name, ID, object from
   [`fabric_workspaces()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_workspaces.md),
-  or a complete OneLake HTTPS/ABFSS path
+  or a complete OneLake HTTPS/ABFSS path When `item` contains a
+  workspace ID, a supplied workspace name must match its recorded
+  `workspaceDisplayName`. If that name is unavailable, supply the
+  workspace ID or a discovered workspace object instead.
 
 - item:
 
