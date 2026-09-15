@@ -799,6 +799,25 @@ test_that("KQL table creation accepts exact type overrides", {
   )
 })
 
+test_that("KQL infers decimal for unsigned integers beyond signed int64", {
+  skip_if_not_installed("arrow")
+  expected <- c("9223372036854775808", "18446744073709551615", NA_character_)
+  column <- arrow::Array$create(expected)$cast(arrow::uint64())
+  data <- arrow::Table$create(value = column)
+  expect_identical(kusto_write_column_types(data$schema, "value"), "decimal")
+  expect_null(kusto_write_validate_decimal_array(column, "value"))
+  path <- withr::local_tempfile(fileext = ".parquet")
+  .fabric_parquet_write_stream(
+    .fabric_parquet_prepare_data(data, "test"),
+    path,
+    "snappy",
+    "test",
+    "fabric_arrow_error"
+  )
+  stored <- arrow::read_parquet(path, as_data_frame = FALSE)
+  expect_identical(stored$value$cast(arrow::utf8())$as_vector(), expected)
+})
+
 test_that("KQL table creation rejects unsupported Parquet temporal mappings", {
   skip_if_not_installed("arrow")
   unsupported <- list(
