@@ -2,6 +2,7 @@
 fabric_test_marker_model <- function(
   workspace_id,
   token,
+  definition = NULL,
   .local_envir = parent.frame()
 ) {
   name <- paste0(
@@ -27,29 +28,30 @@ fabric_test_marker_model <- function(
     },
     envir = .local_envir
   )
-  definition <- list(
-    compatibilityLevel = 1600L,
-    model = list(
-      culture = "en-US",
-      defaultPowerBIDataSourceVersion = "powerBI_V3",
-      tables = list(list(
-        name = "Marker",
-        columns = list(list(
-          name = "marker",
-          dataType = "string",
-          sourceColumn = "marker"
-        )),
-        partitions = list(list(
+  definition <- definition %||%
+    list(
+      compatibilityLevel = 1600L,
+      model = list(
+        culture = "en-US",
+        defaultPowerBIDataSourceVersion = "powerBI_V3",
+        tables = list(list(
           name = "Marker",
-          mode = "import",
-          source = list(
-            type = "m",
-            expression = '#table(type table [marker = text], {{DateTimeZone.ToText(DateTimeZone.UtcNow())}})'
-          )
+          columns = list(list(
+            name = "marker",
+            dataType = "string",
+            sourceColumn = "marker"
+          )),
+          partitions = list(list(
+            name = "Marker",
+            mode = "import",
+            source = list(
+              type = "m",
+              expression = '#table(type table [marker = text], {{DateTimeZone.ToText(DateTimeZone.UtcNow())}})'
+            )
+          ))
         ))
-      ))
+      )
     )
-  )
   part <- function(path, value) {
     list(
       path = path,
