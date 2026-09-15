@@ -2,6 +2,7 @@ from os import environ
 from pathlib import Path
 import json
 import re
+from types import SimpleNamespace
 
 from azure.core.credentials import AccessToken
 import fabric_cicd.constants as fabric_cicd_constants
@@ -167,6 +168,38 @@ def test_livy_batch_fixture_persists_each_executed_mode():
     assert fixture.rindex("write_marker(mode, -1)") < fixture.index(
         'print("FABRICQUERYR_BATCH_READY_FOR_CANCELLATION"'
     )
+
+
+def test_job_notebook_reports_observed_configuration(monkeypatch):
+    notebook = (
+        Path(__file__).parents[3]
+        / "infra/fabric/workspace/JobFixtures.Notebook/notebook-content.py"
+    ).read_text()
+    cell = notebook.split("# CELL ********************", 1)[1]
+    class NotebookExit(Exception):
+        pass
+    def exit_notebook(value):
+        raise NotebookExit(value)
+    monkeypatch.setitem(__import__("sys").modules, "notebookutils", SimpleNamespace(
+        notebook=SimpleNamespace(exit=exit_notebook),
+        runtime=SimpleNamespace(context={"defaultLakehouseId": "actual-lakehouse"}),
+    ))
+    conf = {"spark.sql.shuffle.partitions": "2", "spark.sql.broadcastTimeout": "301"}
+    tables = []
+    def table(name):
+        tables.append(name)
+        return SimpleNamespace(count=lambda: 3)
+    with pytest.raises(NotebookExit) as result:
+        exec(compile(cell, "JobFixtures.Notebook", "exec"), {
+            "mode": "configuration", "marker": "probe",
+            "spark": SimpleNamespace(conf=conf, table=table),
+        })
+    assert json.loads(str(result.value)) == {
+        "marker": "probe", "shuffle_partitions": "2",
+        "environment_broadcast_timeout": "301", "lakehouse_id": "actual-lakehouse",
+        "row_count": 3,
+    }
+    assert tables == ["dbo.fabricqueryr_basic"]
 
 
 def test_pipeline_and_spark_job_fixtures_are_deployable():

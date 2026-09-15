@@ -8,5 +8,6 @@ dynamic_executor_allocation:
   enabled: true
   min_executors: 1
   max_executors: 2
-spark_conf: {}
+spark_conf:
+  spark.sql.broadcastTimeout: "301"
 runtime_version: 1.3

@@ -114,7 +114,7 @@ test_that("Notebook runs apply an attached Environment and Spark properties", {
     notebook$id,
     workspace = manifest$workspace_id,
     item_type = "Notebook",
-    parameters = list(mode = "success", marker = marker),
+    parameters = list(mode = "configuration", marker = marker),
     execution_data = list(
       compute = "Spark",
       computeConfiguration = list(
@@ -136,10 +136,12 @@ test_that("Notebook runs apply an attached Environment and Spark properties", {
     notebook_details = TRUE
   )
   expect_identical(completed$status, "Completed")
-  expect_identical(
-    completed$exit_value,
-    paste0("fabricqueryr-job-success:", marker)
-  )
+  observed <- jsonlite::fromJSON(completed$exit_value)
+  expect_identical(observed$marker, marker)
+  expect_identical(observed$shuffle_partitions, "2")
+  expect_identical(observed$environment_broadcast_timeout, "301")
+  expect_identical(observed$lakehouse_id, lakehouse$id)
+  expect_identical(observed$row_count, 3L)
 })
 
 test_that("Python notebook code runs with Jupyter compute", {
