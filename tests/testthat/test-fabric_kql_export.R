@@ -456,6 +456,9 @@ test_that("KQL export validates destinations and format-specific properties", {
     "https://storageacct.blob.core.windows.net/container/export;impersonate",
     "https://storageacct.dfs.core.windows.net/filesystem/export;impersonate",
     "abfss://filesystem@storageacct.dfs.core.windows.net/export;impersonate",
+    "abfss://filesystem@storageacct.dfs.core.windows.net/;impersonate",
+    "abfss://filesystem@storageacct.dfs.core.windows.net;impersonate",
+    "https://storageacct.dfs.core.windows.net/filesystem;impersonate",
     "adl://storageacct.azuredatalakestore.net/export;impersonate",
     "https://bucket.s3.eu-west-1.amazonaws.com/export;AwsCredentials=id,key"
   )
@@ -465,6 +468,8 @@ test_that("KQL export validates destinations and format-specific properties", {
   for (value in c(
     "https://example.com/export;impersonate",
     "https://storageacct.blob.core.windows.net/;impersonate",
+    "https://storageacct.dfs.core.windows.net/;impersonate",
+    "abfss://storageacct.dfs.core.windows.net/;impersonate",
     "abfss://storageacct.dfs.core.windows.net/export;impersonate"
   )) {
     error <- rlang::catch_cnd(kusto_export_destination(value))

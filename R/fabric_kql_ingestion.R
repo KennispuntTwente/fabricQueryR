@@ -4484,8 +4484,7 @@ kusto_export_writable_storage <- function(value) {
   if (
     !credentials_valid ||
       !nzchar(host) ||
-      !nzchar(path) ||
-      identical(path, "/") ||
+      ((!nzchar(path) || identical(path, "/")) && !azure_abfss) ||
       nzchar(parsed$fragment %||% "") ||
       !(azure_https || azure_abfss || azure_adl || amazon_s3)
   ) {
