@@ -37,9 +37,20 @@ secret.
 
 ## Local lifecycle
 
-Create a local variables file from `terraform/terraform.tfvars.example`, then run:
+Create a local variables file from `terraform/terraform.tfvars.example`.
+
+Configure `FABRIC_TEST_AUTH_TENANT_ID`, `FABRIC_TEST_AUTH_CLIENT_ID`, and
+`FABRIC_TEST_AUTH_CLIENT_SECRET` in the R process environment (for example, via
+your local `.Renviron`). The application needs access to the test workspace;
+these credentials authenticate the R tests separately from the Azure CLI login
+used for provisioning.
+
+Then run:
 
 ```bash
+export FABRIC_SPARK_RUNTIME_LANE="${FABRIC_SPARK_RUNTIME_LANE:-core}"
+export FABRIC_SPARK_RUNTIME_VERSION="${FABRIC_SPARK_RUNTIME_VERSION:-1.3}"
+
 terraform -chdir=infra/fabric/terraform init
 terraform -chdir=infra/fabric/terraform apply -parallelism=4
 
@@ -68,7 +79,9 @@ uv --directory tools/fabric-sandbox run fabric-sandbox discover
 # Install the external ADBC driver once per test machine.
 uvx dbc==0.3.0 install "mssql>=1.5,<2"
 
-Rscript -e 'devtools::test(filter = "integration-fabric", stop_on_failure = TRUE)'
+export FABRIC_INTEGRATION_REQUIRED=true
+export FABRIC_TEST_REFRESHABLE_AUTH=true
+Rscript -e 'source("tools/fabric-sandbox/ci-integration.R"); run_fabric_ci_integration(filter = "integration-fabric")'
 ```
 
 Both the sandbox command and the R test helper resolve
