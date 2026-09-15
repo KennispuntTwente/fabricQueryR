@@ -700,6 +700,25 @@ test_that("disabled schedule updates preserve numeric execution data in Fabric",
   )
   expect_match(before, "9007199254740993", fixed = TRUE)
   expect_match(before_configuration, '"type":"Daily"', fixed = TRUE)
+  listed <- Filter(
+    function(candidate) identical(candidate$id, schedule$id),
+    fabric_job_schedules(item, token = token)
+  )
+  expect_length(listed, 1L)
+  if (!is.null(listed[[1L]]$execution_data)) {
+    expect_identical(
+      listed[[1L]]$execution_data$parameters[[1L]]$value,
+      "9007199254740993"
+    )
+    expect_identical(
+      listed[[1L]]$raw$executionData$parameters[[1L]]$value,
+      "9007199254740993"
+    )
+  } else {
+    message(
+      "Fabric omitted optional executionData from the schedule collection"
+    )
+  }
   updated <- fabric_job_schedule_update(
     item,
     schedule,

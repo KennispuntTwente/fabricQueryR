@@ -291,6 +291,46 @@ test_that("schedule listing normalizes common fields and preserves future data",
   expect_true(schedules[[1L]]$raw$futureProperty$kept)
 })
 
+test_that("schedule listing preserves large integers across response pages", {
+  values <- c("9007199254740993", "-9007199254740993")
+  calls <- character()
+  local_mocked_bindings(.httr2_perform = function(req, ...) {
+    calls <<- c(calls, req$url)
+    page <- length(calls)
+    body <- paste0(
+      '{"value":[{"id":"33333333-3333-3333-3333-333333333333",',
+      '"enabled":false,"configuration":{"type":"FutureType"},',
+      '"executionData":{"parameters":[{"name":"precision_probe",',
+      '"value":',
+      values[[page]],
+      ',"type":"Number"}]}}]',
+      if (page == 1L) ',"continuationToken":"next page"',
+      '}'
+    )
+    httr2::response(
+      status_code = 200L,
+      url = req$url,
+      headers = list(`content-type` = "application/json"),
+      body = charToRaw(body)
+    )
+  })
+
+  schedules <- fabric_job_schedules(scheduler_test_item(), token = "test-token")
+
+  expect_length(schedules, 2L)
+  expect_match(calls[[2L]], "continuationToken=next%20page", fixed = TRUE)
+  for (index in seq_along(values)) {
+    expect_identical(
+      schedules[[index]]$execution_data$parameters[[1L]]$value,
+      values[[index]]
+    )
+    expect_identical(
+      schedules[[index]]$raw$executionData$parameters[[1L]]$value,
+      values[[index]]
+    )
+  }
+})
+
 test_that("schedule auto-disabled text markers normalize case and separators", {
   response <- scheduler_test_response(enabled = FALSE)
   local_mocked_bindings(.httr2_collection = function(...) list(response))

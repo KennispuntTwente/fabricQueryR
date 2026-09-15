@@ -385,7 +385,8 @@ fabric_job_schedules <- function(
   records <- .httr2_collection(
     .fabric_job_schedules_url(context),
     credential = context$credential,
-    audience = .fabric_audience$fabric
+    audience = .fabric_audience$fabric,
+    bigint_as_char = TRUE
   )
   schedules <- lapply(records, .fabric_job_schedule_record, context = context)
   structure(schedules, class = c("fabric_job_schedule_list", "list"))
