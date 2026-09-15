@@ -329,6 +329,8 @@ def echoStructured(label: str, values: list[int], metadata: dict) -> dict:
 
 @udf.function()
 def raiseValidation(value: int) -> int:
+    if value == -2:
+        raise RuntimeError("FABRICQUERYR_INTENTIONAL_FUNCTION_FAILURE")
     if value < 0:
         raise fn.UserThrownError(
             "value must be non-negative",
