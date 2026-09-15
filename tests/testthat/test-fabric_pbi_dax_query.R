@@ -956,7 +956,7 @@ test_that("Arrow DAX tibbles preserve decimal values exactly", {
   skip_if_not_installed("arrow")
   skip_if_not_installed("nanoarrow")
   expected <- c("123456789012345.6789", "-0.0100", NA_character_)
-  currency <- arrow::Array$create(expected)$cast(arrow::decimal128(19, 4))
+  currency <- pbi_test_currency_array()
   table <- arrow::arrow_table(currency = currency)
   path <- tempfile(fileext = ".arrows")
   on.exit(unlink(path), add = TRUE)
@@ -1017,11 +1017,7 @@ test_that("Arrow DAX Variant covers every documented scalar branch exactly", {
     "-42",
     "-9223372036854775808"
   ))$cast(arrow::int64())
-  currency <- arrow::as_arrow_array(c(
-    "123456789012345.6789",
-    "-0.0100",
-    NA_character_
-  ))$cast(arrow::decimal128(19, 4))
+  currency <- pbi_test_currency_array()
   children <- list(
     integer = integer,
     currency = currency,
@@ -1309,7 +1305,12 @@ test_that("Arrow DAX stream remains file-backed without collecting its table", {
   expect_s3_class(resource$readers[[1L]], "RecordBatchReader")
   reader <- arrow::as_record_batch_reader(stream)
   expect_equal(nrow(reader$read_table()), 1000L)
-  reader$Close()
+  if (is.function(reader$Close)) {
+    reader$Close()
+  } else {
+    rm(reader)
+    gc()
+  }
   expect_false(file.exists(resource$path))
 })
 
@@ -1333,7 +1334,12 @@ test_that("Arrow DAX rowsets share file ownership until the last release", {
   expect_true(file.exists(path))
   reader <- arrow::as_record_batch_reader(streams[[2L]])
   expect_equal(as.data.frame(reader$read_table())$value, 2L)
-  reader$Close()
+  if (is.function(reader$Close)) {
+    reader$Close()
+  } else {
+    rm(reader)
+    gc()
+  }
   expect_false(file.exists(path))
   expect_identical(resource$released, c(TRUE, TRUE))
 })

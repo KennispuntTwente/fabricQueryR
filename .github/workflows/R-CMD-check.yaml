@@ -36,7 +36,10 @@ jobs:
           .libPaths(c(lib, .libPaths()))
           stopifnot(packageVersion("arrow") == "9.0.0")
           stopifnot(requireNamespace("arrow", quietly = TRUE))
-          devtools::test(filter = "^fabric_arrow_staging$", stop_on_failure = TRUE)
+          devtools::test(
+            filter = "^fabric_(arrow_staging|pbi_dax_query|warehouse_tables)$",
+            stop_on_failure = TRUE
+          )
 
   windows-restrictive-locale:
     runs-on: windows-latest

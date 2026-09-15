@@ -1089,23 +1089,10 @@ fabric_warehouse_write_table <- function(
     }
   }
   fields[timestamps] <- lapply(fields[timestamps], function(field) {
-    arguments <- list(
-      name = field$name,
-      type = arrow::timestamp("us", timezone = "UTC"),
-      nullable = field$nullable
-    )
-    if (length(field$metadata)) {
-      arguments$metadata <- field$metadata
-    }
-    do.call(arrow::field, arguments)
+    .fabric_arrow_field_type(field, arrow::timestamp("us", timezone = "UTC"))
   })
   fields[unsigned_bytes] <- lapply(fields[unsigned_bytes], function(field) {
-    arrow::field(
-      field$name,
-      arrow::int16(),
-      nullable = field$nullable,
-      metadata = field$metadata
-    )
+    .fabric_arrow_field_type(field, arrow::int16())
   })
   schema <- do.call(arrow::schema, fields)
   prepared$schema <- schema$WithMetadata(prepared$schema$metadata)

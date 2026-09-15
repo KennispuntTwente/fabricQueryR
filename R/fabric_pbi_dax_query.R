@@ -1152,27 +1152,6 @@ pbi_release_dax_arrow_rowset <- function(resource, index) {
 # Convert one Arrow DAX table without rounding fixed-precision decimals
 pbi_dax_arrow_tibble <- function(table) {
   fields <- table$schema$fields
-  decimal <- vapply(
-    fields,
-    function(field) inherits(field$type, "DecimalType"),
-    logical(1)
-  )
-  if (any(decimal)) {
-    fields[decimal] <- lapply(fields[decimal], function(field) {
-      arrow::field(
-        field$name,
-        arrow::utf8(),
-        nullable = field$nullable,
-        metadata = field$metadata
-      )
-    })
-    target <- do.call(arrow::schema, fields)
-    if (length(table$schema$metadata)) {
-      target <- target$WithMetadata(table$schema$metadata)
-    }
-    table <- table$cast(target)
-    fields <- table$schema$fields
-  }
   columns <- lapply(seq_along(fields), function(index) {
     column <- table$column(index - 1L)
     if (identical(fields[[index]]$type$name, "dense_union")) {
@@ -1181,6 +1160,15 @@ pbi_dax_arrow_tibble <- function(table) {
     type <- fields[[index]]$type
     if (inherits(type, "DictionaryType")) {
       type <- type$value_type
+    }
+    if (inherits(type, "DecimalType")) {
+      values <- lapply(column$chunks, function(chunk) {
+        nanoarrow::convert_array(
+          nanoarrow::as_nanoarrow_array(chunk),
+          to = character()
+        )
+      })
+      return(as.character(unlist(values, use.names = FALSE)))
     }
     if (identical(type$name, "int64")) {
       exact <- column$cast(arrow::utf8())$as_vector()
@@ -1407,12 +1395,7 @@ pbi_decode_dax_arrow_dictionaries <- function(table) {
       arrow::chunked_array,
       c(chunks, list(type = field$type$value_type))
     )
-    fields[[index]] <- arrow::field(
-      field$name,
-      field$type$value_type,
-      nullable = field$nullable,
-      metadata = field$metadata
-    )
+    fields[[index]] <- .fabric_arrow_field_type(field, field$type$value_type)
     table <- table$SetColumn(index - 1L, fields[[index]], column)
     dictionary[[index]] <- FALSE
   }
@@ -1420,12 +1403,7 @@ pbi_decode_dax_arrow_dictionaries <- function(table) {
     return(table)
   }
   fields[dictionary] <- lapply(fields[dictionary], function(field) {
-    arrow::field(
-      field$name,
-      field$type$value_type,
-      nullable = field$nullable,
-      metadata = field$metadata
-    )
+    .fabric_arrow_field_type(field, field$type$value_type)
   })
   target <- do.call(arrow::schema, fields)
   if (length(table$schema$metadata)) {

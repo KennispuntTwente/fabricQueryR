@@ -1,3 +1,13 @@
+# Change an Arrow field type while retaining metadata when the installed Arrow
+# version exposes it. Arrow 9 rejects even an explicit metadata = NULL.
+.fabric_arrow_field_type <- function(field, type) {
+  arguments <- list(name = field$name, type = type, nullable = field$nullable)
+  if (length(field$metadata)) {
+    arguments$metadata <- field$metadata
+  }
+  do.call(arrow::field, arguments)
+}
+
 # Prepare an R or Arrow object for one-pass Parquet serialization. Returns a
 # RecordBatchReader so lazy Arrow inputs are never collected into an R object
 .fabric_parquet_prepare_data <- function(data, caller) {

@@ -1083,7 +1083,7 @@ test_that("Warehouse staging preserves unsigned integer ranges in supported type
     arrow::time64("ns"),
     arrow::decimal256(40, 0)
   )) {
-    data <- arrow::Table$create(schema = arrow::schema(value = type))
+    data <- arrow::Table$create(value = arrow::chunked_array(type = type))
     error <- rlang::catch_cnd(.fabric_warehouse_prepare_data(data))
     expect_s3_class(error, "fabric_warehouse_arrow_error")
   }
