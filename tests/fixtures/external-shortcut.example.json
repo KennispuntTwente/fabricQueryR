@@ -1,0 +1,11 @@
+{
+  "target": {
+    "azureBlobStorage": {
+      "connectionId": "00000000-0000-0000-0000-000000000000",
+      "location": "https://youraccount.blob.core.windows.net",
+      "subpath": "/fabricqueryr-fixtures/shortcuts"
+    }
+  },
+  "file": "basic.csv",
+  "expectedText": "id,label\n1,one\n2,two\n"
+}
