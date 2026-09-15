@@ -5,8 +5,8 @@ on:
     branches: [main, master]
     paths:
       - R/**
-      - tests/testthat/helper-fabric-integration.R
-      - tests/testthat/helper-delta-rs-oracle.R
+      - tests/testthat/helper-*.R
+      - tests/fixtures/**
       - tests/testthat/test-delta-rs-oracle.R
       - tests/testthat/test-integration-fabric-*.R
       - infra/fabric/**
@@ -16,8 +16,8 @@ on:
   pull_request:
     paths:
       - R/**
-      - tests/testthat/helper-fabric-integration.R
-      - tests/testthat/helper-delta-rs-oracle.R
+      - tests/testthat/helper-*.R
+      - tests/fixtures/**
       - tests/testthat/test-delta-rs-oracle.R
       - tests/testthat/test-integration-fabric-*.R
       - infra/fabric/**

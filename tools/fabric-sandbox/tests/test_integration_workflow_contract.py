@@ -141,7 +141,8 @@ def test_live_workflow_gates_package_changes_at_the_test_revision():
     assert "push:" in workflow
     assert "pull_request:" in workflow
     assert workflow.count("- R/**") == 2
-    assert "tests/testthat/helper-delta-rs-oracle.R" in workflow
+    assert workflow.count("tests/testthat/helper-*.R") == 2
+    assert workflow.count("tests/fixtures/**") == 2
     assert "tests/testthat/test-delta-rs-oracle.R" in workflow
     assert workflow.count("tests/testthat/test-integration-fabric-*.R") == 2
     assert "infra/fabric/**" in workflow
@@ -167,7 +168,10 @@ def test_user_function_lane_accepts_optional_live_fixture_urls():
     for variable in variables:
         assert f"{variable}: ${{{{ secrets.{variable} }}}}" in workflow
         assert f'"{variable}"' in function_tests
-    assert function_tests.count("fabric_test_optional_environment(") == 3
+    assert "fabric_test_function_url(" in function_tests
+    assert "fabric_test_function_credential()" in function_tests
+    assert "audience =" not in function_tests
+    assert (repository_root / "tests/fixtures/user-data-functions.py").is_file()
     assert "fabric_test_required_environment(" not in function_tests
 
 
