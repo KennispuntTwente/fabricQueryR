@@ -1500,11 +1500,12 @@ test_that("OneLake bulk shortcuts complete live LROs", {
   parent <- "Files"
   shortcut_names <- paste0(
     "fabricqueryr_bulk_",
-    Sys.getpid(),
+    .fabric_lakehouse_staging_id(),
     c("_a", "_b")
   )
+  cleanup_names <- shortcut_names
   on.exit(
-    for (name in shortcut_names) {
+    for (name in cleanup_names) {
       try(
         fabric_onelake_shortcut_delete(
           item,
@@ -1536,7 +1537,25 @@ test_that("OneLake bulk shortcuts complete live LROs", {
   expect_identical(state$status, "Succeeded")
   result <- fabric_operation_result(state, wait = FALSE)
   expect_s3_class(result, "fabric_operation_result")
-  expect_true(is.list(result$value))
+  responses <- result$value$value
+  expect_length(responses, 2L)
+  expected_target <- list(
+    workspaceId = manifest$workspace_id,
+    itemId = lakehouse$id,
+    path = "Files/fixtures/nested"
+  )
+  for (response in responses) {
+    expect_identical(response$status, "Succeeded")
+    expect_null(response$error)
+    expect_true(response$request$name %in% shortcut_names)
+    expect_identical(response$request$path, parent)
+    expect_identical(response$result$name, response$request$name)
+    expect_identical(response$result$target$oneLake, expected_target)
+  }
+  expect_setequal(
+    vapply(responses, function(x) x$request$name, character(1)),
+    shortcut_names
+  )
 
   listed <- fabric_test_eventually(function() {
     current <- fabric_onelake_shortcuts(
@@ -1550,6 +1569,51 @@ test_that("OneLake bulk shortcuts complete live LROs", {
     current
   })
   expect_true(all(shortcut_names %in% listed$name))
+
+  # A successful outer LRO can contain failed individual requests. Exercise
+  # one deterministic name conflict alongside a new, successful shortcut.
+  new_name <- paste0(shortcut_names[[1L]], "_new")
+  cleanup_names <- c(cleanup_names, new_name)
+  submit <- function(names, policy) {
+    operation <- fabric_onelake_shortcuts_bulk_create(
+      item,
+      shortcuts = lapply(names, function(name) {
+        list(
+          path = parent,
+          name = name,
+          target = item,
+          target_path = "Files/fixtures/nested"
+        )
+      }),
+      conflict_policy = policy,
+      token = token
+    )
+    fabric_operation_result(operation, timeout = 300)$value$value
+  }
+  mixed <- submit(c(shortcut_names[[1L]], new_name), "Abort")
+  expect_length(mixed, 2L)
+  failed <- Filter(function(x) x$request$name == shortcut_names[[1L]], mixed)[[
+    1L
+  ]]
+  succeeded <- Filter(function(x) x$request$name == new_name, mixed)[[1L]]
+  expect_identical(failed$status, "Failed")
+  expect_true(nzchar(failed$error$errorCode))
+  expect_true(nzchar(failed$error$message))
+  expect_identical(succeeded$status, "Succeeded")
+  expect_identical(succeeded$result$name, new_name)
+  expect_identical(succeeded$result$target$oneLake, expected_target)
+
+  unique <- submit(shortcut_names[[1L]], "GenerateUniqueName")
+  expect_length(unique, 1L)
+  actual_name <- unique[[1L]]$result$name
+  cleanup_names <- c(cleanup_names, actual_name)
+  expect_identical(unique[[1L]]$status, "Succeeded")
+  expect_identical(unique[[1L]]$request$name, shortcut_names[[1L]])
+  expect_true(nzchar(actual_name))
+  expect_false(actual_name %in% shortcut_names)
+  expect_identical(unique[[1L]]$result$target$oneLake, expected_target)
+  current <- fabric_onelake_shortcuts(item, parent_path = parent, token = token)
+  expect_true(all(cleanup_names %in% current$name))
 })
 
 test_that("OneLake shortcut cache reset completes a live LRO", {
