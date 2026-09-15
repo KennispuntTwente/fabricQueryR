@@ -10,7 +10,7 @@ fabric_ci_token_provider <- function() {
         "FABRIC_TEST_AUTH_CLIENT_SECRET"
       )
       values <- Sys.getenv(variables)
-      if (any(!nzchar(values))) {
+      if (!all(nzchar(values))) {
         stop(
           paste(
             "Refreshable CI authentication requires:",
