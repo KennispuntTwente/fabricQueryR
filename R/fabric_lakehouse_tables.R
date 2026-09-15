@@ -135,8 +135,10 @@
 #' use Spark or another schema-controlled writer when inference is unsuitable.
 #'
 #' To preserve names exactly, `fabric_lakehouse_write_table()` requires unique
-#' column names containing only Unicode letters, numbers, and underscores, up
-#' to Fabric's documented 128-character limit.
+#' column names containing only Unicode letters, decimal digits, and underscores,
+#' up to Fabric's documented 128-character limit. Use precomposed letters:
+#' managed Parquet loads reject decomposed combining marks, connector punctuation
+#' other than underscore, and numeric symbols such as superscript digits.
 #'
 #' @section Failure and cleanup behavior:
 #' The high-level writer uploads complete Parquet parts atomically to a unique
@@ -1423,7 +1425,7 @@ fabric_lakehouse_write_table <- function(
   )
 }
 
-# Require names that Fabric documents as preserving exactly during table load
+# Match the characters preserved by Fabric's managed Parquet table loader.
 .fabric_lakehouse_column_names <- function(value) {
   if (!length(value)) {
     .fabric_abort("data must contain at least one column")
@@ -1431,10 +1433,10 @@ fabric_lakehouse_write_table <- function(
   invalid <- is.na(value) |
     !nzchar(value) |
     nchar(value) > 128L |
-    !grepl("^[\\p{L}\\p{N}_]+$", value, perl = TRUE)
+    !grepl("^[\\p{L}\\p{Nd}_]+$", value, perl = TRUE)
   if (any(invalid)) {
     .fabric_abort(paste0(
-      "Column names must contain only Unicode letters, numbers, and underscores ",
+      "Column names must contain only Unicode letters, decimal digits, and underscores ",
       "and be at most 128 characters; invalid: ",
       paste(value[invalid], collapse = ", ")
     ))

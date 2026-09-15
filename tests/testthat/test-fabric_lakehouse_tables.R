@@ -1393,6 +1393,29 @@ test_that("Lakehouse writer retains staging when accepted-load polling fails", {
   expect_false(identical(fabric_credential_seen, storage_credential_seen))
 })
 
+test_that("Lakehouse writer rejects unsupported Unicode names before authentication", {
+  skip_if_not_installed("arrow")
+  for (name in c("cafe\u0301", "col\u203f", "x\u00b2", "x\u2167")) {
+    error <- rlang::catch_cnd(fabric_lakehouse_write_table(
+      lakehouse_table_test_item(),
+      "orders",
+      setNames(data.frame(value = 1L), name),
+      token = "unsafe\ncredential"
+    ))
+    expect_s3_class(error, "rlang_error")
+    expect_match(
+      conditionMessage(error),
+      "Unicode letters, decimal digits, and underscores",
+      fixed = TRUE
+    )
+  }
+  expect_invisible(.fabric_lakehouse_column_names(c(
+    "caf\u00e9",
+    "col_2",
+    "\u6570\u636e"
+  )))
+})
+
 test_that("Lakehouse writer validates names and unsupported R types", {
   skip_if_not_installed("arrow")
   expect_error(
