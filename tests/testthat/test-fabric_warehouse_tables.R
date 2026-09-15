@@ -992,8 +992,10 @@ test_that("Warehouse writer validates destinations before network I/O", {
   expect_error(invoke(mode = "merge"), "must be one of")
   expect_error(invoke(overwrite_method = "replace"), "must be one of")
   expect_error(invoke(create_if_missing = NA), "TRUE or FALSE")
+  duplicate_columns <- data.frame(A = 1L, B = 2L)
+  names(duplicate_columns) <- c("A", "A")
   expect_error(
-    invoke(data = data.frame(A = 1L, A = 2L, check.names = FALSE)),
+    invoke(data = duplicate_columns),
     "unique"
   )
   bad_stage <- warehouse_write_test_lakehouse()
