@@ -103,7 +103,9 @@ test_that("fabric_sql_connect opens a usable connection and disconnects", {
       invisible(gc())
     }
     disconnected <- NULL
-    expect_silent(disconnected <- DBI::dbDisconnect(con))
+    expect_silent({
+      disconnected <- DBI::dbDisconnect(con)
+    })
     expect_true(isTRUE(disconnected), info = backend)
     # ADBC Driver Foundry 1.x can keep reporting released handles as valid.
     # Require a quiet successful disconnect instead of masking child leaks.

@@ -1111,7 +1111,9 @@ test_that("SQL factor parameters preserve labels and nulls for both backends", {
   expect_null(.fabric_sql_normalize_params(NULL))
   bound <- NULL
   local_mocked_bindings(
-    dbBind = function(result, params) bound <<- params,
+    dbBind = function(result, params) {
+      bound <<- params
+    },
     .package = "DBI"
   )
   .fabric_sql_db_bind(structure(list(), class = "OdbcResult"), params)
@@ -1150,7 +1152,9 @@ test_that("ODBC query bindings preserve integer64 values and bigint semantics", 
     .fabric_sql_own_arrow_stream = function(stream, ...) stream
   )
   local_mocked_bindings(
-    dbBind = function(result, params) bound <<- params,
+    dbBind = function(result, params) {
+      bound <<- params
+    },
     dbGetQuery = function(con, sql, params) {
       sent_sql <<- sql
       bound <<- params
@@ -1251,7 +1255,9 @@ test_that("ODBC ordinary parameters and ADBC integer64 bindings keep their types
   values <- bit64::as.integer64(c("9223372036854775807", NA))
   bound <- NULL
   local_mocked_bindings(
-    dbBind = function(result, params) bound <<- params,
+    dbBind = function(result, params) {
+      bound <<- params
+    },
     .package = "DBI"
   )
   .fabric_sql_db_bind(
@@ -2024,7 +2030,9 @@ test_that("ODBC exact queries reject unsafe types before fetching and clear resu
   local_mocked_bindings(
     .fabric_sql_db_send_query = function(...) result,
     .fabric_sql_db_fetch = function(...) stop("must not fetch"),
-    .fabric_sql_db_clear_result = function(...) cleared <<- cleared + 1L
+    .fabric_sql_db_clear_result = function(...) {
+      cleared <<- cleared + 1L
+    }
   )
   local_mocked_bindings(
     dbColumnInfo = function(...) data.frame(name = "v", type = type),
@@ -2056,7 +2064,9 @@ test_that("ADBC exact tibbles release their native stream and result", {
   local_mocked_bindings(
     .fabric_sql_db_send_query = function(...) list(),
     .fabric_sql_db_fetch = function(...) stream,
-    .fabric_sql_db_clear_result = function(...) events <<- c(events, "clear")
+    .fabric_sql_db_clear_result = function(...) {
+      events <<- c(events, "clear")
+    }
   )
   expect_identical(
     .fabric_sql_db_get_query(con, "SELECT v FROM t")$value,

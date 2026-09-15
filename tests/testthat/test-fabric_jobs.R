@@ -2720,7 +2720,9 @@ test_that("job recovery budgets start after the initial Retry-After wait", {
       parameters = list(label = "unit"),
       token = "test-token",
       api_base = "https://api.fabric.test/v1",
-      .sleep = function(seconds) now <<- now + seconds,
+      .sleep = function(seconds) {
+        now <<- now + seconds
+      },
       .now = function() now
     )
     expect_identical(job$id, "33333333-3333-3333-3333-333333333333")
