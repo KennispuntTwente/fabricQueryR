@@ -419,7 +419,8 @@ fabric_local_test_audiences <- function(filter) {
     return(all[c("Fabric", "Power BI", "SQL", "OneLake")])
   }
   if (identical(scope, "jobs")) {
-    return(all[c("Fabric", "OneLake")])
+    # Notebook operation results can redirect to a Power BI workload endpoint.
+    return(all[c("Fabric", "Power BI", "OneLake")])
   }
   all
 }

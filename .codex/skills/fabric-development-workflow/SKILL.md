@@ -138,7 +138,8 @@ run_fabric_integration_tests(
 )
 ```
 
-This path authenticates only to Fabric and OneLake, runs the Spark seed stage,
+This path authenticates to Fabric, Power BI (for workload operation redirects),
+and OneLake, runs the Spark seed stage,
 and writes a jobs-specific manifest. Do not replace it with a full seed merely
 because another persistent-sandbox service is delayed.
 

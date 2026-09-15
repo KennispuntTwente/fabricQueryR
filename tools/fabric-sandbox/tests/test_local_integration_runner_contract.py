@@ -29,7 +29,7 @@ def test_local_runner_targets_the_marked_persistent_workspace():
         'return(all[c("Fabric", "Power BI", "SQL", "OneLake")])'
         in runner
     )
-    assert 'return(all[c("Fabric", "OneLake")])' in runner
+    assert 'return(all[c("Fabric", "Power BI", "OneLake")])' in runner
     assert "fabric_local_test_scope" in runner
     assert 'c("--scope", test_scope)' in runner
     assert runner.count('c("--scope", test_scope)') >= 2
