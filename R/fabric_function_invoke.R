@@ -489,7 +489,7 @@ function_parse_response <- function(
 
   output <- payload$output
   payload <- .httr2_redact_object(payload)
-  payload$output <- output
+  payload["output"] <- list(output)
   errors <- payload$errors
   if (
     length(errors) &&

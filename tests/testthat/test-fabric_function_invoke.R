@@ -360,6 +360,24 @@ test_that("custom function hosts require an explicit credential", {
   expect_identical(error$argument, "function_url")
 })
 
+test_that("function envelopes retain explicit null output", {
+  body <- list(
+    functionName = "raiseValidation",
+    invocationId = "invocation-id",
+    status = "Failed",
+    output = NULL,
+    errors = list(list(name = "UserThrown", message = "Invalid value"))
+  )
+  result <- function_parse_response(function_test_response(body, status = 422L))
+  expect_named(result$response, names(body))
+  expect_identical(function_is_result_envelope(result$response), TRUE)
+  expect_null(result$output)
+  expect_identical(
+    jsonlite::fromJSON(jsonlite::toJSON(result$response, null = "null"))$output,
+    NULL
+  )
+})
+
 test_that("function execution failures remain inspectable results", {
   responses <- list(
     function_test_response(
