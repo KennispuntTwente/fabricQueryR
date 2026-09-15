@@ -416,7 +416,12 @@ function_resolve_audience <- function(audience, token, auth_args) {
   if (!is.null(audience)) {
     return(function_required_string(audience, "audience"))
   }
-  if (is.null(token) && fabric_uses_client_credentials(auth_args)) {
+  application <- if (inherits(token, "fabric_credential")) {
+    isTRUE(token$client_credentials)
+  } else {
+    is.null(token) && fabric_uses_client_credentials(auth_args)
+  }
+  if (application) {
     .fabric_audience$power_bi
   } else {
     .fabric_audience$user_data_function

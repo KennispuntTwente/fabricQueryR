@@ -705,6 +705,18 @@ test_that("function authentication chooses flow-appropriate audiences", {
     function_resolve_audience(broader, token = "token", auth_args = list()),
     broader
   )
+
+  credential <- fabric_credential(
+    tenant_id = "tenant",
+    client_id = "client",
+    auth_args = list(password = "secret", auth_type = "client_credentials")
+  )
+  fabric_function_invoke(function_test_url, token = credential)
+  expect_identical(calls[[3L]]$resource, .fabric_audience$power_bi)
+  expect_identical(
+    function_resolve_audience(broader, token = credential, auth_args = list()),
+    broader
+  )
 })
 
 test_that("function invocation validates arguments before authentication", {
