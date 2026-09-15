@@ -94,7 +94,10 @@ fabric_onelake_delete(
 }
 \arguments{
 \item{workspace}{Workspace name, ID, object from \code{\link[=fabric_workspaces]{fabric_workspaces()}}, or a
-complete OneLake HTTPS/ABFSS path}
+complete OneLake HTTPS/ABFSS path
+When \code{item} contains a workspace ID, a supplied workspace name must match
+its recorded \code{workspaceDisplayName}. If that name is unavailable, supply
+the workspace ID or a discovered workspace object instead.}
 
 \item{item}{Item name, GUID, or discovered Fabric item. Use \code{NULL} when
 \code{workspace} is a complete OneLake path. An item from \code{\link[=fabric_lakehouses]{fabric_lakehouses()}} is

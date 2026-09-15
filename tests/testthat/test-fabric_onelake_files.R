@@ -584,6 +584,52 @@ test_that("OneLake object file formats are explicit and validated", {
   )
 })
 
+test_that("OneLake rejects conflicting or unverifiable workspace names", {
+  item <- list(
+    id = "22222222-2222-4222-8222-222222222222",
+    workspaceId = "11111111-1111-4111-8111-111111111111",
+    workspaceDisplayName = "Production",
+    type = "Lakehouse"
+  )
+  local_mocked_bindings(
+    onelake_upload_target = function(...) stop("Unexpected upload"),
+    onelake_delete_target = function(...) stop("Unexpected deletion")
+  )
+  for (name in list("Production", NULL)) {
+    item$workspaceDisplayName <- name
+    for (operation in list(
+      function() {
+        fabric_onelake_upload(
+          "Development",
+          item,
+          "Files/data.csv",
+          charToRaw("data"),
+          token = "token"
+        )
+      },
+      function() {
+        fabric_onelake_delete(
+          "Development",
+          item,
+          "Files/data.csv",
+          confirm = TRUE,
+          token = "token"
+        )
+      }
+    )) {
+      expect_s3_class(
+        rlang::catch_cnd(operation()),
+        "fabric_onelake_target_error"
+      )
+    }
+  }
+  item$workspaceDisplayName <- "Production"
+  expect_identical(
+    onelake_resolve_target("Production", item, "Files/data.csv")$workspace,
+    item$workspaceId
+  )
+})
+
 test_that("OneLake targets support IDs, discovery records, and complete paths", {
   workspace_id <- "11111111-1111-1111-1111-111111111111"
   item_id <- "22222222-2222-2222-2222-222222222222"

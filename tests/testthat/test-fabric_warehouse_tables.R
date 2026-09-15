@@ -1008,6 +1008,65 @@ test_that("Warehouse writer validates destinations before network I/O", {
   )
   expect_equal(calls, 0L)
 })
+test_that("Warehouse targets validate destination and staging workspace names", {
+  looked_up <- character()
+  local_mocked_bindings(
+    fabric_resolve_workspace = function(workspace, ...) {
+      looked_up <<- c(looked_up, workspace)
+      list(
+        raw = list(
+          id = if (workspace == "Production") {
+            warehouse_write_test_warehouse()$workspaceId
+          } else {
+            "44444444-4444-4444-8444-444444444444"
+          },
+          displayName = workspace
+        )
+      )
+    },
+    onelake_upload_target = function(...) stop("Unexpected upload"),
+    fabric_sql_connect = function(...) stop("Unexpected SQL connection")
+  )
+  for (record in list(
+    warehouse_write_test_warehouse(),
+    warehouse_write_test_lakehouse()
+  )) {
+    resolve <- function(workspace) {
+      .fabric_warehouse_resolve_item(
+        record,
+        workspace,
+        record$type,
+        fabric_credential(token = "token"),
+        .fabric_api_base,
+        FALSE,
+        FALSE,
+        "target"
+      )
+    }
+    expect_s3_class(
+      rlang::catch_cnd(resolve("Development")),
+      "fabric_warehouse_target_error"
+    )
+    expect_identical(resolve("Production")$workspace_id, record$workspaceId)
+  }
+  expect_identical(looked_up, rep(c("Development", "Production"), 2L))
+  for (selector in c("workspace", "staging_workspace")) {
+    args <- list(
+      warehouse = warehouse_write_test_warehouse(),
+      table = "orders",
+      data = data.frame(id = 1L),
+      staging_lakehouse = warehouse_write_test_lakehouse(),
+      token = function(...) "token",
+      verbose = FALSE
+    )
+    args[[selector]] <- "Development"
+    expect_s3_class(
+      rlang::catch_cnd(do.call(fabric_warehouse_write_table, args)),
+      "fabric_warehouse_target_error"
+    )
+  }
+})
+
 test_that("Warehouse staging preserves unsigned integer ranges in supported types", {
   skip_if_not_installed("arrow")
   types <- list(

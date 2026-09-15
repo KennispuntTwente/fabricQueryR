@@ -845,6 +845,23 @@ fabric_warehouse_write_table <- function(
   }
   workspace_record <- fabric_as_record(workspace)
   record_workspace_id <- fabric_record_value(record %||% list(), "workspaceId")
+  if (
+    !is.null(record_workspace_id) &&
+      !is.null(workspace) &&
+      is.null(workspace_record) &&
+      is.character(workspace) &&
+      length(workspace) == 1L &&
+      !is.na(workspace) &&
+      !fabric_is_guid(workspace)
+  ) {
+    resolved <- fabric_resolve_workspace(
+      workspace,
+      credential,
+      api_base,
+      use_workspace_endpoint = !api_base_supplied
+    )
+    workspace_record <- resolved$raw
+  }
   supplied_workspace_id <- fabric_record_value(
     workspace_record %||% list(),
     "id",

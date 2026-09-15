@@ -58,6 +58,9 @@
 #'
 #' @param workspace Workspace name, ID, object from [fabric_workspaces()], or a
 #'   complete OneLake HTTPS/ABFSS path
+#'   When `item` contains a workspace ID, a supplied workspace name must match
+#'   its recorded `workspaceDisplayName`. If that name is unavailable, supply
+#'   the workspace ID or a discovered workspace object instead.
 #' @param item Item name, GUID, or discovered Fabric item. Use `NULL` when
 #'   `workspace` is a complete OneLake path. An item from [fabric_lakehouses()] is
 #'   the least ambiguous input
@@ -838,6 +841,30 @@ onelake_resolve_target <- function(
   }
 
   if (!is.null(item_workspace)) {
+    if (!is.null(workspace_value)) {
+      onelake_segment(workspace_value, "workspace")
+      if (!fabric_is_guid(workspace_value)) {
+        recorded_name <- fabric_record_value(
+          item_record,
+          "workspaceDisplayName"
+        )
+        if (is.null(recorded_name)) {
+          .fabric_abort(
+            paste0(
+              "Cannot verify the workspace name against this item; ",
+              "supply a workspace GUID or discovered workspace object"
+            ),
+            class = "fabric_onelake_target_error"
+          )
+        }
+        if (!identical(workspace_value, recorded_name)) {
+          .fabric_abort(
+            "The discovered item belongs to a different workspace",
+            class = "fabric_onelake_target_error"
+          )
+        }
+      }
+    }
     if (
       !is.null(workspace_value) &&
         fabric_is_guid(as.character(workspace_value)) &&
