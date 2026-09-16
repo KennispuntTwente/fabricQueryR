@@ -474,6 +474,58 @@ test_that("Delta Arrow reads refresh when staging encounters expired auth", {
   expect_identical(refresh, c(FALSE, TRUE))
 })
 
+test_that("Delta retry removes a partial spool before restarting the read", {
+  paths <- character()
+  calls <- logical()
+  write_stream <- nanoarrow::write_nanoarrow
+  provider <- function(audience, force_refresh = FALSE) {
+    calls <<- c(calls, force_refresh)
+    expect_false(any(file.exists(paths)))
+    if (force_refresh) "fresh" else "expired"
+  }
+  local_mocked_bindings(fabric_delta_read_uri = function(bearer_token, ...) {
+    stream <- nanoarrow::as_nanoarrow_array_stream(data.frame(id = 1:3))
+    attr(stream, "test_token") <- bearer_token
+    stream
+  })
+  local_mocked_bindings(
+    write_nanoarrow = function(x, con, ...) {
+      if (!is.character(con)) {
+        return(write_stream(x, con, ...))
+      }
+      paths <<- c(paths, con)
+      if (identical(attr(x, "test_token"), "expired")) {
+        # Inject the transport failure after a real partial IPC write. Keep
+        # the production spool cleanup and whole-read retry paths intact.
+        write_stream(
+          nanoarrow::as_nanoarrow_array_stream(data.frame(id = 1L)),
+          con
+        )
+        expect_gt(file.info(con)$size, 0)
+        stop("HTTP 401: token expired during data read")
+      }
+      write_stream(x, con, ...)
+    },
+    .package = "nanoarrow"
+  )
+  stream <- fabric_onelake_read_delta_table(
+    "table",
+    "workspace",
+    "lakehouse",
+    token = provider,
+    result = "arrow_stream",
+    verbose = FALSE
+  )
+  withr::defer(try(stream[["release"]](), silent = TRUE))
+  expect_identical(calls, c(FALSE, TRUE))
+  expect_length(paths, 2L)
+  expect_false(file.exists(paths[[1L]]))
+  expect_true(file.exists(paths[[2L]]))
+  expect_equal(nanoarrow::convert_array_stream(stream), data.frame(id = 1:3))
+  stream[["release"]]()
+  expect_false(any(file.exists(paths)))
+})
+
 test_that("staged Delta streams remain readable without their remote reader", {
   source <- nanoarrow::as_nanoarrow_array_stream(data.frame(
     id = 1:3,

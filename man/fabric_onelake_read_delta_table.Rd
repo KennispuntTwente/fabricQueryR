@@ -98,6 +98,11 @@ Release the stream deterministically when finished: call
 \code{stream[["release"]]()} when using 'nanoarrow' directly, or call
 \code{reader$Close()} after \code{arrow::as_record_batch_reader(stream)}. Do not rely
 on garbage collection to delete the staged file, particularly on Windows
+
+A refreshable credential retries the entire read once after an authentication
+failure, including a failure while spooling an Arrow stream. Partial local
+output is discarded before retrying. Each attempt uses one token for its
+complete scan; credentials are not continuously replaced during long scans.
 }
 
 \section{Column types}{

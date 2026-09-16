@@ -249,13 +249,15 @@ test_that("a refreshable credential retries and reads live OneLake data", {
   fabric_test_use_delta_runtime()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
   calls <- logical()
+  fresh_token <- fabric_test_token_provider()
   provider <- function(audience, force_refresh = FALSE) {
     calls <<- c(calls, force_refresh)
     expect_identical(audience, "https://storage.azure.com/.default")
     if (!force_refresh) {
-      stop("HTTP 401: token expired")
+      # Exercise OneLake's rejection, rather than throwing before any request.
+      return("fabricqueryr-deliberately-invalid-bearer")
     }
-    fabric_test_token("FABRIC_TEST_STORAGE_TOKEN")
+    fresh_token(audience, force_refresh = TRUE)
   }
 
   result <- fabric_onelake_read_delta_table(
