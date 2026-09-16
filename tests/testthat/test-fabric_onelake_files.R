@@ -930,6 +930,44 @@ test_that("OneLake listing follows header continuation and preserves hierarchy",
   expect_match(calls[[2L]]$url, "continuation=opaque%2B%2F%3D%20token")
 })
 
+test_that("OneLake listings compare GUIDs without changing file path case", {
+  workspace <- "abcdefab-1234-5678-9abc-abcdefabcdef"
+  item <- "fedcbafe-1234-5678-9abc-fedcbafedcba"
+  for (upper_request in c(TRUE, FALSE)) {
+    requested <- if (upper_request) toupper(item) else item
+    returned <- if (upper_request) item else toupper(item)
+    httr2::local_mocked_responses(list(onelake_test_response(
+      body = list(
+        paths = list(
+          list(name = returned, isDirectory = TRUE),
+          list(name = paste0(returned, "/Files/MixedCase.txt"))
+        )
+      )
+    )))
+    listed <- fabric_onelake_list(
+      toupper(workspace),
+      requested,
+      token = "storage-token"
+    )
+    expect_identical(listed$path, c("", "Files/MixedCase.txt"))
+    expect_identical(listed$name, c("", "MixedCase.txt"))
+  }
+  for (pair in list(
+    c(item, workspace),
+    c(item, paste0(item, "extra")),
+    c("Curated.Lakehouse", "curated.Lakehouse")
+  )) {
+    target <- list(item = pair[[1L]], path = "Files")
+    expect_error(
+      onelake_list_tibble(
+        list(list(name = paste0(pair[[2L]], "/Files/x"))),
+        target
+      ),
+      class = "fabric_onelake_protocol_error"
+    )
+  }
+})
+
 test_that("OneLake requests use the documented storage API version", {
   request <- onelake_request("https://onelake.dfs.fabric.microsoft.com")
   expect_identical(request$headers[["x-ms-version"]], "2021-06-08")

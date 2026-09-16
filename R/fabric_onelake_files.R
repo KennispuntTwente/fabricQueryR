@@ -1598,17 +1598,9 @@ onelake_list_tibble <- function(records, target) {
     return(empty)
   }
 
-  item_prefix <- paste0(target$item, "/")
   rows <- lapply(seq_along(records), function(index) {
     record <- onelake_list_record(records[[index]], target, index)
-    full_path <- record$name
-    relative <- if (identical(full_path, target$item)) {
-      ""
-    } else if (startsWith(full_path, item_prefix)) {
-      substring(full_path, nchar(item_prefix) + 1L)
-    } else {
-      .fabric_abort("OneLake returned a path outside the requested item")
-    }
+    relative <- onelake_item_relative_path(record$name, target$item)
     data.frame(
       path = relative,
       name = if (nzchar(relative)) basename(relative) else "",
@@ -1623,6 +1615,22 @@ onelake_list_tibble <- function(records, target) {
     )
   })
   tibble::as_tibble(do.call(rbind, rows))
+}
+
+# GUID identity is case-insensitive; item names and child paths retain their case.
+onelake_item_relative_path <- function(full_path, item) {
+  segment <- sub("/.*$", "", full_path)
+  matches <- identical(segment, item) ||
+    (fabric_is_guid(segment) &&
+      fabric_is_guid(item) &&
+      identical(tolower(segment), tolower(item)))
+  if (!matches) {
+    return(NULL)
+  }
+  if (identical(full_path, segment)) {
+    return("")
+  }
+  substring(full_path, nchar(segment) + 2L)
 }
 
 onelake_list_record <- function(record, target, index) {
@@ -1654,14 +1662,7 @@ onelake_list_record <- function(record, target, index) {
     )
   }
   safe_path <- try(onelake_normalize_path(full_path), silent = TRUE)
-  item_prefix <- paste0(target$item, "/")
-  relative <- if (identical(full_path, target$item)) {
-    ""
-  } else if (startsWith(full_path, item_prefix)) {
-    substring(full_path, nchar(item_prefix) + 1L)
-  } else {
-    NULL
-  }
+  relative <- onelake_item_relative_path(full_path, target$item)
   requested <- target$path
   within_request <- !is.null(relative) &&
     !inherits(safe_path, "try-error") &&
