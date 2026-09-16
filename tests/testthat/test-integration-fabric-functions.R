@@ -90,7 +90,7 @@ test_that("Fabric functions acquire the default application audience directly", 
   expect_identical(result$output, "automatic-auth")
 })
 
-test_that("Fabric function server failures remain inspectable execution envelopes", {
+test_that("Fabric unhandled function failures remain inspectable execution envelopes", {
   url <- fabric_test_function_url("FABRIC_TEST_FUNCTION_ERROR_URL")
   result <- fabric_function_invoke(
     url,
@@ -98,7 +98,9 @@ test_that("Fabric function server failures remain inspectable execution envelope
     token = fabric_test_function_credential()
   )
   expect_s3_class(result, "fabric_function_result")
-  expect_identical(result$http_status, 500L)
+  # The invocation guide documents unhandled exceptions under HTTP 409;
+  # deployed runtimes can also return a failed execution envelope with 500.
+  expect_contains(c(409L, 500L), result$http_status)
   expect_false(identical(result$status, "Succeeded"))
   expect_true(length(result$errors) >= 1L)
   expect_true("output" %in% names(result$response))
