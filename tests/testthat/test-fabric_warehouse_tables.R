@@ -1158,7 +1158,7 @@ test_that("Warehouse staging normalizes timestamp annotations without rounding",
 test_that("Warehouse dictionary values retain their logical types through staging", {
   skip_if_not_installed("arrow")
   values <- list(
-    amount = arrow::Array$create(c("123.45", "0.01"))$cast(arrow::decimal128(
+    amount = arrow::Array$create(c(123.45, 0.01))$cast(arrow::decimal128(
       5,
       2
     )),
@@ -1192,8 +1192,8 @@ test_that("Warehouse dictionary values retain their logical types through stagin
   )
   for (name in c("amount", "byte", "label")) {
     expect_identical(
-      actual[[name]]$cast(arrow::utf8())$as_vector(),
-      values[[name]]$cast(arrow::utf8())$as_vector()[c(2L, NA_integer_, 1L, 2L)]
+      actual[[name]]$as_vector(),
+      values[[name]]$as_vector()[c(2L, NA_integer_, 1L, 2L)]
     )
   }
   expect_equal(
