@@ -1750,6 +1750,34 @@ test_that("OneLake upload removes temporary files after transfer failure", {
   )))
 })
 
+test_that("OneLake upload never deletes a staging path after a rejected create", {
+  for (status in c(400L, 401L, 403L, 404L, 409L, 412L, 429L)) {
+    calls <- list()
+    local_mocked_bindings(
+      .httr2_perform = function(req, ...) {
+        calls[[length(calls) + 1L]] <<- req
+        rlang::abort(
+          "Temporary create rejected",
+          class = "fabric_http_error",
+          status = status
+        )
+      }
+    )
+    error <- rlang::catch_cnd(fabric_onelake_upload(
+      "Analytics",
+      "Curated.Lakehouse",
+      "Files/collision.txt",
+      source = charToRaw("content"),
+      token = "token"
+    ))
+    expect_s3_class(error, "fabric_http_error")
+    expect_identical(error$status, status)
+    expect_length(calls, 1L)
+    expect_identical(calls[[1L]]$method, "PUT")
+    expect_identical(calls[[1L]]$headers[["If-None-Match"]], "*")
+  }
+})
+
 test_that("OneLake upload cleans up an ambiguously failed temporary create", {
   calls <- list()
   local_mocked_bindings(

@@ -2515,11 +2515,23 @@ onelake_upload_target <- function(
   # A transport failure can occur after OneLake commits the create. Mark the
   # unique staging path before transmission so cleanup covers that ambiguity
   temporary_may_exist <- TRUE
-  .httr2_perform(
-    create,
-    credential = credential,
-    audience = .fabric_audience$storage,
-    idempotent = FALSE
+  tryCatch(
+    .httr2_perform(
+      create,
+      credential = credential,
+      audience = .fabric_audience$storage,
+      idempotent = FALSE
+    ),
+    fabric_http_error = function(error) {
+      status <- error$status %||% NA_integer_
+      # A rejected create gives us no ownership of the path. In particular,
+      # 409/412 can mean another writer already owns this staging name.
+      # A request timeout remains ambiguous and still needs best-effort cleanup.
+      if (!is.na(status) && status >= 400L && status < 500L && status != 408L) {
+        temporary_may_exist <<- FALSE
+      }
+      rlang::cnd_signal(error)
+    }
   )
 
   # 3 Append all source chunks ---------------------------------------------------------------------
