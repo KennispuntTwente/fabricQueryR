@@ -334,6 +334,70 @@ test_that("GraphQL variables map missing values to null and reject non-finite nu
   expect_identical(requests, 1L)
 })
 
+test_that("GraphQL rejects implicit date-time serialization before authentication", {
+  utc <- as.POSIXct("2024-02-29 12:34:56", tz = "UTC") + 0.123456
+  local <- utc
+  attr(local, "tzone") <- "Europe/Amsterdam"
+  values <- list(
+    utc,
+    local,
+    as.POSIXlt(local),
+    c(utc, NA),
+    as.POSIXct(NA_real_, origin = "1970-01-01", tz = "UTC"),
+    list(filter = list(created = list(gte = utc))),
+    data.frame(created = utc)
+  )
+  for (value in values) {
+    for (query_function in list(
+      fabric_graphql_query,
+      fabric_graphql_paginate
+    )) {
+      args <- list(
+        api = "https://api.fabric.microsoft.com/graphql",
+        query = "query Rows($input: DateTime!) { rows(input: $input) { id } }",
+        variables = list(input = value),
+        token = function(...) stop("Unexpected token acquisition")
+      )
+      if (identical(query_function, fabric_graphql_paginate)) {
+        args$next_cursor <- function(result) NULL
+      }
+      expect_error(
+        do.call(query_function, args),
+        "ISO 8601",
+        class = "fabric_graphql_variables_error"
+      )
+    }
+  }
+})
+
+test_that("GraphQL preserves explicit date-time strings across pagination", {
+  requests <- list()
+  httr2::local_mocked_responses(function(req) {
+    requests[[length(requests) + 1L]] <<- graphql_request_body(req)
+    graphql_test_response(list(data = list(rows = list())), url = req$url)
+  })
+  dates <- c("2024-02-29T12:34:56.123456Z", "2024-02-29T13:34:56.123456+01:00")
+  variables <- list(input = list(created = dates, nullable = NULL))
+  fabric_graphql_query(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "query Rows($input: Filter!) { rows(input: $input) { id } }",
+    variables = variables,
+    token = "token"
+  )
+  fabric_graphql_paginate(
+    "https://api.fabric.microsoft.com/graphql",
+    query = "query Rows($input: Filter!, $after: String) { rows(input: $input, after: $after) { id } }",
+    variables = variables,
+    next_cursor = function(result) if (length(requests) == 2L) "next" else NULL,
+    token = "token"
+  )
+  expect_length(requests, 3L)
+  for (request in requests) {
+    expect_identical(unlist(request$variables$input$created), dates)
+    expect_null(request$variables$input$nullable)
+  }
+})
+
 test_that("GraphQL selects the audience from the AzureAuth flow", {
   calls <- list()
   local_mocked_bindings(

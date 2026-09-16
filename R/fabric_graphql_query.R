@@ -141,6 +141,10 @@
 #' @param variables Named list of values for variables declared in `query`.
 #'   Numeric and other R missing values are sent as JSON `null`; numeric `NaN`
 #'   and infinities are rejected because GraphQL JSON has no such numbers.
+#'   Supply date-times as explicit ISO 8601 strings with a UTC `Z` or offset,
+#'   for example `"2024-02-29T12:34:56.123456Z"`. `POSIXct` and `POSIXlt`
+#'   values are rejected, including inside nested inputs, because implicit JSON
+#'   conversion can discard their time zone and fractional seconds.
 #'   One-element values are normally sent as scalars. Wrap a one-element list
 #'   variable in [I()], for example `list(ids = I("x"))`, to send it as an array
 #' @param operation_name Optional operation name. Supply it when the document
@@ -1515,13 +1519,22 @@ graphql_validate_variables <- function(variables) {
       "variables must have unique, non-empty names"
     )
   }
-  graphql_validate_variable_numbers(variables)
+  graphql_validate_variable_values(variables)
   variables
 }
 
-# Reject numeric values that JSON cannot represent without changing their type.
+# Reject values that JSON cannot represent without changing their meaning.
 # Missing values remain valid and are serialized as GraphQL nulls.
-graphql_validate_variable_numbers <- function(value) {
+graphql_validate_variable_values <- function(value) {
+  if (inherits(value, "POSIXt")) {
+    .fabric_abort(
+      paste0(
+        "variables cannot contain POSIXct or POSIXlt date-times; ",
+        "supply explicit ISO 8601 strings with a UTC Z or time-zone offset"
+      ),
+      class = "fabric_graphql_variables_error"
+    )
+  }
   if (is.numeric(value)) {
     if (any(is.nan(value) | is.infinite(value))) {
       .fabric_abort(
@@ -1533,7 +1546,7 @@ graphql_validate_variable_numbers <- function(value) {
   }
   if (is.list(value)) {
     for (element in value) {
-      graphql_validate_variable_numbers(element)
+      graphql_validate_variable_values(element)
     }
   }
   invisible(TRUE)
