@@ -416,9 +416,11 @@ fabric_warehouse_read_table <- function(
 #' the Warehouse T-SQL permissions required by the selected mode, including the
 #' applicable bulk-load, DML, and DDL permissions. The identity used to stage
 #' and clean up files also needs OneLake write access to the staging folder.
-#' Contributor access to both workspaces is a simple sufficient setup, but it
-#' is not required when equivalent granular item, OneLake, and T-SQL permissions
-#' are granted.
+#' Microsoft requires Contributor or higher on both the source Lakehouse
+#' workspace and the target Warehouse workspace for OneLake COPY using the
+#' executing identity. Granular item or SQL grants alone do not satisfy this
+#' documented contract. Workspace Identity has a separate permission model;
+#' this writer does not select Workspace Identity credentials.
 #'
 #' Local staging is always removed. Remote staging is removed only after a
 #' confirmed successful load unless `keep_staging_on_failure = FALSE` and the
