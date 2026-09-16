@@ -1154,3 +1154,66 @@ test_that("Warehouse staging normalizes timestamp annotations without rounding",
     class = "fabric_warehouse_arrow_error"
   )
 })
+
+test_that("Warehouse dictionary values retain their logical types through staging", {
+  skip_if_not_installed("arrow")
+  values <- list(
+    amount = arrow::Array$create(c("123.45", "0.01"))$cast(arrow::decimal128(
+      5,
+      2
+    )),
+    when = arrow::Array$create(
+      c(0, 1),
+      type = arrow::int64()
+    )$cast(arrow::timestamp("us")),
+    byte = arrow::Array$create(c(0L, 255L))$cast(arrow::uint8()),
+    label = arrow::Array$create(c("first", "second"))
+  )
+  indices <- arrow::Array$create(c(1L, NA_integer_, 0L, 1L))
+  columns <- lapply(values, \(value) {
+    arrow::DictionaryArray$create(indices, value)
+  })
+  prepared <- .fabric_warehouse_prepare_data(do.call(
+    arrow::Table$create,
+    columns
+  ))
+  path <- withr::local_tempfile(fileext = ".parquet")
+  .fabric_parquet_write_stream(
+    prepared,
+    path,
+    "snappy",
+    "test",
+    "fabric_arrow_error"
+  )
+  actual <- arrow::read_parquet(path, as_data_frame = FALSE)
+  expect_identical(
+    vapply(actual$schema$fields, \(field) field$type$ToString(), character(1)),
+    c("decimal128(5, 2)", "timestamp[us, tz=UTC]", "int16", "string")
+  )
+  for (name in c("amount", "byte", "label")) {
+    expect_identical(
+      actual[[name]]$cast(arrow::utf8())$as_vector(),
+      values[[name]]$cast(arrow::utf8())$as_vector()[c(2L, NA_integer_, 1L, 2L)]
+    )
+  }
+  expect_equal(
+    as.numeric(actual$when$cast(arrow::int64())$as_vector()),
+    c(1, NA, 0, 1)
+  )
+  for (type in list(
+    arrow::timestamp("ns"),
+    arrow::time64("ns"),
+    arrow::duration("us"),
+    arrow::decimal256(40, 0)
+  )) {
+    value <- arrow::Array$create(numeric(), type = arrow::int64())$cast(type)
+    column <- arrow::DictionaryArray$create(
+      arrow::Array$create(integer()),
+      value
+    )
+    error <- rlang::catch_cnd(.fabric_warehouse_prepare_data(arrow::Table$create(
+      value = column
+    )))
+    expect_s3_class(error, "fabric_warehouse_arrow_error")
+  }
+})

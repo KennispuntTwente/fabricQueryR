@@ -1047,11 +1047,20 @@ fabric_warehouse_write_table <- function(
       )
     }
   )
-  fields <- prepared$schema$fields
+  dictionaries <- vapply(
+    prepared$schema$fields,
+    \(field) inherits(field$type, "DictionaryType"),
+    logical(1)
+  )
+  fields <- lapply(prepared$schema$fields, function(field) {
+    .fabric_arrow_field_type(field, .fabric_warehouse_value_type(field$type))
+  })
   # Serialization normalizes timestamp storage to microseconds; validation
   # must retain the input's actual precision so millisecond data can still be
   # loaded losslessly into datetime2(3).
-  prepared$input_schema <- prepared$schema
+  prepared$input_schema <- do.call(arrow::schema, fields)$WithMetadata(
+    prepared$schema$metadata
+  )
   for (field in fields) {
     type <- field$type
     unsupported <- inherits(type, c("DurationType", "IntervalType")) ||
@@ -1084,7 +1093,7 @@ fabric_warehouse_write_table <- function(
     },
     logical(1)
   )
-  if (!any(timestamps) && !any(unsigned_bytes)) {
+  if (!any(timestamps) && !any(unsigned_bytes) && !any(dictionaries)) {
     return(prepared)
   }
   for (field in fields[timestamps]) {
@@ -1113,6 +1122,14 @@ fabric_warehouse_write_table <- function(
     prepared$schema
   )
   prepared
+}
+
+# Dictionary encoding does not change a column's logical SQL value type.
+.fabric_warehouse_value_type <- function(type) {
+  while (inherits(type, "DictionaryType")) {
+    type <- type$value_type
+  }
+  type
 }
 
 # Cast one batch at a time so Dataset and stream inputs stay lazy.
@@ -1374,7 +1391,7 @@ fabric_warehouse_write_table <- function(
     )
   }
   for (field in source_schema$fields) {
-    type <- field$type
+    type <- .fabric_warehouse_value_type(field$type)
     decimal <- inherits(type, "DecimalType")
     timestamp <- inherits(type, "Timestamp")
     time <- inherits(type, c("Time32Type", "Time64Type", "Time32", "Time64"))

@@ -16,16 +16,19 @@ test_that("Warehouse rejects decimal and temporal narrowing before modifying tab
         scale = case[[4L]]
       )
     })
-    expect_error(
-      .fabric_warehouse_validate_destination_columns(
+    for (type in list(
+      case[[1L]],
+      arrow::dictionary(arrow::int32(), case[[1L]])
+    )) {
+      error <- rlang::catch_cnd(.fabric_warehouse_validate_destination_columns(
         NULL,
         "dbo",
         "target",
         "value",
-        arrow::schema(value = case[[1L]])
-      ),
-      class = "fabric_warehouse_column_error"
-    )
+        arrow::schema(value = type)
+      ))
+      expect_s3_class(error, "fabric_warehouse_column_error")
+    }
   }
   local_mocked_bindings(.fabric_warehouse_query = function(...) {
     data.frame(
@@ -65,26 +68,28 @@ test_that("Warehouse append and overwrite reject narrowing before SQL mutation",
     .fabric_warehouse_begin = function(...) stop("Unexpected BEGIN"),
     .fabric_warehouse_execute = function(...) stop("Unexpected SQL mutation")
   )
-  data <- arrow::Table$create(
-    value = arrow::Array$create("1.2399")$cast(arrow::decimal128(24, 4))
-  )
-  for (mode in c("Append", "Overwrite")) {
-    error <- expect_error(
-      fabric_warehouse_write_table(
-        warehouse_write_test_warehouse(),
-        "narrowing",
-        data,
-        staging_lakehouse = warehouse_write_test_lakehouse(),
-        mode = mode,
-        token = "fabric",
-        storage_token = "storage",
-        sql_token = "sql",
-        keep_staging_on_failure = FALSE,
-        verbose = FALSE
-      ),
-      class = "fabric_warehouse_write_error"
-    )
-    expect_s3_class(error$parent, "fabric_warehouse_column_error")
+  value <- arrow::Array$create("1.2399")$cast(arrow::decimal128(24, 4))
+  dictionary <- arrow::DictionaryArray$create(arrow::Array$create(0L), value)
+  for (value in list(value, dictionary)) {
+    data <- arrow::Table$create(value = value)
+    for (mode in c("Append", "Overwrite")) {
+      error <- expect_error(
+        fabric_warehouse_write_table(
+          warehouse_write_test_warehouse(),
+          "narrowing",
+          data,
+          staging_lakehouse = warehouse_write_test_lakehouse(),
+          mode = mode,
+          token = "fabric",
+          storage_token = "storage",
+          sql_token = "sql",
+          keep_staging_on_failure = FALSE,
+          verbose = FALSE
+        ),
+        class = "fabric_warehouse_write_error"
+      )
+      expect_s3_class(error$parent, "fabric_warehouse_column_error")
+    }
   }
 })
 
