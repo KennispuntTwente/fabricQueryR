@@ -1188,6 +1188,38 @@ test_that("fabric_graphql_collect handles empty and partial-error pages", {
   expect_length(attr(rows, "errors"), 1L)
 })
 
+test_that("GraphQL nullable row elements retain positions and partial data", {
+  page <- function(rows) graphql_parse_response(list(data = list(items = rows)))
+  pages <- graphql_pages_result(
+    list(
+      page(list(NULL, list(id = 1L))),
+      page(list(NULL, list(id = NULL), list(id = 2L)))
+    ),
+    list(),
+    complete = TRUE
+  )
+  rows <- fabric_graphql_collect(pages, "items")
+  expect_identical(rows$id, c(NA_integer_, 1L, NA_integer_, NA_integer_, 2L))
+  expect_identical(attr(rows, "null_rows"), c(1L, 3L))
+  all_null <- fabric_graphql_collect(
+    graphql_pages_result(
+      list(page(list(NULL, NULL))),
+      list(),
+      complete = TRUE
+    ),
+    "items"
+  )
+  expect_identical(dim(all_null), c(2L, 0L))
+  expect_identical(attr(all_null, "null_rows"), 1:2)
+  pages$complete <- FALSE
+  error <- expect_error(
+    fabric_graphql_collect(pages, "items"),
+    class = "fabric_graphql_collection_error"
+  )
+  expect_identical(error$partial_data$id, rows$id)
+  expect_identical(attr(error$partial_data, "null_rows"), c(1L, 3L))
+})
+
 test_that("fabric_graphql_collect refuses incomplete pagination", {
   page <- graphql_parse_response(list(
     data = list(products = list(items = list(list(id = 1L))))

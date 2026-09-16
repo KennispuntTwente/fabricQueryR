@@ -2,6 +2,9 @@
 
 ## New
 
+* `fabric_graphql_collect()` preserves nullable row elements and records their
+positions in the `null_rows` attribute, including incomplete collections.
+
 * Livy result parsing rejects malformed dates and fractional or out-of-range
 BYTE and SHORT values instead of truncating them.
 

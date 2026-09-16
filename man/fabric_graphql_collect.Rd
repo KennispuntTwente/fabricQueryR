@@ -16,7 +16,7 @@ objects, for example \code{c("viewer", "products", "items")}}
 }
 \value{
 A \code{fabric_graphql_rows} tibble. Attributes \code{complete}, \code{errors},
-\code{page_count}, and \code{path} retain collection metadata
+\code{page_count}, \code{path}, and \code{null_rows} retain collection metadata
 }
 \description{
 Combines row objects from a caller-selected field in every result returned
@@ -32,7 +32,10 @@ represented by typed \code{NA} values when their type can be inferred. Exact
 integer strings returned by \code{\link[=fabric_graphql_query]{fabric_graphql_query()}} remain character data;
 finite numeric entries in the same field, including fractions, are promoted
 to character using text that recovers the received R value exactly. Fields
-containing only numeric values retain ordinary numeric columns
+containing only numeric values retain ordinary numeric columns. Nullable row
+elements retain their positions as missing rows; the \code{null_rows} attribute
+records their one-based positions, distinguishing them from objects whose
+fields are all null.
 
 A successful result has class \code{fabric_graphql_rows} and reports completion,
 page count, path, and GraphQL errors in its printed header and attributes.

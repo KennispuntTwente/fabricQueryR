@@ -667,7 +667,10 @@ fabric_graphql_cursor <- function(
 #' integer strings returned by [fabric_graphql_query()] remain character data;
 #' finite numeric entries in the same field, including fractions, are promoted
 #' to character using text that recovers the received R value exactly. Fields
-#' containing only numeric values retain ordinary numeric columns
+#' containing only numeric values retain ordinary numeric columns. Nullable row
+#' elements retain their positions as missing rows; the `null_rows` attribute
+#' records their one-based positions, distinguishing them from objects whose
+#' fields are all null.
 #'
 #' A successful result has class `fabric_graphql_rows` and reports completion,
 #' page count, path, and GraphQL errors in its printed header and attributes.
@@ -684,7 +687,7 @@ fabric_graphql_cursor <- function(
 #'   objects, for example `c("viewer", "products", "items")`
 #'
 #' @return A `fabric_graphql_rows` tibble. Attributes `complete`, `errors`,
-#'   `page_count`, and `path` retain collection metadata
+#'   `page_count`, `path`, and `null_rows` retain collection metadata
 #' @references
 #' [Fabric API for GraphQL limits](https://learn.microsoft.com/en-us/fabric/data-engineering/api-graphql-limits)
 #'
@@ -1155,6 +1158,10 @@ graphql_collect_page_rows <- function(pages, path) {
     }
     for (row_number in seq_along(page_rows)) {
       row <- page_rows[[row_number]]
+      if (is.null(row)) {
+        rows[length(rows) + 1L] <- list(NULL)
+        next
+      }
       if (
         !is.list(row) ||
           is.null(names(row)) ||
@@ -1208,6 +1215,7 @@ graphql_rows_result <- function(
   attr(result, "errors") <- errors
   attr(result, "page_count") <- as.integer(page_count)
   attr(result, "path") <- path
+  attr(result, "null_rows") <- which(vapply(rows, is.null, logical(1)))
   result
 }
 
