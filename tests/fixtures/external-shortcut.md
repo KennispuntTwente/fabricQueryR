@@ -21,3 +21,7 @@ Microsoft REST schema. The transformation test is therefore an explicit opt-in
 and fails if enabled against that unsupported service contract; a skip is not
 reported as successful transformation coverage. Enable the matching GitHub
 environment variable when the tenant supports the endpoint.
+
+Use `FABRIC_TEST_REQUIRED_FEATURES=shortcut-transforms,shortcut-cache` in a
+designated supported/delegated lane. A missing transform opt-in or unsupported
+cache-reset principal then fails, rather than skipping the required evidence.

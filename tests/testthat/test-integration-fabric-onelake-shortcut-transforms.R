@@ -1,10 +1,12 @@
 # Fabric integration coverage: external shortcuts and CSV transformations
 test_that("CSV shortcut transforms materialize the expected live Delta rows", {
   manifest <- fabric_test_manifest()
-  skip_if_not(
-    identical(Sys.getenv("FABRIC_TEST_SHORTCUT_TRANSFORMS"), "true"),
-    "Set FABRIC_TEST_SHORTCUT_TRANSFORMS=true for a tenant supporting the documented csvToDelta REST contract"
-  )
+  if (!identical(Sys.getenv("FABRIC_TEST_SHORTCUT_TRANSFORMS"), "true")) {
+    fabric_test_feature_unavailable(
+      "shortcut-transforms",
+      "Set FABRIC_TEST_SHORTCUT_TRANSFORMS=true for a tenant supporting csvToDelta"
+    )
+  }
   fabric_test_use_delta_runtime()
   token <- fabric_test_token_provider()
   fixture <- fabric_test_manifest_item(manifest, "TestLakehouse")

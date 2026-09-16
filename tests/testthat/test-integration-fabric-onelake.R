@@ -1631,7 +1631,8 @@ test_that("OneLake shortcut cache reset completes a live LRO", {
     fabric_onelake_shortcut_cache_reset(workspace, token = token),
     fabric_http_error = function(error) {
       if (identical(error$error_code, "PrincipalTypeNotSupported")) {
-        testthat::skip(
+        fabric_test_feature_unavailable(
+          "shortcut-cache",
           "Fabric rejected cache reset for the CI principal type"
         )
       }
