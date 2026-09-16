@@ -58,6 +58,22 @@ found their own submitted work and passed all three assertions. See
 [review-followup-validation.md](review-followup-validation.md) for the diagnostic
 and execution evidence.
 
+## Java/R Livy batches (`livy-languages`)
+
+Run `integration-fabric-livy-languages` with
+`FABRIC_TEST_REQUIRED_FEATURES=livy-languages` to exercise a Java `class_name`
+application and an R script. Each creates a Spark context, counts three rows,
+and writes a unique marker to its own OneLake folder. The Java source and a
+deterministic rebuild script (`generate-livy-batch-java.py`, requiring javac
+11+) accompany the small compiled fixture. No compiler is needed for CI runs.
+
+This lane remains required separately because successful Java/R batch execution
+has not yet been established in the persistent sandbox. Its failures are not
+treated as passes or silently accepted workload limitations. R attempts returned
+`Spark_User_SparkContext_DidNotInitialize`; the Java attempt did not produce its
+output marker during the validation window. Ordinary Livy statement languages
+and the passing Python batch/dependency tests do not prove these batch paths.
+
 ## Restricted access (`authorization`)
 
 Set `FABRIC_TEST_AUTHORIZATION_MATRIX` to a local JSON file following

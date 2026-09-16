@@ -17,6 +17,7 @@ fabric_test_feature_required <- function(feature) {
     "functions",
     "packed-livy",
     "delegated-livy",
+    "livy-languages",
     "authorization",
     "job-options",
     "shortcut-transforms",
