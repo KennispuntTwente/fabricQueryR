@@ -848,56 +848,77 @@ test_that("GraphQL discovery by workspace name uses workspace-specific endpoints
     )
   )
 
-  result <- api$query(
-    "{ __typename }",
-    error_policy = "error",
-    audience = "https://api.fabric.microsoft.com/.default"
-  )
+  result <- api$query("{ __typename }", error_policy = "error")
   expect_length(result$errors, 0L)
   expect_identical(result$data$`__typename`, "Query")
 })
 
-test_that("Fabric GraphQL introspection succeeds or is specifically disabled", {
+test_that("disabled Fabric GraphQL introspection reports its setting", {
   manifest <- fabric_test_manifest()
   api <- fabric_test_manifest_item(manifest, "TestGraphQL")
-  token <- fabric_test_token_provider()
-
-  outcome <- tryCatch(
-    fabric_graphql_schema(
-      api$endpoint,
-      token = token,
-      audience = "https://api.fabric.microsoft.com/.default"
-    ),
-    fabric_graphql_introspection_error = identity
+  endpoint <- Sys.getenv("FABRIC_TEST_GRAPHQL_DISABLED_ENDPOINT")
+  if (!nzchar(endpoint)) endpoint <- api$endpoint
+  outcome <- expect_error(
+    fabric_graphql_schema(endpoint, token = fabric_test_token_provider()),
+    class = "fabric_graphql_introspection_error"
   )
+  expect_match(outcome$message, "API Settings > Introspection", fixed = TRUE)
+  expect_length(outcome$errors, 1L)
+  expect_identical(outcome$errors[[1L]]$extensions$code, "HC0046")
+})
 
-  if (inherits(outcome, "fabric_graphql_introspection_error")) {
-    expect_match(outcome$message, "API Settings > Introspection", fixed = TRUE)
-    expect_length(outcome$errors, 1L)
-    expect_identical(outcome$errors[[1L]]$extensions$code, "HC0046")
-    expect_match(
-      outcome$errors[[1L]]$message,
-      "introspection",
-      ignore.case = TRUE
-    )
-  } else {
-    expect_s3_class(outcome, "fabric_graphql_schema")
-    expect_equal(outcome$queryType$name, "Query")
-    query_types <- Filter(
-      function(type) identical(type$name, outcome$queryType$name),
-      outcome$types
-    )
-    expect_length(query_types, 1L)
-    expect_true(
-      api$root_field %in%
-        vapply(
-          query_types[[1L]]$fields,
-          `[[`,
-          character(1),
-          "name"
-        )
-    )
+test_that("enabled Fabric GraphQL introspection resolves collection type references", {
+  endpoint <- fabric_test_feature_environment(
+    "introspection",
+    "FABRIC_TEST_GRAPHQL_INTROSPECTION_ENDPOINT"
+  )
+  root <- fabric_test_feature_environment(
+    "introspection",
+    "FABRIC_TEST_GRAPHQL_INTROSPECTION_ROOT"
+  )
+  fabric_test_manifest()
+  token <- fabric_test_token_provider()
+  schema <- fabric_graphql_schema(endpoint, token = token)
+  expect_s3_class(schema, "fabric_graphql_schema")
+  types <- stats::setNames(
+    schema$types,
+    vapply(schema$types, `[[`, character(1), "name")
+  )
+  unwrap <- function(type) {
+    while (type$kind %in% c("NON_NULL", "LIST")) {
+      expect_type(type$ofType, "list")
+      type <- type$ofType
+    }
+    expect_true(type$name %in% names(types))
+    types[[type$name]]
   }
+  query <- types[[schema$queryType$name]]
+  field <- Filter(function(field) identical(field$name, root), query$fields)
+  expect_length(field, 1L)
+  collection <- unwrap(field[[1L]]$type)
+  items <- Filter(
+    function(field) identical(field$name, "items"),
+    collection$fields
+  )
+  expect_length(items, 1L)
+  row_type <- unwrap(items[[1L]]$type)
+  expect_identical(row_type$kind, "OBJECT")
+  pages <- fabric_graphql_paginate(
+    endpoint,
+    query = paste0(
+      "query($after: String) { ",
+      root,
+      "(first: 2, after: $after) { items { __typename } hasNextPage endCursor } }"
+    ),
+    variables = list(after = NULL),
+    next_cursor = fabric_graphql_cursor(root),
+    token = token,
+    error_policy = "error"
+  )
+  rows <- fabric_graphql_collect(pages, c(root, "items"))
+  expect_true(attr(rows, "complete"))
+  expect_gt(nrow(rows), 0L)
+  expect_true(all(rows$`__typename` == row_type$name))
 })
 
 test_that("Fabric GraphQL cursor pagination traverses every seeded row", {

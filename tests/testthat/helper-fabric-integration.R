@@ -3,6 +3,35 @@ fabric_test_required <- function() {
     c("1", "true", "yes")
 }
 
+# Opt-in feature lanes fail for missing prerequisites instead of silently
+# contributing a skip to an otherwise successful service-principal run.
+fabric_test_feature_required <- function(feature) {
+  required <- trimws(strsplit(
+    Sys.getenv("FABRIC_TEST_REQUIRED_FEATURES"),
+    ",",
+    fixed = TRUE
+  )[[1L]])
+  feature %in% required || "all" %in% required
+}
+
+fabric_test_feature_unavailable <- function(feature, message) {
+  if (fabric_test_feature_required(feature)) {
+    rlang::abort(message)
+  }
+  testthat::skip(message)
+}
+
+fabric_test_feature_environment <- function(feature, variable) {
+  value <- Sys.getenv(variable)
+  if (!nzchar(value)) {
+    fabric_test_feature_unavailable(
+      feature,
+      paste(feature, "requires", variable)
+    )
+  }
+  value
+}
+
 fabric_test_skip_or_fail <- function(condition, message) {
   if (!isTRUE(condition)) {
     return(invisible(FALSE))
