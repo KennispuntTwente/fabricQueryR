@@ -2,6 +2,8 @@
 
 ## New
 
+* Livy session and batch attachment compare GUIDs without regard to letter case.
+
 * `fabric_warehouse_write_table()` rejects decimal and temporal schema narrowing
 before modifying existing destination tables.
 

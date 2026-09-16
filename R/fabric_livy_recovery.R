@@ -412,7 +412,9 @@ fabric_livy_validate_attached_response <- function(response, id, kind) {
   if (
     !is.list(response) ||
       is.null(names(response)) ||
-      !identical(as.character(response$id %||% ""), id)
+      !fabric_is_guid(response$id) ||
+      !fabric_is_guid(id) ||
+      !identical(tolower(response$id), tolower(id))
   ) {
     .fabric_abort(
       paste0("Livy returned an invalid ", kind, " response for ", id),

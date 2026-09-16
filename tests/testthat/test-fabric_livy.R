@@ -236,9 +236,9 @@ test_that("Livy activity discovery rejects unsupported HC listing locally", {
 })
 
 test_that("Livy attach reconstructs authenticated handles without POST", {
-  session_id <- "11111111-1111-4111-8111-111111111111"
-  batch_id <- "22222222-2222-4222-8222-222222222222"
-  hc_id <- "33333333-3333-4333-8333-333333333333"
+  session_id <- "AbCd1111-1111-4111-8111-111111111111"
+  batch_id <- "ABCD2222-2222-4222-8222-222222222222"
+  hc_id <- "aBcD3333-3333-4333-8333-333333333333"
   underlying_id <- "44444444-4444-4444-8444-444444444444"
   repl_id <- "55555555-5555-4555-8555-555555555555"
   calls <- list()
@@ -248,7 +248,7 @@ test_that("Livy attach reconstructs authenticated handles without POST", {
       if (grepl("/repls/", url, fixed = TRUE)) {
         return(list(total_statements = 0L, statements = list()))
       }
-      id <- sub(".*/", "", url)
+      id <- tolower(sub(".*/", "", url))
       state <- if (grepl("batches", url, fixed = TRUE)) "running" else "idle"
       if (grepl("highConcurrencySessions", url, fixed = TRUE)) {
         return(list(
@@ -283,13 +283,13 @@ test_that("Livy attach reconstructs authenticated handles without POST", {
   )
 
   expect_s3_class(session, "FabricLivySession")
-  expect_identical(session$id, session_id)
+  expect_identical(session$id, tolower(session_id))
   expect_identical(session$status()$state, "idle")
   expect_s3_class(batch, "FabricLivyBatch")
-  expect_identical(batch$id, batch_id)
+  expect_identical(batch$id, tolower(batch_id))
   expect_identical(batch$status()$state, "running")
   expect_s3_class(hc, "FabricLivySession")
-  expect_identical(hc$id, hc_id)
+  expect_identical(hc$id, tolower(hc_id))
   expect_identical(hc$session_id, underlying_id)
   expect_identical(hc$repl_id, repl_id)
   expect_identical(hc$statements()$total_statements, 0L)
@@ -300,8 +300,8 @@ test_that("Livy attach reconstructs authenticated handles without POST", {
       paste0("https://example.test/livy/sessions/", session_id),
       paste0("https://example.test/livy/batches/", batch_id),
       paste0("https://example.test/livy/highConcurrencySessions/", hc_id),
-      paste0("https://example.test/livy/sessions/", session_id),
-      paste0("https://example.test/livy/batches/", batch_id),
+      paste0("https://example.test/livy/sessions/", tolower(session_id)),
+      paste0("https://example.test/livy/batches/", tolower(batch_id)),
       paste0(
         "https://example.test/livy/highConcurrencySessions/",
         underlying_id,

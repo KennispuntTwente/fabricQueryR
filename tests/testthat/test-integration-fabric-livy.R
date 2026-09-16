@@ -178,7 +178,7 @@ test_that("FabricLivySession shares state and preserves statement failures", {
   }
   recovered <- fabric_livy_session_attach(
     lakehouse$livy_url,
-    session$id,
+    toupper(session$id),
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
     auth_args = auth$auth_args,
@@ -582,7 +582,7 @@ test_that("high-concurrency Livy sessions isolate their REPLs", {
   )
   recovered <- fabric_livy_session_attach(
     lakehouse$livy_url,
-    session_a$id,
+    toupper(session_a$id),
     high_concurrency = TRUE,
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
@@ -709,7 +709,7 @@ test_that("Livy batches cover success, failure, and cancellation", {
   on.exit(try(success$cancel(), silent = TRUE), add = TRUE)
   recovered_success <- fabric_livy_batch_attach(
     lakehouse$livy_url,
-    success$id,
+    toupper(success$id),
     tenant_id = auth$tenant_id,
     client_id = auth$client_id,
     auth_args = auth$auth_args,
