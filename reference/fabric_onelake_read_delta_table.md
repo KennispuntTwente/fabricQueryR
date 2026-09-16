@@ -131,6 +131,12 @@ selected data. Release the stream deterministically when finished: call
 rely on garbage collection to delete the staged file, particularly on
 Windows
 
+A refreshable credential retries the entire read once after an
+authentication failure, including a failure while spooling an Arrow
+stream. Partial local output is discarded before retrying. Each attempt
+uses one token for its complete scan; credentials are not continuously
+replaced during long scans.
+
 ## Column types
 
 Common dates, timestamps, numbers, text, and logical values are

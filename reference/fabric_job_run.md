@@ -219,7 +219,7 @@ fabric_job_cancel(
 - job_instance_id:
 
   Alternative argument for a job instance GUID. Do not supply it
-  together with a `fabric_job` handle
+  together with a handle, instance record, or GUID through `job`
 
 - respect_retry_after:
 

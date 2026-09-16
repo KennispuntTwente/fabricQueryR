@@ -126,7 +126,14 @@ fabric_kql_export(
 - parquet_datetime_precision:
 
   Optional `"millisecond"` or `"microsecond"` precision for Parquet
-  datetime values.
+  datetime values. `NULL` omits the setting and uses Kusto's default of
+  milliseconds, discarding finer precision. Set `"microsecond"` to
+  retain six fractional digits. Neither setting preserves Kusto's
+  seventh fractional digit (100-nanosecond ticks). For full source
+  precision, project a text column in the KQL query with
+  `format_datetime(value, 'yyyy-MM-dd HH:mm:ss.fffffff')` before
+  exporting (Kusto datetimes are UTC). `numeric_policy` governs
+  decimals, not datetime precision.
 
 - timeout:
 
@@ -268,6 +275,7 @@ exported <- fabric_kql_export(
   destination = lakehouse,
   path = "Files/exports/events-weekly",
   format = "parquet",
+  parquet_datetime_precision = "microsecond",
   name_prefix = "events"
 )
 exported$artifacts

@@ -173,7 +173,14 @@ and <code>"zstd"</code>.</p></dd>
 
 <dt id="arg-parquet-datetime-precision">parquet_datetime_precision<a class="anchor" aria-label="anchor" href="#arg-parquet-datetime-precision"></a></dt>
 <dd><p>Optional <code>"millisecond"</code> or
-<code>"microsecond"</code> precision for Parquet datetime values.</p></dd>
+<code>"microsecond"</code> precision for Parquet datetime values. <code>NULL</code> omits the
+setting and uses Kusto's default of milliseconds, discarding finer
+precision. Set <code>"microsecond"</code> to retain six fractional digits. Neither
+setting preserves Kusto's seventh fractional digit (100-nanosecond ticks).
+For full source precision, project a text column in the KQL query with
+<code>format_datetime(value, 'yyyy-MM-dd HH:mm:ss.fffffff')</code> before exporting
+(Kusto datetimes are UTC).
+<code>numeric_policy</code> governs decimals, not datetime precision.</p></dd>
 
 
 <dt id="arg-timeout">timeout<a class="anchor" aria-label="anchor" href="#arg-timeout"></a></dt>
@@ -309,6 +316,7 @@ Data Contributor on the destination.</p>
 <span class="r-in"><span>  destination <span class="op">=</span> <span class="va">lakehouse</span>,</span></span>
 <span class="r-in"><span>  path <span class="op">=</span> <span class="st">"Files/exports/events-weekly"</span>,</span></span>
 <span class="r-in"><span>  format <span class="op">=</span> <span class="st">"parquet"</span>,</span></span>
+<span class="r-in"><span>  parquet_datetime_precision <span class="op">=</span> <span class="st">"microsecond"</span>,</span></span>
 <span class="r-in"><span>  name_prefix <span class="op">=</span> <span class="st">"events"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">exported</span><span class="op">$</span><span class="va">artifacts</span></span></span>

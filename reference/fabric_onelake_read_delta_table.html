@@ -172,6 +172,10 @@ Release the stream deterministically when finished: call
 <code>stream[["release"]]()</code> when using 'nanoarrow' directly, or call
 <code>reader$Close()</code> after <code>arrow::as_record_batch_reader(stream)</code>. Do not rely
 on garbage collection to delete the staged file, particularly on Windows</p>
+<p>A refreshable credential retries the entire read once after an authentication
+failure, including a failure while spooling an Arrow stream. Partial local
+output is discarded before retrying. Each attempt uses one token for its
+complete scan; credentials are not continuously replaced during long scans.</p>
     </div>
     <div class="section level2">
     <h2 id="column-types">Column types<a class="anchor" aria-label="anchor" href="#column-types"></a></h2>
