@@ -46,9 +46,14 @@ fabric_graphql_query(
   Named list of values for variables declared in `query`. Numeric and
   other R missing values are sent as JSON `null`; numeric `NaN` and
   infinities are rejected because GraphQL JSON has no such numbers.
-  One-element values are normally sent as scalars. Wrap a one-element
-  list variable in [`I()`](https://rdrr.io/r/base/AsIs.html), for
-  example `list(ids = I("x"))`, to send it as an array
+  Supply date-times as explicit ISO 8601 strings with a UTC `Z` or
+  offset, for example `"2024-02-29T12:34:56.123456Z"`. `POSIXct` and
+  `POSIXlt` values are rejected, including inside nested inputs, because
+  implicit JSON conversion can discard their time zone and fractional
+  seconds. One-element values are normally sent as scalars. Wrap a
+  one-element list variable in
+  [`I()`](https://rdrr.io/r/base/AsIs.html), for example
+  `list(ids = I("x"))`, to send it as an array
 
 - operation_name:
 

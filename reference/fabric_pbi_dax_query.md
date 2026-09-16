@@ -42,7 +42,10 @@ fabric_pbi_dax_query(
   `"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"`
   It may contain `Data Source=` and `Initial Catalog=` parts, or a bare
   `powerbi://...` source plus a `Dataset=`, `Catalog=`, or
-  `Initial Catalog=` key. Omit it when `dataset_id` is supplied
+  `Initial Catalog=` key. Omit it when `dataset_id` is supplied Identity
+  properties `EffectiveUserName`, `Roles`, and `CustomData` are rejected
+  in connection strings. Supply `impersonated_user` or, with
+  `api = "arrow"`, the corresponding `arrow_options` instead
 
 - dax:
 
