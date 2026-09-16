@@ -128,7 +128,10 @@ Keep \code{api = "json"} for ordinary queries and broad compatibility. It return
 one result table and is available to Pro, PPU, and capacity-backed models
 Results are limited by Power BI; 'fabricQueryR' raises an error instead of
 silently returning a partial result. Very large whole numbers are returned as
-character values so they are not rounded
+character values so they are not rounded. Mixed JSON scalar types form list
+columns. In those columns, an oversized number uses a \code{fabric_pbi_variant}
+cell with \code{type = "integer"} and an exact character \code{value}, distinguishing
+it from literal text with the same digits.
 
 Use \code{api = "arrow"} when exact semantic-model types matter, when a query has
 several \code{EVALUATE} statements, or when you want an Arrow stream. It requires

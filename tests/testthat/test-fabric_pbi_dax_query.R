@@ -526,7 +526,13 @@ test_that("DAX client timeout is positive and validated before authentication", 
 })
 
 test_that("JSON DAX Variant columns preserve heterogeneous scalar values", {
-  for (values in list(list(TRUE, "two"), list(TRUE, 0L), list(1L, "two"))) {
+  for (values in list(
+    list(TRUE, "two"),
+    list(TRUE, 0L),
+    list(1L, "two"),
+    list(42L, "42"),
+    list("42", 42L)
+  )) {
     rows <- c(
       lapply(values, function(value) list(value = value)),
       list(list(value = NULL), list())
@@ -560,8 +566,19 @@ test_that("DAX response parser promotes mixed-size Whole Numbers", {
       tables = list(list(
         rows = list(
           list(x = 1L, y = -2L),
-          list(x = "9007199254740993", y = NULL),
-          list(y = "-9007199254740993"),
+          list(
+            x = structure(
+              "9007199254740993",
+              class = "fabric_dax_json_integer"
+            ),
+            y = NULL
+          ),
+          list(
+            y = structure(
+              "-9007199254740993",
+              class = "fabric_dax_json_integer"
+            )
+          ),
           list(x = NULL, y = 3L)
         )
       ))
@@ -606,6 +623,36 @@ test_that("DAX response preserves both signed int64 extrema exactly", {
   )
 })
 
+test_that("DAX oversized number and numeric text remain a Variant list", {
+  for (cells in list(
+    c('9007199254740993', '"9007199254740993"', 'null'),
+    c('null', '"9007199254740993"', '9007199254740993')
+  )) {
+    text <- paste0(
+      '{"results":[{"tables":[{"rows":[',
+      paste0('{"value":', cells, '}', collapse = ','),
+      ']}]}]}'
+    )
+    result <- pbi_parse_dax_response(pbi_decode_dax_json(text))
+    expect_type(result$value, "list")
+    expect_identical(
+      result$value,
+      lapply(cells, function(cell) {
+        if (cell == "null") {
+          return(NULL)
+        }
+        if (startsWith(cell, '"')) {
+          return("9007199254740993")
+        }
+        structure(
+          list(type = "integer", value = "9007199254740993"),
+          class = c("fabric_pbi_variant", "list")
+        )
+      })
+    )
+  }
+})
+
 test_that("DAX response promotion retains large finite doubles exactly", {
   body <- charToRaw(paste0(
     '{"results":[{"tables":[{"rows":[',
@@ -642,7 +689,13 @@ test_that("DAX response promotion retains large finite doubles exactly", {
 
 test_that("DAX text promotion retains its existing non-finite value policy", {
   rows <- lapply(
-    list("9007199254740993", Inf, -Inf, NaN, NA_real_),
+    list(
+      structure("9007199254740993", class = "fabric_dax_json_integer"),
+      Inf,
+      -Inf,
+      NaN,
+      NA_real_
+    ),
     function(value) {
       list(value = value)
     }

@@ -476,6 +476,55 @@ test_that("live Arrow DAX preserves multiple rowsets and exact scalar encodings"
   expect_identical(variant[[1L]][[2L]]$value, "two")
 })
 
+test_that("live JSON DAX retains numeric-looking Variant text", {
+  manifest <- fabric_test_manifest()
+  model <- fabric_test_manifest_item(manifest, "TestArrowSemanticModel")
+  for (direction in c("ASC", "DESC")) {
+    dax <- paste0(
+      'EVALUATE SELECTCOLUMNS(GENERATESERIES(1,3), ',
+      '"id", [Value], "mixed", SWITCH([Value], 1, 42, 2, "42", BLANK())) ',
+      'ORDER BY [id] ',
+      direction
+    )
+    query <- function(api) {
+      fabric_pbi_dax_query(
+        workspace_id = manifest$workspace_id,
+        dataset_id = model$id,
+        dax = dax,
+        api = api,
+        token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+      )
+    }
+    json <- query("json")[["[mixed]"]]
+    expected <- list(42L, "42", NULL)
+    if (direction == "DESC") {
+      expected <- rev(expected)
+    }
+    expect_identical(json, expected)
+    arrow <- query("arrow")[["[mixed]"]]
+    index <- if (direction == "ASC") 1:2 else 3:2
+    expect_identical(as.character(arrow[[index[[1L]]]]$value), "42")
+    expect_identical(arrow[[index[[2L]]]]$value, "42")
+    expect_false(identical(
+      arrow[[index[[1L]]]]$type,
+      arrow[[index[[2L]]]]$type
+    ))
+  }
+  large <- fabric_pbi_dax_query(
+    workspace_id = manifest$workspace_id,
+    dataset_id = model$id,
+    dax = paste0(
+      'EVALUATE SELECTCOLUMNS(GENERATESERIES(1,2), "id", [Value], ',
+      '"mixed", IF([Value] = 1, CONVERT("9007199254740993", INTEGER), "9007199254740993")) ORDER BY [id]'
+    ),
+    token = fabric_test_token("FABRIC_TEST_PBI_TOKEN")
+  )[["[mixed]"]]
+  expect_s3_class(large[[1L]], "fabric_pbi_variant")
+  expect_identical(large[[1L]]$type, "integer")
+  expect_identical(large[[1L]]$value, "9007199254740993")
+  expect_identical(large[[2L]], "9007199254740993")
+})
+
 test_that("delegated DAX queries can target My Workspace", {
   fabric_test_delegated_auth_config()
   dataset_id <- fabric_test_required_environment(

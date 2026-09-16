@@ -21,7 +21,10 @@
 #' one result table and is available to Pro, PPU, and capacity-backed models
 #' Results are limited by Power BI; 'fabricQueryR' raises an error instead of
 #' silently returning a partial result. Very large whole numbers are returned as
-#' character values so they are not rounded
+#' character values so they are not rounded. Mixed JSON scalar types form list
+#' columns. In those columns, an oversized number uses a `fabric_pbi_variant`
+#' cell with `type = "integer"` and an exact character `value`, distinguishing
+#' it from literal text with the same digits.
 #'
 #' Use `api = "arrow"` when exact semantic-model types matter, when a query has
 #' several `EVALUATE` statements, or when you want an Arrow stream. It requires
@@ -706,12 +709,36 @@ pbi_execute_dax <- function(
     req,
     simplifyVector = FALSE,
     bigint_as_char = TRUE,
+    decode = pbi_decode_dax_json,
     credential = credential,
     audience = .fabric_audience$power_bi,
     idempotent = TRUE,
     request_timeout = timeout
   )
   pbi_parse_dax_response(out)
+}
+
+# Preserve the distinction between an exact JSON integer and literal text until
+# the column type is known. Never infer a number from the contents of a string.
+pbi_decode_dax_json <- function(text) {
+  value <- jsonlite::fromJSON(text, simplifyVector = FALSE)
+  lexical <- jsonlite::fromJSON(
+    fabric_json_quote_numbers(text),
+    simplifyVector = FALSE
+  )
+  restore <- function(value, lexical) {
+    if (is.list(value)) {
+      for (i in seq_along(value)) {
+        value[i] <- list(restore(value[[i]], lexical[[i]]))
+      }
+    } else if (
+      is.numeric(value) && fabric_json_is_unsafe_integer_token(lexical)
+    ) {
+      value <- structure(lexical, class = "fabric_dax_json_integer")
+    }
+    value
+  }
+  restore(value, lexical)
 }
 
 #' Validate optional Execute DAX Queries Arrow request properties
@@ -1514,9 +1541,7 @@ pbi_parse_dax_response <- function(out) {
     pbi_dax_response_object(row, "row")
   }
 
-  # bigint_as_char preserves large Whole Numbers as strings. Promote smaller
-  # numeric values in the same column before binding so a valid mixed-size
-  # integer column remains exact during column assembly
+  # Promote numeric-only columns containing exact large JSON integers.
   rows <- pbi_normalize_dax_integer_columns(rows)
   column_names <- unique(unlist(lapply(rows, names), use.names = FALSE))
   if (!length(column_names)) {
@@ -1528,10 +1553,26 @@ pbi_parse_dax_response <- function(out) {
     types <- unique(vapply(
       present,
       function(value) {
-        if (is.numeric(value)) "numeric" else typeof(value)
+        if (is.numeric(value) || inherits(value, "fabric_dax_json_integer")) {
+          "numeric"
+        } else {
+          typeof(value)
+        }
       },
       character(1)
     ))
+    values <- lapply(values, function(value) {
+      if (!inherits(value, "fabric_dax_json_integer")) {
+        return(value)
+      }
+      if (length(types) > 1L) {
+        return(structure(
+          list(type = "integer", value = unclass(value)),
+          class = c("fabric_pbi_variant", "list")
+        ))
+      }
+      unclass(value)
+    })
     if (length(types) > 1L) {
       return(values)
     }
@@ -1609,29 +1650,27 @@ pbi_normalize_dax_integer_columns <- function(rows) {
   for (column_name in column_names) {
     values <- lapply(rows, function(row) row[[column_name]])
     present <- Filter(Negate(is.null), values)
-    has_character <- any(vapply(present, is.character, logical(1)))
-    has_numeric <- any(vapply(
+    has_exact_integer <- any(vapply(
       present,
-      function(value) is.integer(value) || is.double(value),
-      logical(1)
+      inherits,
+      logical(1),
+      "fabric_dax_json_integer"
     ))
-    integer_text <- vapply(
+    numeric_only <- vapply(
       present,
       function(value) {
-        !is.character(value) || all(grepl("^-?[0-9]+$", value))
+        is.numeric(value) || inherits(value, "fabric_dax_json_integer")
       },
       logical(1)
     )
-    if (
-      !has_character ||
-        !has_numeric ||
-        !all(integer_text) ||
-        any(vapply(present, is.logical, logical(1)))
-    ) {
+    if (!has_exact_integer || !all(numeric_only)) {
       next
     }
     rows <- lapply(rows, function(row) {
       value <- row[[column_name]]
+      if (inherits(value, "fabric_dax_json_integer")) {
+        row[[column_name]] <- unclass(value)
+      }
       if (!is.null(value) && (is.integer(value) || is.double(value))) {
         row[[column_name]] <- if (is.na(value)) {
           NA_character_

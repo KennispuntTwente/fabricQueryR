@@ -391,6 +391,7 @@
   credential = NULL,
   audience = NULL,
   idempotent = NULL,
+  decode = NULL,
   ...
 ) {
   resp <- .httr2_perform(
@@ -400,6 +401,9 @@
     idempotent = idempotent,
     ...
   )
+  if (!is.null(decode)) {
+    return(decode(httr2::resp_body_string(resp)))
+  }
   httr2::resp_body_json(
     resp,
     simplifyVector = simplifyVector,

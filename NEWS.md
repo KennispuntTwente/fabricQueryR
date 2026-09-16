@@ -2,6 +2,9 @@
 
 ## New
 
+* `fabric_pbi_dax_query()` preserves JSON Variant columns containing both
+numbers and numeric-looking strings, including exact oversized integers.
+
 * Discovery functions find the Fabric workspaces and items available to the
 signed-in user or application. Use `fabric_workspaces()` and `fabric_items()`
 for general discovery, or typed helpers such as `fabric_lakehouses()` and
