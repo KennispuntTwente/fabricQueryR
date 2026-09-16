@@ -36,3 +36,25 @@ establish packed isolation and activity discovery. The discovery test creates it
 own session and batch. It reports a distinct skip under service-principal auth,
 and fails under `delegated-livy` if no user identity was supplied. Include this
 filter in both the core and runtime2 periodic delegated runs.
+
+## Restricted access (`authorization`)
+
+Set `FABRIC_TEST_AUTHORIZATION_MATRIX` to a local JSON file following
+`authorization.example.json`, and run `integration-fabric-authorization` with
+`FABRIC_TEST_REQUIRED_FEATURES=authorization`. The file names environment
+variables containing audience-specific tokens; it must not contain tokens itself.
+Acquire tokens immediately before the run. Two valid restricted identities must
+each have an allowed and a denied workspace and opposing OneLake folder grants.
+The tests prove valid access before testing denial, and require HTTP 403.
+
+Prepare a semantic model with `SecuredRows` containing id=1/group=a and
+id=2/group=b. `ReaderA` filters group=a; `ReaderB` filters group=b; assign the
+corresponding users. `ByCustomData` filters group=CUSTOMDATA(). Supply a delegated
+model administrator token authorized to impersonate both users. The suite checks
+the exact expected row sets for JSON impersonation and Arrow impersonation,
+roles, and customData separately. JSON Execute Queries does not support service
+principals against RLS models. Keep this a distinct delegated authorization lane.
+
+This configuration does not grant permissions or create tenant identities.
+Warehouse granular COPY permissions are not asserted: the writer documentation
+now follows Microsoft's Contributor requirement on both workspaces.

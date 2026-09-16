@@ -1,0 +1,15 @@
+{
+  "workspace": "<RLS workspace GUID>",
+  "dataset": "<RLS semantic model GUID>",
+  "query": "EVALUATE SELECTCOLUMNS('SecuredRows', \"id\", [id])",
+  "column": "[id]",
+  "custom_data_role": "ByCustomData",
+  "identities": [
+    {"api_token_env": "FABRIC_TEST_READER_A_API_TOKEN", "storage_token_env": "FABRIC_TEST_READER_A_STORAGE_TOKEN", "allowed_workspace": "<reader A allowed workspace>", "denied_workspace": "<reader A denied workspace>", "onelake": {"workspace": "<workspace>", "item": "<Lakehouse>", "allowed_path": "Files/a/marker.txt", "denied_path": "Files/b/marker.txt", "expected_text": "reader-a"}},
+    {"api_token_env": "FABRIC_TEST_READER_B_API_TOKEN", "storage_token_env": "FABRIC_TEST_READER_B_STORAGE_TOKEN", "allowed_workspace": "<reader B allowed workspace>", "denied_workspace": "<reader B denied workspace>", "onelake": {"workspace": "<workspace>", "item": "<Lakehouse>", "allowed_path": "Files/b/marker.txt", "denied_path": "Files/a/marker.txt", "expected_text": "reader-b"}}
+  ],
+  "dax": [
+    {"token_env": "FABRIC_TEST_RLS_ADMIN_PBI_TOKEN", "user": "<reader A UPN>", "roles": ["ReaderA"], "custom_data": "a", "expected": [1]},
+    {"token_env": "FABRIC_TEST_RLS_ADMIN_PBI_TOKEN", "user": "<reader B UPN>", "roles": ["ReaderB"], "custom_data": "b", "expected": [2]}
+  ]
+}
