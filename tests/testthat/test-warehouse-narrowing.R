@@ -70,8 +70,8 @@ test_that("Warehouse append and overwrite reject narrowing before SQL mutation",
   )
   value <- arrow::Array$create("1.2399")$cast(arrow::decimal128(24, 4))
   dictionary <- arrow::DictionaryArray$create(arrow::Array$create(0L), value)
-  for (value in list(value, dictionary)) {
-    data <- arrow::Table$create(value = value)
+  for (column in list(value, dictionary)) {
+    data <- arrow::Table$create(value = column)
     for (mode in c("Append", "Overwrite")) {
       error <- expect_error(
         fabric_warehouse_write_table(

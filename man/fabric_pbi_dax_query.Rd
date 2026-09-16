@@ -31,7 +31,10 @@ string. A character connection string can be, for example,
 \code{"Data Source=powerbi://api.powerbi.com/v1.0/myorg/Workspace;Initial Catalog=Dataset;"}
 It may contain \verb{Data Source=} and \verb{Initial Catalog=} parts, or a bare
 \verb{powerbi://...} source plus a \verb{Dataset=}, \verb{Catalog=}, or
-\verb{Initial Catalog=} key. Omit it when \code{dataset_id} is supplied}
+\verb{Initial Catalog=} key. Omit it when \code{dataset_id} is supplied
+Identity properties \code{EffectiveUserName}, \code{Roles}, and \code{CustomData} are
+rejected in connection strings. Supply \code{impersonated_user} or, with
+\code{api = "arrow"}, the corresponding \code{arrow_options} instead}
 
 \item{dax}{One DAX query, normally beginning with \code{EVALUATE}. DAX table
 expressions determine which rows and columns are returned}

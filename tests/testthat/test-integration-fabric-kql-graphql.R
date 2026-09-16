@@ -857,7 +857,9 @@ test_that("disabled Fabric GraphQL introspection reports its setting", {
   manifest <- fabric_test_manifest()
   api <- fabric_test_manifest_item(manifest, "TestGraphQL")
   endpoint <- Sys.getenv("FABRIC_TEST_GRAPHQL_DISABLED_ENDPOINT")
-  if (!nzchar(endpoint)) endpoint <- api$endpoint
+  if (!nzchar(endpoint)) {
+    endpoint <- api$endpoint
+  }
   outcome <- expect_error(
     fabric_graphql_schema(endpoint, token = fabric_test_token_provider()),
     class = "fabric_graphql_introspection_error"

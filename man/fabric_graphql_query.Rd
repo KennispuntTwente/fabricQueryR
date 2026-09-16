@@ -34,6 +34,10 @@ variables for changing values instead of pasting values into this string}
 \item{variables}{Named list of values for variables declared in \code{query}.
 Numeric and other R missing values are sent as JSON \code{null}; numeric \code{NaN}
 and infinities are rejected because GraphQL JSON has no such numbers.
+Supply date-times as explicit ISO 8601 strings with a UTC \code{Z} or offset,
+for example \code{"2024-02-29T12:34:56.123456Z"}. \code{POSIXct} and \code{POSIXlt}
+values are rejected, including inside nested inputs, because implicit JSON
+conversion can discard their time zone and fractional seconds.
 One-element values are normally sent as scalars. Wrap a one-element list
 variable in \code{\link[=I]{I()}}, for example \code{list(ids = I("x"))}, to send it as an array}
 
