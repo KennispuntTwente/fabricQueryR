@@ -97,53 +97,76 @@ test_that("CSV shortcut transforms materialize the expected live Delta rows", {
   expect_identical(rows$label, c("caf\u00e9", "two"))
 })
 
-test_that("external shortcut connections expose independently expected file bytes", {
-  manifest <- fabric_test_manifest()
-  configuration <- fabric_test_optional_environment(
-    "FABRIC_TEST_EXTERNAL_SHORTCUT_JSON",
-    "External shortcut connection coverage"
-  )
-  fixture <- jsonlite::fromJSON(configuration, simplifyVector = FALSE)
-  expect_named(
-    fixture,
-    c("target", "file", "expectedText"),
-    ignore.order = TRUE
-  )
-  expect_false("oneLake" %in% names(fixture$target))
-  token <- fabric_test_token_provider()
-  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
-  item <- fabric_item(manifest$workspace_id, lakehouse$id, token = token)
-  name <- paste0("fabricqueryr_external_", .fabric_lakehouse_staging_id())
-  on.exit(
-    try(
-      fabric_onelake_shortcut_delete(
+for (provider in c(
+  "adlsGen2",
+  "amazonS3",
+  "azureBlobStorage",
+  "googleCloudStorage",
+  "oneDriveSharePoint",
+  "s3Compatible",
+  "dataverse"
+)) {
+  local({
+    provider <- provider
+    test_that(paste("external shortcut validates", provider, "data"), {
+      manifest <- fabric_test_manifest()
+      fixture <- fabric_test_external_shortcut(provider)
+      parent <- fixture$parentPath %||% "Files"
+      token <- fabric_test_token_provider()
+      lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+      item <- fabric_item(manifest$workspace_id, lakehouse$id, token = token)
+      name <- paste0("fabricqueryr_external_", .fabric_lakehouse_staging_id())
+      on.exit(
+        try(
+          fabric_onelake_shortcut_delete(
+            item,
+            parent,
+            name,
+            confirm = TRUE,
+            token = token
+          ),
+          silent = TRUE
+        ),
+        add = TRUE
+      )
+      fabric_onelake_shortcut_create(
         item,
-        "Files",
+        parent,
         name,
-        confirm = TRUE,
+        target = fixture$target,
         token = token
-      ),
-      silent = TRUE
-    ),
-    add = TRUE
-  )
-  fabric_onelake_shortcut_create(
-    item,
-    "Files",
-    name,
-    target = fixture$target,
-    token = token
-  )
-  observed <- fabric_onelake_shortcut_get(item, "Files", name, token = token)
-  expect_identical(
-    .fabric_shortcut_raw_target(observed$raw[[1L]]$target),
-    fixture$target
-  )
-  bytes <- fabric_onelake_download(
-    manifest$workspace_id,
-    item,
-    paste("Files", name, fixture$file, sep = "/"),
-    token = token
-  )
-  expect_identical(bytes, charToRaw(enc2utf8(fixture$expectedText)))
-})
+      )
+      observed <- fabric_onelake_shortcut_get(item, parent, name, token = token)
+      expect_identical(
+        .fabric_shortcut_raw_target(observed$raw[[1L]]$target),
+        fixture$target
+      )
+      if (identical(fixture$validation, "table")) {
+        fabric_test_use_delta_runtime()
+        rows <- fabric_test_eventually(function() {
+          fabric_lakehouse_read_table(
+            item,
+            name,
+            schema = basename(parent),
+            columns = unlist(fixture$columns),
+            token = token,
+            verbose = FALSE
+          )
+        })
+        expected <- jsonlite::fromJSON(jsonlite::toJSON(
+          fixture$expectedRows,
+          auto_unbox = TRUE
+        ))
+        expect_equal(as.data.frame(rows), expected, ignore_attr = TRUE)
+      } else {
+        bytes <- fabric_onelake_download(
+          manifest$workspace_id,
+          item,
+          paste(parent, name, fixture$file, sep = "/"),
+          token = token
+        )
+        expect_identical(bytes, charToRaw(enc2utf8(fixture$expectedText)))
+      }
+    })
+  })
+}

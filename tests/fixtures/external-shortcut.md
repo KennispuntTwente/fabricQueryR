@@ -25,3 +25,19 @@ environment variable when the tenant supports the endpoint.
 Use `FABRIC_TEST_REQUIRED_FEATURES=shortcut-transforms,shortcut-cache` in a
 designated supported/delegated lane. A missing transform opt-in or unsupported
 cache-reset principal then fails, rather than skipping the required evidence.
+
+## Provider matrix
+
+Set `FABRIC_TEST_EXTERNAL_SHORTCUT_MATRIX_JSON` to a JSON object keyed by all
+seven external provider names: `adlsGen2`, `amazonS3`, `azureBlobStorage`,
+`googleCloudStorage`, `oneDriveSharePoint`, `s3Compatible`, and `dataverse`.
+Each value follows `external-shortcut.example.json`. Every provider gets its own
+test result. The legacy single-provider variable remains supported; it exercises
+only that provider. Set `FABRIC_TEST_REQUIRED_FEATURES=external-shortcuts` to fail
+if any supported provider is missing.
+
+For table-only sources such as Dataverse, use `parentPath: "Tables/dbo"`,
+`validation: "table"`, `columns` (array of column names), and `expectedRows` (array
+of row objects) instead of `file`/`expectedText`. Use a tiny stable source table
+with a single row so ordering is unambiguous. The test reads the resulting Delta
+table through the Lakehouse API and checks values, not just shortcut metadata.
