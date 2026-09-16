@@ -40,7 +40,7 @@ filter in both the core and runtime2 periodic delegated runs.
 ## Restricted access (`authorization`)
 
 Set `FABRIC_TEST_AUTHORIZATION_MATRIX` to a local JSON file following
-`authorization.example.json`, and run `integration-fabric-authorization` with
+`authorization.example.json`, and run `integration-fabric-auth-discovery-authorization` with
 `FABRIC_TEST_REQUIRED_FEATURES=authorization`. The file names environment
 variables containing audience-specific tokens; it must not contain tokens itself.
 Acquire tokens immediately before the run. Two valid restricted identities must
@@ -58,3 +58,34 @@ principals against RLS models. Keep this a distinct delegated authorization lane
 This configuration does not grant permissions or create tenant identities.
 Warehouse granular COPY permissions are not asserted: the writer documentation
 now follows Microsoft's Contributor requirement on both workspaces.
+
+## Execution options (`job-options`)
+
+`integration-fabric-jobs-dependencies` creates a temporary Spark notebook and
+verifies Python imports, archive extraction and a JVM resource from a jar.
+`integration-fabric-jobs-overrides` imports a Python module through Spark job
+`additionalLibraryUris` (the library language must match the executable). Both
+clean up only their own items/files. The tiny
+archives are reproducible with `generate-job-dependencies.py`.
+
+The required `job-options` lane additionally needs:
+
+- `FABRIC_TEST_CROSS_WORKSPACE_ID` and `FABRIC_TEST_CROSS_LAKEHOUSE_ID`: a
+  readable Lakehouse in another test workspace; the notebook checks both runtime
+  context identifiers.
+- `FABRIC_TEST_NOTEBOOK_COMPUTE_JSON`: JSON containing `computeConfiguration`
+  with an existing custom `instancePool`, driver/executor memory and cores,
+  `numExecutors`, and `mountPoints`; plus `file`, `expected_text`, `pool_setting`
+  and `pool_expected`. The last pair names the runtime Spark setting identifying
+  the chosen pool and its independently known value. The test reads runtime
+  settings and mounted file contents. It does not create or resize pools.
+- `FABRIC_TEST_SQL_NOTEBOOK_ID` and `FABRIC_TEST_SQL_NOTEBOOK_WAREHOUSE_ID`:
+  a DataWarehouse notebook with a `marker` string parameter that inserts that
+  value into `dbo.fabricqueryr_sql_notebook_probe(marker varchar(100))` in the
+  specified Warehouse. The test asserts absence before running and exactly one
+  matching row afterward, then removes that row.
+
+Run filters `integration-fabric-jobs-dependencies|integration-fabric-jobs-overrides`
+with `FABRIC_TEST_REQUIRED_FEATURES=job-options`. Missing prerequisites fail this
+lane. A normal service-principal run still executes the self-contained dependency
+tests and reports the three configured-fixture cases separately as skips.

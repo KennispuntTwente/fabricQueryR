@@ -42,6 +42,8 @@ test_that("on-demand Spark overrides execute the requested file and arguments", 
     "import sys",
     "from pyspark.sql import SparkSession",
     "spark = SparkSession.builder.getOrCreate()",
+    "import fabricqueryr_dependency as dependency",
+    "assert dependency.VALUE == 'fabricqueryr-dependency-73'",
     "assert len(sys.argv) == 3, sys.argv",
     "spark.createDataFrame([(sys.argv[1], 17)], 'marker string, value int').coalesce(1).write.mode('overwrite').json(sys.argv[2])",
     sep = "\n"
@@ -51,6 +53,13 @@ test_that("on-demand Spark overrides execute the requested file and arguments", 
     lakehouse$id,
     paste0(folder, "/override.py"),
     source = charToRaw(script),
+    token = token
+  )
+  fabric_onelake_upload(
+    manifest$workspace_id,
+    lakehouse$id,
+    paste0(folder, "/fabricqueryr_dependency.py"),
+    source = testthat::test_path("..", "fixtures", "job-dependency.py"),
     token = token
   )
   reference <- function(id) {
@@ -64,6 +73,7 @@ test_that("on-demand Spark overrides execute the requested file and arguments", 
     item,
     execution_data = list(
       executableFile = paste0(uri, "/override.py"),
+      additionalLibraryUris = paste0(uri, "/fabricqueryr_dependency.py"),
       commandLineArguments = paste(marker, paste0(uri, "/result")),
       defaultLakehouseId = reference(lakehouse$id),
       environmentId = reference(environment$id)
