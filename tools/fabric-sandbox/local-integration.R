@@ -226,7 +226,12 @@ fabric_local_uses_client_credentials <- function(auth_args) {
       is.null(auth_args$on_behalf_of))
 }
 
-fabric_local_cached_token <- function(audience, tenant_id, client_id) {
+fabric_local_cached_token <- function(
+  audience,
+  tenant_id,
+  client_id,
+  client_credentials = NULL
+) {
   tokens <- unname(AzureAuth::list_azure_tokens())
   matches <- Filter(
     function(token) {
@@ -236,10 +241,18 @@ fabric_local_cached_token <- function(audience, tenant_id, client_id) {
         token[["client"]][["client_id"]],
         error = function(error) ""
       )
+      auth_type <- token[["auth_type"]]
+      principal_matches <- is.null(client_credentials) ||
+        (!is.null(auth_type) &&
+          identical(
+            identical(auth_type, "client_credentials"),
+            client_credentials
+          ))
       audience %in%
         scopes &&
         identical(tenant, tenant_id) &&
-        identical(client, client_id)
+        identical(client, client_id) &&
+        principal_matches
     },
     tokens
   )
@@ -345,7 +358,8 @@ fabric_local_acquire_tokens <- function(
   refresh_source <- fabric_local_cached_token(
     "https://api.fabric.microsoft.com/.default",
     tenant_id,
-    client_id
+    client_id,
+    client_credentials = fabric_local_uses_client_credentials(auth_args)
   )
   use_cache <- !identical(auth_args$use_cache, FALSE)
   exchange_cached <- use_cache && is.null(auth_args$auth_type)
@@ -353,7 +367,12 @@ fabric_local_acquire_tokens <- function(
     audience <- unname(audiences[[label]])
     message("Acquiring ", label, " token (cached tokens are reused)...")
     cached <- if (use_cache) {
-      fabric_local_cached_token(audience, tenant_id, client_id)
+      fabric_local_cached_token(
+        audience,
+        tenant_id,
+        client_id,
+        client_credentials = fabric_local_uses_client_credentials(auth_args)
+      )
     } else {
       NULL
     }

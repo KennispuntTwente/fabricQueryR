@@ -161,6 +161,64 @@ test_that("local cached token lookup filters and deduplicates identities", {
   ))
 })
 
+test_that("local token acquisition cannot swap delegated and application identities", {
+  environment <- fabric_test_local_runner()
+  audience <- "https://api.fabric.microsoft.com/.default"
+  application <- list(
+    scope = audience,
+    tenant = "tenant",
+    client = list(client_id = "client"),
+    auth_type = "client_credentials",
+    marker = "application"
+  )
+  delegated <- utils::modifyList(
+    application,
+    list(
+      auth_type = "authorization_code",
+      marker = "delegated"
+    )
+  )
+  cached <- list(application, delegated)
+  local_mocked_bindings(
+    list_azure_tokens = function() cached,
+    get_azure_token = function(...) {
+      stop("unexpected interactive authentication")
+    },
+    .package = "AzureAuth"
+  )
+  for (order in list(c(1L, 2L), c(2L, 1L))) {
+    cached <- list(application, delegated)[order]
+    for (principal in c("application", "delegated")) {
+      auth <- if (principal == "application") {
+        list(auth_type = "client_credentials")
+      } else {
+        list()
+      }
+      tokens <- suppressMessages(environment$fabric_local_acquire_tokens(
+        "tenant",
+        "client",
+        auth_args = auth,
+        audiences = c(Fabric = audience)
+      ))
+      expect_identical(tokens[[audience]]$marker, principal)
+    }
+  }
+  cached <- list(application)
+  expect_null(environment$fabric_local_cached_token(
+    audience,
+    "tenant",
+    "client",
+    client_credentials = FALSE
+  ))
+  cached <- list(delegated)
+  expect_null(environment$fabric_local_cached_token(
+    audience,
+    "tenant",
+    "client",
+    client_credentials = TRUE
+  ))
+})
+
 test_that("local refresh-token exchange sends the requested audience", {
   environment <- fabric_test_local_runner()
   request <- NULL
