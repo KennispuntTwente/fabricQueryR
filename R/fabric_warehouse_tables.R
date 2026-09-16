@@ -395,7 +395,12 @@ fabric_warehouse_read_table <- function(
 #' Existing-table writes map input fields by ordinal position to quoted
 #' destination columns whose names must exactly match the names in `data`,
 #' including letter case. The writer checks the Warehouse catalog before any
-#' destructive SQL is issued. With
+#' destructive SQL is issued. Decimal inputs require a decimal destination with
+#' at least the source scale and integer-digit capacity; timestamp and time
+#' inputs require matching temporal types with sufficient fractional precision.
+#' Cast the input explicitly when a lossy conversion is intended. These schema
+#' checks do not validate every possible SQL conversion or individual value.
+#' With
 #' `create_if_missing = TRUE`, a missing table is created and populated by a
 #' single CTAS statement; Fabric infers its names and types from the staged
 #' Parquet files.
@@ -686,7 +691,8 @@ fabric_warehouse_write_table <- function(
         connection,
         schema,
         table,
-        prepared$names
+        prepared$names,
+        prepared$input_schema %||% prepared$schema
       ),
       error = function(error) {
         .fabric_warehouse_write_abort(
@@ -1040,6 +1046,10 @@ fabric_warehouse_write_table <- function(
     }
   )
   fields <- prepared$schema$fields
+  # Serialization normalizes timestamp storage to microseconds; validation
+  # must retain the input's actual precision so millisecond data can still be
+  # loaded losslessly into datetime2(3).
+  prepared$input_schema <- prepared$schema
   for (field in fields) {
     type <- field$type
     unsupported <- inherits(type, c("DurationType", "IntervalType")) ||
@@ -1307,11 +1317,14 @@ fabric_warehouse_write_table <- function(
   connection,
   schema,
   table,
-  columns
+  columns,
+  source_schema = NULL
 ) {
   sql <- paste0(
-    "SELECT [c].[name] AS [column_name] ",
+    "SELECT [c].[name] AS [column_name], [ty].[name] AS [type_name], ",
+    "[c].[precision] AS [precision], [c].[scale] AS [scale] ",
     "FROM sys.columns AS [c] ",
+    "INNER JOIN sys.types AS [ty] ON [ty].[user_type_id] = [c].[user_type_id] ",
     "INNER JOIN sys.tables AS [t] ON [t].[object_id] = [c].[object_id] ",
     "INNER JOIN sys.schemas AS [s] ON [s].[schema_id] = [t].[schema_id] ",
     "WHERE [s].[name] = ",
@@ -1357,6 +1370,46 @@ fabric_warehouse_write_table <- function(
       ),
       class = c("fabric_warehouse_column_error", "fabric_warehouse_error")
     )
+  }
+  for (field in source_schema$fields) {
+    type <- field$type
+    decimal <- inherits(type, "DecimalType")
+    timestamp <- inherits(type, "Timestamp")
+    time <- inherits(type, c("Time32Type", "Time64Type", "Time32", "Time64"))
+    if (!decimal && !timestamp && !time) {
+      next
+    }
+    metadata <- value[match(field$name, destination), , drop = FALSE]
+    required <- c("type_name", "precision", "scale")
+    if (!all(required %in% names(metadata)) || anyNA(metadata[required])) {
+      .fabric_abort(
+        "Warehouse returned incomplete destination-type metadata",
+        class = c("fabric_warehouse_column_error", "fabric_warehouse_error")
+      )
+    }
+    target <- tolower(metadata$type_name)
+    safe <- if (decimal) {
+      target %in%
+        c("decimal", "numeric") &&
+        metadata$scale >= type$scale() &&
+        metadata$precision - metadata$scale >= type$precision() - type$scale()
+    } else {
+      scale <- c(0L, 3L, 6L, 9L)[type$unit() + 1L]
+      target == (if (timestamp) "datetime2" else "time") &&
+        metadata$scale >= scale
+    }
+    if (!isTRUE(safe)) {
+      .fabric_abort(
+        paste0(
+          "Destination column `",
+          field$name,
+          "` would narrow or change Arrow ",
+          type$ToString(),
+          "; explicitly cast the input to the intended destination type"
+        ),
+        class = c("fabric_warehouse_column_error", "fabric_warehouse_error")
+      )
+    }
   }
   invisible(destination)
 }

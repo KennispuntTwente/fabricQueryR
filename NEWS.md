@@ -2,6 +2,9 @@
 
 ## New
 
+* `fabric_warehouse_write_table()` rejects decimal and temporal schema narrowing
+before modifying existing destination tables.
+
 * `fabric_pbi_dax_query()` preserves JSON Variant columns containing both
 numbers and numeric-looking strings, including exact oversized integers.
 

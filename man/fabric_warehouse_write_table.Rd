@@ -137,7 +137,12 @@ data frame.
 Existing-table writes map input fields by ordinal position to quoted
 destination columns whose names must exactly match the names in \code{data},
 including letter case. The writer checks the Warehouse catalog before any
-destructive SQL is issued. With
+destructive SQL is issued. Decimal inputs require a decimal destination with
+at least the source scale and integer-digit capacity; timestamp and time
+inputs require matching temporal types with sufficient fractional precision.
+Cast the input explicitly when a lossy conversion is intended. These schema
+checks do not validate every possible SQL conversion or individual value.
+With
 \code{create_if_missing = TRUE}, a missing table is created and populated by a
 single CTAS statement; Fabric infers its names and types from the staged
 Parquet files.
