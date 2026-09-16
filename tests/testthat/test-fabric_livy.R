@@ -2451,6 +2451,32 @@ test_that("idle Livy sessions with explicit Fabric errors are not ready", {
   }
 })
 
+test_that("Livy dates and narrow integers reject lossy conversion", {
+  for (value in c("2026-01-02garbage", "2026-1-02", "2026-02-30", "invalid")) {
+    expect_error(
+      fabric_livy_convert_column(list(value), "date"),
+      class = "fabric_livy_protocol_error"
+    )
+  }
+  expect_identical(
+    fabric_livy_convert_column(list("2024-02-29", NULL), "date"),
+    as.Date(c("2024-02-29", NA))
+  )
+  for (kind in c("byte", "short")) {
+    bound <- if (kind == "byte") 128 else 32768
+    for (value in list(1.5, -1.5, bound, -bound - 1, Inf, "NaN", "text")) {
+      expect_error(
+        fabric_livy_convert_column(list(value), kind),
+        class = "fabric_livy_protocol_error"
+      )
+    }
+    expect_identical(
+      fabric_livy_convert_column(list(-bound, bound - 1, NULL), kind),
+      as.integer(c(-bound, bound - 1, NA))
+    )
+  }
+})
+
 test_that("session wait continues through an Uncertain intermediate result", {
   responses <- list(
     list(id = "uncertain-session", state = "starting"),

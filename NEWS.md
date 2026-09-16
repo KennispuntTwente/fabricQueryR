@@ -2,6 +2,9 @@
 
 ## New
 
+* Livy result parsing rejects malformed dates and fractional or out-of-range
+BYTE and SHORT values instead of truncating them.
+
 * Livy session waits give explicit failure information precedence over an idle state.
 
 * Livy session and batch attachment compare GUIDs without regard to letter case.

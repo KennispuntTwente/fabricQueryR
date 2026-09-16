@@ -1539,12 +1539,18 @@ fabric_livy_convert_column <- function(values, type) {
   # Numeric Spark types must convert without silently losing invalid values
   if (kind %in% c("byte", "short")) {
     text <- fabric_livy_atomic_text(values)
-    out <- suppressWarnings(as.integer(text))
-    if (any(!is.na(text) & is.na(out))) {
+    out <- suppressWarnings(as.numeric(text))
+    bound <- if (kind == "byte") 128 else 32768
+    if (
+      any(
+        !is.na(text) &
+          (!is.finite(out) | out != trunc(out) | out < -bound | out >= bound)
+      )
+    ) {
       fabric_livy_invalid_type(kind)
     }
 
-    return(out)
+    return(as.integer(out))
   }
 
   if (kind %in% c("integer", "int")) {
@@ -1596,7 +1602,14 @@ fabric_livy_convert_column <- function(values, type) {
   if (identical(kind, "date")) {
     text <- fabric_livy_atomic_text(values)
     out <- as.Date(text, format = "%Y-%m-%d")
-    if (any(!is.na(text) & is.na(out))) {
+    if (
+      any(
+        !is.na(text) &
+          (is.na(out) |
+            !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", text) |
+            format(out, "%Y-%m-%d") != text)
+      )
+    ) {
       fabric_livy_invalid_type(kind)
     }
 
