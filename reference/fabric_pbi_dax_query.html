@@ -205,7 +205,10 @@ through the tenant-relative REST API. For B2B access, omit <code>connstr</code>,
 one result table and is available to Pro, PPU, and capacity-backed models
 Results are limited by Power BI; 'fabricQueryR' raises an error instead of
 silently returning a partial result. Very large whole numbers are returned as
-character values so they are not rounded</p>
+character values so they are not rounded. Mixed JSON scalar types form list
+columns. In those columns, an oversized number uses a <code>fabric_pbi_variant</code>
+cell with <code>type = "integer"</code> and an exact character <code>value</code>, distinguishing
+it from literal text with the same digits.</p>
 <p>Use <code>api = "arrow"</code> when exact semantic-model types matter, when a query has
 several <code>EVALUATE</code> statements, or when you want an Arrow stream. It requires
 the optional 'arrow' package and a model on Premium or Fabric capacity.

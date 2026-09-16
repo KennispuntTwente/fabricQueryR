@@ -29,7 +29,7 @@ fabric_graphql_collect(pages, path)
 ## Value
 
 A `fabric_graphql_rows` tibble. Attributes `complete`, `errors`,
-`page_count`, and `path` retain collection metadata
+`page_count`, `path`, and `null_rows` retain collection metadata
 
 ## Details
 
@@ -42,7 +42,10 @@ inferred. Exact integer strings returned by
 remain character data; finite numeric entries in the same field,
 including fractions, are promoted to character using text that recovers
 the received R value exactly. Fields containing only numeric values
-retain ordinary numeric columns
+retain ordinary numeric columns. Nullable row elements retain their
+positions as missing rows; the `null_rows` attribute records their
+one-based positions, distinguishing them from objects whose fields are
+all null.
 
 A successful result has class `fabric_graphql_rows` and reports
 completion, page count, path, and GraphQL errors in its printed header

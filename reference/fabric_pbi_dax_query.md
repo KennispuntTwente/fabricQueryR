@@ -165,7 +165,10 @@ returns one result table and is available to Pro, PPU, and
 capacity-backed models Results are limited by Power BI; 'fabricQueryR'
 raises an error instead of silently returning a partial result. Very
 large whole numbers are returned as character values so they are not
-rounded
+rounded. Mixed JSON scalar types form list columns. In those columns, an
+oversized number uses a `fabric_pbi_variant` cell with
+`type = "integer"` and an exact character `value`, distinguishing it
+from literal text with the same digits.
 
 Use `api = "arrow"` when exact semantic-model types matter, when a query
 has several `EVALUATE` statements, or when you want an Arrow stream. It

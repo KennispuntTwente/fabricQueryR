@@ -197,9 +197,15 @@ staging identifiers, row and byte counts, part paths, and cleanup state.
 Existing-table writes map input fields by ordinal position to quoted
 destination columns whose names must exactly match the names in `data`,
 including letter case. The writer checks the Warehouse catalog before
-any destructive SQL is issued. With `create_if_missing = TRUE`, a
-missing table is created and populated by a single CTAS statement;
-Fabric infers its names and types from the staged Parquet files.
+any destructive SQL is issued. Decimal inputs require a decimal
+destination with at least the source scale and integer-digit capacity;
+timestamp and time inputs require matching temporal types with
+sufficient fractional precision. Cast the input explicitly when a lossy
+conversion is intended. These schema checks do not validate every
+possible SQL conversion or individual value. With
+`create_if_missing = TRUE`, a missing table is created and populated by
+a single CTAS statement; Fabric infers its names and types from the
+staged Parquet files.
 
 Truncate overwrite preserves the table definition. Drop overwrite
 recreates the table and therefore intentionally discards its previous
@@ -212,9 +218,12 @@ statement. That identity needs read access to the staged Lakehouse files
 and the Warehouse T-SQL permissions required by the selected mode,
 including the applicable bulk-load, DML, and DDL permissions. The
 identity used to stage and clean up files also needs OneLake write
-access to the staging folder. Contributor access to both workspaces is a
-simple sufficient setup, but it is not required when equivalent granular
-item, OneLake, and T-SQL permissions are granted.
+access to the staging folder. Microsoft requires Contributor or higher
+on both the source Lakehouse workspace and the target Warehouse
+workspace for OneLake COPY using the executing identity. Granular item
+or SQL grants alone do not satisfy this documented contract. Workspace
+Identity has a separate permission model; this writer does not select
+Workspace Identity credentials.
 
 Local staging is always removed. Remote staging is removed only after a
 confirmed successful load unless `keep_staging_on_failure = FALSE` and
