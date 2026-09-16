@@ -1592,11 +1592,12 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 .pbi_refresh_attempt <- function(attempt) {
   .pbi_refresh_object(attempt, "refresh attempt")
   service_error <- .pbi_refresh_service_error(attempt$serviceExceptionJson)
+  end_time <- .pbi_refresh_time(attempt$endTime)
   status <- attempt$status
   if (is.null(status)) {
     status <- if (!is.null(service_error)) {
       "Failed"
-    } else if (!is.null(attempt$endTime)) {
+    } else if (!is.null(end_time)) {
       "Completed"
     } else {
       "InProgress"
@@ -1607,7 +1608,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     type = attempt$type,
     status = status,
     start_time = .pbi_refresh_time(attempt$startTime),
-    end_time = .pbi_refresh_time(attempt$endTime),
+    end_time = end_time,
     service_exception = attempt$serviceExceptionJson,
     service_error = service_error,
     execution_metrics = attempt$executionMetrics %||% list(),

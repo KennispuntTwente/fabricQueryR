@@ -607,6 +607,37 @@ test_that("request encoding preserves arrays and sends empty standard bodies", {
   expect_length(requests[[2L]]$req$body$data, 0L)
 })
 
+test_that("attempt completion inference agrees with its parsed end time", {
+  start <- "2026-08-13T08:00:00Z"
+  end <- "2026-08-13T08:02:00Z"
+  for (value in list(NULL, "")) {
+    attempt <- .pbi_refresh_attempt(list(startTime = start, endTime = value))
+    expect_identical(attempt$status, "InProgress")
+    expect_null(attempt$end_time)
+  }
+  completed <- .pbi_refresh_attempt(list(startTime = start, endTime = end))
+  expect_identical(completed$status, "Completed")
+  expect_equal(
+    completed$end_time,
+    as.POSIXct(end, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  )
+  for (value in list(NULL, "", end)) {
+    failed <- .pbi_refresh_attempt(list(
+      startTime = start,
+      endTime = value,
+      serviceExceptionJson = '{"errorCode":"Transient","errorDescription":"Failure"}'
+    ))
+    expect_identical(failed$status, "Failed")
+  }
+  explicit <- .pbi_refresh_attempt(list(
+    startTime = start,
+    endTime = "",
+    status = "Cancelled"
+  ))
+  expect_identical(explicit$status, "Cancelled")
+  expect_null(explicit$end_time)
+})
+
 test_that("history normalizes attempts, errors, times, and detail links", {
   call <- NULL
   local_mocked_bindings(
