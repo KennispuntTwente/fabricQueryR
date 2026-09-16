@@ -13,7 +13,9 @@
 #'   collection-list operation
 #' @param top Maximum records requested for this page
 #' @param skip Number of matching records to skip
-#' @param count Whether Fabric should include the total matching record count
+#' @param count Whether Fabric should include the total matching record count.
+#'   When Fabric returns only a count, the matching page is retrieved separately;
+#'   the total and rows can therefore reflect different instants.
 #' @param session_id,batch_id Service GUID returned by a list or submit operation
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
 #'   `FABRICQUERYR_TENANT_ID`
@@ -274,7 +276,25 @@ fabric_livy_list <- function(collection, credential, top, skip, count) {
       `$count` = tolower(as.character(count))
     )
   )
-  fabric_livy_list_result(response, skip)
+  value <- fabric_livy_list_result(response, skip)
+  total <- attr(value, "total_count", exact = TRUE)
+  if (isTRUE(count) && nrow(value) == 0L && isTRUE(total > skip)) {
+    # Fabric can return only the count for $count=true even when matching
+    # records exist. Retrieve that page separately and retain its total.
+    response <- fabric_livy_json(
+      "GET",
+      collection,
+      credential,
+      query = list(
+        `$top` = as.integer(top),
+        `$skip` = as.integer(skip),
+        `$count` = "false"
+      )
+    )
+    value <- fabric_livy_list_result(response, skip)
+    attr(value, "total_count") <- total
+  }
+  value
 }
 
 fabric_livy_list_result <- function(response, skip) {

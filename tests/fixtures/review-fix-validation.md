@@ -1,5 +1,9 @@
 # Review fixes and execution evidence — 2026-09-16
 
+This records the earlier review baseline. The later
+[follow-up validation](review-followup-validation.md) records additional fixes,
+including the resolution of the Livy discovery failure described here.
+
 The changes following review baseline `684a86a` address the implementation defects
 and add explicit coverage for the missing scenarios. Some service evidence remains
 blocked or unconfigured; adding a test does not establish that its Fabric behavior

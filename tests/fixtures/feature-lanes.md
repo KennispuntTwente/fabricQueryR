@@ -51,9 +51,12 @@ and fails under `delegated-livy` if no user identity was supplied. Include this
 filter in both the core and runtime2 periodic delegated runs.
 
 On 2026-09-16 the explicit packed HC lifecycle passed in the persistent workspace.
-Delegated session and batch submission also succeeded, but both discovery
-collections remained empty through polling; the session case was retried after
-executing a Spark action. Successful delegated discovery remains unresolved.
+The follow-up review traced empty discovery pages to Fabric returning only the
+count for `$count=true`. The client now retrieves the page separately when that
+count indicates matching records. After the fix, both delegated discovery tests
+found their own submitted work and passed all three assertions. See
+[review-followup-validation.md](review-followup-validation.md) for the diagnostic
+and execution evidence.
 
 ## Restricted access (`authorization`)
 

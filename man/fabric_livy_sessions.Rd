@@ -72,7 +72,9 @@ collection-list operation}
 
 \item{skip}{Number of matching records to skip}
 
-\item{count}{Whether Fabric should include the total matching record count}
+\item{count}{Whether Fabric should include the total matching record count.
+When Fabric returns only a count, the matching page is retrieved separately;
+the total and rows can therefore reflect different instants.}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}

@@ -2384,6 +2384,71 @@ test_that("Livy handles print concise summaries without credentials", {
   )))
 })
 
+test_that("Livy count-only responses still yield the requested activity page", {
+  for (fun in list(fabric_livy_sessions, fabric_livy_batches)) {
+    queries <- list()
+    local_mocked_bindings(fabric_livy_json = function(
+      method,
+      url,
+      credential,
+      query,
+      ...
+    ) {
+      queries[[length(queries) + 1L]] <<- query
+      if (identical(query[["$count"]], "true")) {
+        return(list(
+          items = list(),
+          totalCountOfMatchedItems = 12,
+          pageSize = 100
+        ))
+      }
+      list(
+        items = list(list(id = "activity-id", state = "Running")),
+        pageSize = 100
+      )
+    })
+    page <- fun(
+      "https://example.test/livy",
+      top = 1L,
+      skip = 3L,
+      token = "token"
+    )
+    expect_identical(page$id, "activity-id")
+    expect_equal(attr(page, "total_count"), 12)
+    expect_identical(attr(page, "skip"), 3L)
+    expect_identical(
+      queries,
+      list(
+        list(`$top` = 1L, `$skip` = 3L, `$count` = "true"),
+        list(`$top` = 1L, `$skip` = 3L, `$count` = "false")
+      )
+    )
+  }
+})
+
+test_that("Livy does not retry genuinely empty or exhausted pages", {
+  for (case in list(
+    list(total = 0, skip = 0L, count = TRUE),
+    list(total = 2, skip = 2L, count = TRUE),
+    list(total = 2, skip = 0L, count = FALSE),
+    list(total = NULL, skip = 0L, count = TRUE)
+  )) {
+    calls <- 0L
+    local_mocked_bindings(fabric_livy_json = function(...) {
+      calls <<- calls + 1L
+      list(items = list(), totalCountOfMatchedItems = case$total)
+    })
+    page <- fabric_livy_sessions(
+      "https://example.test/livy",
+      token = "token",
+      skip = case$skip,
+      count = case$count
+    )
+    expect_equal(nrow(page), 0L)
+    expect_identical(calls, 1L)
+  }
+})
+
 test_that("session waits stop on all documented terminal states", {
   check_terminal <- function(
     initial_state,
