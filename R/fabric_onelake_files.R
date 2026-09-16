@@ -1951,7 +1951,10 @@ onelake_download_target <- function(
   if (!is.null(if_match)) {
     headers[["If-Match"]] <- onelake_if_match(if_match)
   }
-  req <- onelake_request(onelake_path_url(target), headers = headers)
+  # Content-Encoding describes the stored file. Preserve those bytes, including
+  # for ranged and streamed downloads, rather than letting curl decompress them.
+  req <- onelake_request(onelake_path_url(target), headers = headers) |>
+    httr2::req_options(http_content_decoding = FALSE)
 
   # 2 Return an in-memory download -----------------------------------------------------------------
 
