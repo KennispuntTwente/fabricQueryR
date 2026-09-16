@@ -33,4 +33,9 @@ test_that("designated feature lanes fail when prerequisites are missing", {
     ),
     "configured"
   )
+  withr::local_envvar(c(FABRIC_TEST_REQUIRED_FEATURES = "function"))
+  expect_error(
+    fabric_test_feature_required("functions"),
+    "Unknown required Fabric features"
+  )
 })

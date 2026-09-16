@@ -11,6 +11,28 @@ fabric_test_feature_required <- function(feature) {
     ",",
     fixed = TRUE
   )[[1L]])
+  known <- c(
+    "all",
+    "introspection",
+    "functions",
+    "packed-livy",
+    "delegated-livy",
+    "authorization",
+    "job-options",
+    "shortcut-transforms",
+    "shortcut-cache",
+    "external-shortcuts",
+    "kql-cancellation",
+    "nonutc-schedules",
+    "workload-schedules"
+  )
+  unknown <- setdiff(required[nzchar(required)], known)
+  if (length(unknown)) {
+    stop(paste(
+      "Unknown required Fabric features:",
+      paste(unknown, collapse = ", ")
+    ))
+  }
   feature %in% required || "all" %in% required
 }
 

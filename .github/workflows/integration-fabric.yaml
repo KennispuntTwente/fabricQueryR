@@ -26,7 +26,14 @@ on:
       - .github/workflows/integration-fabric.yaml
   schedule:
     - cron: "0 4 * * 1"
+    # Repeat configured feature lanes around European DST weekends.
+    - cron: "0 4 * 3,10 0"
   workflow_dispatch:
+    inputs:
+      required_features:
+        description: "Comma-separated required feature lanes (see tests/fixtures/feature-lanes.md)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -399,6 +406,19 @@ jobs:
     env: &integration_env
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
       FABRIC_INTEGRATION_REQUIRED: "true"
+      FABRIC_TEST_REQUIRED_FEATURES: ${{ inputs.required_features || vars.FABRIC_TEST_REQUIRED_FEATURES }}
+      FABRIC_TEST_GRAPHQL_INTROSPECTION_ENDPOINT: ${{ vars.FABRIC_TEST_GRAPHQL_INTROSPECTION_ENDPOINT }}
+      FABRIC_TEST_GRAPHQL_INTROSPECTION_ROOT: ${{ vars.FABRIC_TEST_GRAPHQL_INTROSPECTION_ROOT }}
+      FABRIC_TEST_GRAPHQL_DISABLED_ENDPOINT: ${{ vars.FABRIC_TEST_GRAPHQL_DISABLED_ENDPOINT }}
+      FABRIC_TEST_EXTERNAL_SHORTCUT_MATRIX_JSON: ${{ secrets.FABRIC_TEST_EXTERNAL_SHORTCUT_MATRIX_JSON }}
+      FABRIC_TEST_CROSS_WORKSPACE_ID: ${{ vars.FABRIC_TEST_CROSS_WORKSPACE_ID }}
+      FABRIC_TEST_CROSS_LAKEHOUSE_ID: ${{ vars.FABRIC_TEST_CROSS_LAKEHOUSE_ID }}
+      FABRIC_TEST_NOTEBOOK_COMPUTE_JSON: ${{ vars.FABRIC_TEST_NOTEBOOK_COMPUTE_JSON }}
+      FABRIC_TEST_SQL_NOTEBOOK_ID: ${{ vars.FABRIC_TEST_SQL_NOTEBOOK_ID }}
+      FABRIC_TEST_SQL_NOTEBOOK_WAREHOUSE_ID: ${{ vars.FABRIC_TEST_SQL_NOTEBOOK_WAREHOUSE_ID }}
+      FABRIC_TEST_WORKLOAD_SCHEDULES_JSON: ${{ vars.FABRIC_TEST_WORKLOAD_SCHEDULES_JSON }}
+      FABRIC_TEST_KQL_CANCELED_INGESTION_ID: ${{ vars.FABRIC_TEST_KQL_CANCELED_INGESTION_ID }}
+      FABRIC_TEST_KQL_CANCELED_TABLE: ${{ vars.FABRIC_TEST_KQL_CANCELED_TABLE }}
       FABRIC_TEST_REFRESHABLE_AUTH: "true"
       FABRIC_TEST_AUTH_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       FABRIC_TEST_AUTH_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}

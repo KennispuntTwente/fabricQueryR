@@ -5,6 +5,19 @@ a designated feature lane. A missing prerequisite is then a failure, rather than
 a skip. These runs supplement the ordinary service-principal integration suite;
 a skipped optional feature is not execution evidence.
 
+The GitHub integration workflow accepts `required_features` on manual dispatch,
+or reads the repository variable `FABRIC_TEST_REQUIRED_FEATURES` for recurring
+runs. Unknown feature names fail. The additional Sunday runs in March and October
+repeat whichever features are configured; set `nonutc-schedules` to collect
+evidence around European daylight-saving changes. These runs check the current
+offset on each side of the transition; they do not prove how Fabric handles a
+nonexistent or repeated clock time during the transition itself.
+
+The ordinary GitHub jobs use a service principal. `delegated-livy` and the full
+`authorization` matrix need a separate runner with delegated credentials as
+described below. Requiring those features in the service-principal workflow will
+fail until those credentials and fixtures are supplied.
+
 ## GraphQL introspection (`introspection`)
 
 Provide `FABRIC_TEST_GRAPHQL_INTROSPECTION_ENDPOINT` and
@@ -36,6 +49,11 @@ establish packed isolation and activity discovery. The discovery test creates it
 own session and batch. It reports a distinct skip under service-principal auth,
 and fails under `delegated-livy` if no user identity was supplied. Include this
 filter in both the core and runtime2 periodic delegated runs.
+
+On 2026-09-16 the explicit packed HC lifecycle passed in the persistent workspace.
+Delegated session and batch submission also succeeded, but both discovery
+collections remained empty through polling; the session case was retried after
+executing a Spark action. Successful delegated discovery remains unresolved.
 
 ## Restricted access (`authorization`)
 
@@ -89,3 +107,26 @@ Run filters `integration-fabric-jobs-dependencies|integration-fabric-jobs-overri
 with `FABRIC_TEST_REQUIRED_FEATURES=job-options`. Missing prerequisites fail this
 lane. A normal service-principal run still executes the self-contained dependency
 tests and reports the three configured-fixture cases separately as skips.
+
+## Other feature groups
+
+- `functions`: publish the scalar, structured-output, and error fixtures and
+  configure the three `FABRIC_TEST_FUNCTION_*_URL` values documented in
+  [user-data-functions.md](user-data-functions.md).
+- `shortcut-transforms`: set `FABRIC_TEST_SHORTCUT_TRANSFORMS=true` in a tenant
+  supporting the documented CSV-to-Delta transform. Service rejection fails a
+  required run.
+- `shortcut-cache`: use an identity supported by the workspace cache-reset API.
+  Enable external shortcut caching for the test workspace first.
+  `PrincipalTypeNotSupported` and `ExternalShortcutCacheDisabled` fail a required run.
+- `external-shortcuts`: supply the per-provider matrix in
+  [external-shortcut.md](external-shortcut.md). Every supported provider has an
+  independent case; all must be configured in a required run.
+- `kql-cancellation`: supply the service-canceled operation described in
+  [kql-recovery.md](kql-recovery.md).
+- `nonutc-schedules` and `workload-schedules`: see
+  [schedules.md](schedules.md).
+
+`all` requires every feature and is suitable only for a runner with all fixtures
+and supported identities. An ordinary offline test run intentionally skips live
+tests; it does not establish any of this service evidence.
