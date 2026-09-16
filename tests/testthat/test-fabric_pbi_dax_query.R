@@ -10,6 +10,54 @@ test_that("pbi_parse_connstr parses full conn str", {
   expect_equal(p$dataset, "Dataset One")
 })
 
+test_that("XMLA identity properties cannot silently change the execution context", {
+  local_mocked_bindings(
+    pbi_get_group_id_by_name = function(...) stop("Unexpected workspace lookup")
+  )
+  base <- paste0(
+    "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales;",
+    "Initial Catalog=Sales;"
+  )
+  for (property in c(
+    "EffectiveUserName=private@example.com",
+    " roles = {Restricted;Other}",
+    'CUSTOMDATA="private;value"',
+    "Effective User Name = private@example.com",
+    "Roles="
+  )) {
+    conn <- paste0(base, property)
+    expect_error(
+      pbi_parse_connstr(conn),
+      class = "fabric_pbi_connection_identity_error"
+    )
+    for (api in c("json", "arrow")) {
+      if (
+        identical(api, "arrow") && !requireNamespace("arrow", quietly = TRUE)
+      ) {
+        next
+      }
+      for (user in list(NULL, "explicit@example.com")) {
+        error <- rlang::catch_cnd(fabric_pbi_dax_query(
+          conn,
+          dax = "EVALUATE ROW(\"value\", 1)",
+          api = api,
+          impersonated_user = user,
+          token = function(...) stop("Unexpected token acquisition")
+        ))
+        expect_s3_class(error, "fabric_pbi_connection_identity_error")
+        expect_false(grepl("private", conditionMessage(error), fixed = TRUE))
+      }
+    }
+  }
+  expect_identical(
+    pbi_parse_connstr(paste0(
+      "Data Source=powerbi://api.powerbi.com/v1.0/myorg/Sales;",
+      'Initial Catalog="Sales;Roles=Restricted";'
+    ))$dataset,
+    "Sales;Roles=Restricted"
+  )
+})
+
 test_that("tenant-qualified XMLA targets never resolve in the current tenant", {
   local_mocked_bindings(
     pbi_get_group_id_by_name = function(...) stop("Unexpected workspace lookup")

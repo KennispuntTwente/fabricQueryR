@@ -64,6 +64,9 @@
 #'   It may contain `Data Source=` and `Initial Catalog=` parts, or a bare
 #'   `powerbi://...` source plus a `Dataset=`, `Catalog=`, or
 #'   `Initial Catalog=` key. Omit it when `dataset_id` is supplied
+#'   Identity properties `EffectiveUserName`, `Roles`, and `CustomData` are
+#'   rejected in connection strings. Supply `impersonated_user` or, with
+#'   `api = "arrow"`, the corresponding `arrow_options` instead
 #' @param workspace_id Optional shared-workspace GUID. Use with `dataset_id` to
 #'   avoid name-based discovery. For a model in My Workspace, omit this and set
 #'   `my_workspace = TRUE` explicitly
@@ -498,6 +501,20 @@ pbi_parse_connstr <- function(conn) {
   }
   toks <- trimws(fabric_split_connection_string(conn))
   toks <- toks[nzchar(toks)]
+
+  # REST requests must never silently drop an XMLA security context.
+  keys <- tolower(gsub("[[:space:]]", "", sub("=.*$", "", toks)))
+  if (any(keys %in% c("effectiveusername", "roles", "customdata"))) {
+    .fabric_abort(
+      paste0(
+        "Connection-string identity properties EffectiveUserName, Roles, and ",
+        "CustomData are not supported. Remove them and supply ",
+        "impersonated_user or, with api = \"arrow\", arrow_options ",
+        "(effectiveUsername, roles, customData)."
+      ),
+      class = "fabric_pbi_connection_identity_error"
+    )
+  }
 
   # Data Source can be present as key=value or as a bare powerbi:// URL token
   ds <- sub(
