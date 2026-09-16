@@ -801,6 +801,32 @@ test_that("status accepts handles and raw request IDs", {
   )
 })
 
+test_that("refresh selectors cannot be combined before lookup or cancellation", {
+  requested <- FALSE
+  local_mocked_bindings(
+    .pbi_refresh_request = function(...) {
+      requested <<- TRUE
+      stop("unexpected request")
+    }
+  )
+  handle <- pbi_refresh_test_handle()
+  detail <- structure(
+    list(refresh = handle),
+    class = "fabric_pbi_refresh_detail"
+  )
+  for (fun in list(fabric_pbi_refresh_status, fabric_pbi_refresh_cancel)) {
+    for (refresh in list(pbi_refresh_id, handle, detail)) {
+      for (alias in c(pbi_refresh_id, "99999999-9999-9999-9999-999999999999")) {
+        expect_error(
+          fun(refresh = refresh, refresh_id = alias),
+          "cannot be combined"
+        )
+      }
+    }
+  }
+  expect_false(requested)
+})
+
 test_that("wait requires context that a raw refresh ID does not carry", {
   requested <- FALSE
   local_mocked_bindings(

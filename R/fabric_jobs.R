@@ -671,7 +671,7 @@ fabric_job_run <- function(
 #'   Status and cancellation functions also accept a job instance GUID when
 #'   `workspace`, `item`, and enough type information are supplied
 #' @param job_instance_id Alternative argument for a job instance GUID. Do not
-#'   supply it together with a `fabric_job` handle
+#'   supply it together with a handle, instance record, or GUID through `job`
 #' @param respect_retry_after Whether to wait for Fabric's recommended first
 #'   status-check time. Keep `TRUE` for normal use
 #' @param notebook_details For Notebook jobs, whether to opt into the beta
@@ -2885,6 +2885,9 @@ print.fabric_job_instance <- function(x, ...) {
 
   # Rebuild stable job context when only raw identifiers are available
 
+  if (!is.null(job) && !is.null(job_instance_id)) {
+    .fabric_abort("`job_instance_id` cannot be combined with `job`")
+  }
   id <- job_instance_id %||% job
   .fabric_job_nonempty(id, "job instance ID")
   .fabric_job_guid(id, "job instance ID")

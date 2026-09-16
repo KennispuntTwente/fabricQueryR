@@ -175,7 +175,7 @@ Status and cancellation functions also accept a job instance GUID when
 \code{workspace}, \code{item}, and enough type information are supplied}
 
 \item{job_instance_id}{Alternative argument for a job instance GUID. Do not
-supply it together with a \code{fabric_job} handle}
+supply it together with a handle, instance record, or GUID through \code{job}}
 
 \item{respect_retry_after}{Whether to wait for Fabric's recommended first
 status-check time. Keep \code{TRUE} for normal use}

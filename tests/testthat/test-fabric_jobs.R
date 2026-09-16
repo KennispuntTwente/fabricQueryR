@@ -1388,6 +1388,34 @@ test_that("job handles do not serialize their stored bearer credential", {
   )
 })
 
+test_that("job selectors cannot be combined before lookup or cancellation", {
+  requested <- FALSE
+  local_mocked_bindings(
+    .fabric_job_request = function(...) {
+      requested <<- TRUE
+      stop("unexpected request")
+    },
+    fabric_item = function(...) {
+      requested <<- TRUE
+      stop("unexpected lookup")
+    }
+  )
+  id <- "33333333-3333-3333-3333-333333333333"
+  handle <- structure(list(id = id), class = "fabric_job")
+  instance <- structure(list(job = handle), class = "fabric_job_instance")
+  for (fun in list(fabric_job_status, fabric_job_cancel)) {
+    for (job in list(id, handle, instance)) {
+      for (alias in c(id, "99999999-9999-9999-9999-999999999999")) {
+        expect_error(
+          fun(job = job, job_instance_id = alias),
+          "cannot be combined"
+        )
+      }
+    }
+  }
+  expect_false(requested)
+})
+
 test_that("status reconstructs context from a raw job instance ID", {
   called_url <- NULL
   local_mocked_bindings(

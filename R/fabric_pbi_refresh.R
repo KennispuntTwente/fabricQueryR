@@ -1067,6 +1067,9 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
     ))
   }
 
+  if (!is.null(refresh) && !is.null(refresh_id)) {
+    .fabric_abort("refresh_id cannot be combined with refresh")
+  }
   id <- refresh_id %||% refresh
   pbi_validate_optional_guid(id, "refresh ID")
   if (is.null(id)) {
