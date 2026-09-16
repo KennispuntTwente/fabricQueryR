@@ -2165,11 +2165,26 @@ test_that("OneLake validates ranges and protected paths before I/O", {
     "Files"
   )
   credential <- fabric_credential(token = "token")
-  for (page_size in list(0, 5001, 1.5, NA_real_, Inf, "10", c(1, 2))) {
-    expect_error(
-      onelake_list_target(target, credential, page_size = page_size),
-      "page_size must be one whole number between 1 and 5000",
-      fixed = TRUE
+  for (page_size in list(
+    0,
+    5001,
+    1.5,
+    NA_real_,
+    Inf,
+    "10",
+    c(1, 2),
+    .Machine$integer.max + 1,
+    1e10,
+    -.Machine$double.xmax,
+    .Machine$double.xmax
+  )) {
+    expect_warning(
+      expect_error(
+        onelake_list_target(target, credential, page_size = page_size),
+        "page_size must be one whole number between 1 and 5000",
+        fixed = TRUE
+      ),
+      NA
     )
   }
   expect_error(

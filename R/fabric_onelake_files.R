@@ -1412,14 +1412,13 @@ onelake_list_target <- function(
       !is.numeric(page_size) ||
       is.na(page_size) ||
       !is.finite(page_size) ||
-      page_size != floor(page_size)
+      page_size != floor(page_size) ||
+      page_size < 1 ||
+      page_size > 5000
   ) {
     .fabric_abort("page_size must be one whole number between 1 and 5000")
   }
   page_size <- as.integer(page_size)
-  if (page_size < 1L || page_size > 5000L) {
-    .fabric_abort("page_size must be one whole number between 1 and 5000")
-  }
 
   if (!is.null(begin_from)) {
     begin_from <- onelake_normalize_path(begin_from)
