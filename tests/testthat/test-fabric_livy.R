@@ -1354,6 +1354,33 @@ test_that("Livy preserves duplicate SQL aliases and joined columns by position",
   }
 })
 
+test_that("Livy preserves row counts for tables without columns", {
+  for (n in c(0L, 1L, 3L)) {
+    rows <- rep(list(list()), n)
+    table <- fabric_livy_parse_table(list(headers = list(), data = rows))
+    expect_s3_class(table, "tbl_df")
+    expect_identical(dim(table), c(n, 0L))
+    expect_identical(attr(table, "spark_schema"), list())
+    sql <- fabric_livy_parse_sql_json(list(
+      schema = list(type = "struct", fields = list()),
+      data = rows
+    ))
+    expect_identical(sql, table)
+    for (mime in c("application/json", "application/vnd.livy.table.v1+json")) {
+      payload <- if (identical(mime, "application/json")) {
+        list(schema = list(type = "struct", fields = list()), data = rows)
+      } else {
+        list(headers = list(), data = rows)
+      }
+      parsed <- fabric_livy_parse_output_data(stats::setNames(
+        list(payload),
+        mime
+      ))
+      expect_identical(parsed, table)
+    }
+  }
+})
+
 test_that("Livy table MIME output rejects malformed rows", {
   expect_error(
     fabric_livy_parse_table(list(

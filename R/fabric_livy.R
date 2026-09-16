@@ -1458,10 +1458,10 @@ fabric_livy_parse_table <- function(value) {
 
   # Return the typed table in the stable form expected by the caller
 
-  out <- tibble::as_tibble(stats::setNames(
-    columns,
-    make.unique(column_names, sep = "...")
-  ))
+  out <- tibble::new_tibble(
+    stats::setNames(columns, make.unique(column_names, sep = "...")),
+    nrow = length(rows)
+  )
   attr(out, "spark_schema") <- headers
   out
 }
