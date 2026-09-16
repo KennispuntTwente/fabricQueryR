@@ -408,7 +408,20 @@ test_that("Fabric job history and daily and weekly schedules complete a lifecycl
     displayName = fixture$display_name
   )
 
-  history <- fabric_job_instances(item, token = token)
+  submitted <- fabric_job_run(item, token = token)
+  on.exit(try(fabric_job_cancel(submitted), silent = TRUE), add = TRUE)
+  known <- fabric_job_wait(submitted, timeout = 1200, cancel_on_timeout = TRUE)
+  expect_identical(known$status, "Completed")
+  history <- fabric_test_eventually(
+    function() fabric_job_instances(item, token = token),
+    ready = function(instances) {
+      any(vapply(
+        instances,
+        function(instance) identical(instance$id, known$id),
+        logical(1)
+      ))
+    }
+  )
   expect_s3_class(history, "fabric_job_instance_list")
   expect_true(length(history) >= 1L)
   expect_true(all(vapply(
@@ -419,11 +432,12 @@ test_that("Fabric job history and daily and weekly schedules complete a lifecycl
   )))
   terminal_history <- Filter(
     function(instance) {
-      instance$status %in% c("Completed", "Failed", "Cancelled", "Deduped")
+      identical(instance$id, known$id) &&
+        identical(instance$status, "Completed")
     },
     history
   )
-  expect_true(length(terminal_history) >= 1L)
+  expect_length(terminal_history, 1L)
   historical <- terminal_history[[1L]]
   refreshed <- fabric_job_status(historical, respect_retry_after = FALSE)
   expect_equal(refreshed$id, historical$id)
