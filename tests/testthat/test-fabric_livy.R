@@ -2423,6 +2423,32 @@ test_that("session waits stop on all documented terminal states", {
   check_terminal("Deleting", high_concurrency = TRUE)
   check_terminal("starting", result = "Failed")
   check_terminal("unrecognized", result = "Cancelled")
+  check_terminal("idle", result = "Failed")
+  check_terminal("idle", result = "Cancelled")
+})
+
+test_that("idle Livy sessions with explicit Fabric errors are not ready", {
+  for (hc in c(FALSE, TRUE)) {
+    response <- list(
+      id = "session",
+      state = "idle",
+      sessionId = "backing",
+      replId = "repl",
+      fabricSessionStateInfo = list(error = list(message = "failed"))
+    )
+    local_mocked_bindings(fabric_livy_json = function(...) response)
+    session <- FabricLivySession$new(
+      response = response,
+      livy_url = "https://example.test/livy/sessions",
+      high_concurrency = hc,
+      credential = fabric_credential(token = "token"),
+      verbose = FALSE
+    )
+    expect_error(
+      session$wait(timeout = 1, poll_interval = 0),
+      class = "fabric_livy_session_error"
+    )
+  }
 })
 
 test_that("session wait continues through an Uncertain intermediate result", {

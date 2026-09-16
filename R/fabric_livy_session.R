@@ -424,10 +424,6 @@ FabricLivySession <- R6::R6Class(
           identical(state, "idle")
         }
 
-        if (ready) {
-          .fabric_poll_progress_done(progress)
-          return(invisible(self))
-        }
         fabric_state <- tolower(
           response$fabricSessionStateInfo$state %||% ""
         )
@@ -436,9 +432,14 @@ FabricLivySession <- R6::R6Class(
           state %in%
             .fabric_livy_session_terminal_states ||
             fabric_state %in% c("error", "cancelled", "canceled") ||
-            result %in% c("failed", "cancelled", "canceled")
+            result %in% c("failed", "cancelled", "canceled") ||
+            length(response$fabricSessionStateInfo$error) > 0L
         ) {
           fabric_livy_abort_session(response)
+        }
+        if (ready) {
+          .fabric_poll_progress_done(progress)
+          return(invisible(self))
         }
         fabric_livy_poll_sleep(deadline, poll_interval)
       }
