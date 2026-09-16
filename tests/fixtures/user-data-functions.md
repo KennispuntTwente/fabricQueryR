@@ -19,3 +19,10 @@ overrides `audience`, so a regression in default audience selection is visible.
 With no URLs configured, the lane reports NOT EXERCISED. Once a fixture is
 configured, missing companion URLs fail required integration runs. A successful
 application lane does not imply that delegated execution was exercised.
+
+For the designated Functions lane, set `FABRIC_TEST_REQUIRED_FEATURES=functions`.
+It fails even when all three URLs are missing, so an unconfigured run cannot pass
+as Functions validation. The unhandled Python exception test accepts the
+documented HTTP 409 or the observed runtime HTTP 500 envelope, and checks the
+failed status, errors, and invocation ID. Internal exception messages can be
+redacted by the service.

@@ -74,7 +74,13 @@ fabric_ci_integration_summary <- function(results, filter) {
 
 # Only the unconfigured UDF lane is optional; supplying any fixture makes it required.
 fabric_ci_lane_required <- function(filter) {
+  features <- trimws(strsplit(
+    Sys.getenv("FABRIC_TEST_REQUIRED_FEATURES"),
+    ",",
+    fixed = TRUE
+  )[[1L]])
   !identical(filter, "integration-fabric-functions") ||
+    any(c("all", "functions") %in% features) ||
     any(nzchar(Sys.getenv(c(
       "FABRIC_TEST_FUNCTION_SCALAR_URL",
       "FABRIC_TEST_FUNCTION_STRUCTURED_URL",
