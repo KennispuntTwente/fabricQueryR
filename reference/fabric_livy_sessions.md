@@ -88,7 +88,10 @@ fabric_livy_batch_attach(
 
 - count:
 
-  Whether Fabric should include the total matching record count
+  Whether Fabric should include the total matching record count. When
+  Fabric returns only a count, the matching page is retrieved
+  separately; the total and rows can therefore reflect different
+  instants.
 
 - tenant_id:
 
