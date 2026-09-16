@@ -83,7 +83,14 @@ and \code{"zstd"}.}
 \item{parquet_row_group_size}{Optional positive Parquet row-group row count.}
 
 \item{parquet_datetime_precision}{Optional \code{"millisecond"} or
-\code{"microsecond"} precision for Parquet datetime values.}
+\code{"microsecond"} precision for Parquet datetime values. \code{NULL} omits the
+setting and uses Kusto's default of milliseconds, discarding finer
+precision. Set \code{"microsecond"} to retain six fractional digits. Neither
+setting preserves Kusto's seventh fractional digit (100-nanosecond ticks).
+For full source precision, project a text column in the KQL query with
+\code{format_datetime(value, 'yyyy-MM-dd HH:mm:ss.fffffff')} before exporting
+(Kusto datetimes are UTC).
+\code{numeric_policy} governs decimals, not datetime precision.}
 
 \item{timeout}{Positive total client-side limit in seconds, shared by
 schema preflight, submission, status polling, and retrieval of artifact
@@ -197,6 +204,7 @@ exported <- fabric_kql_export(
   destination = lakehouse,
   path = "Files/exports/events-weekly",
   format = "parquet",
+  parquet_datetime_precision = "microsecond",
   name_prefix = "events"
 )
 exported$artifacts
