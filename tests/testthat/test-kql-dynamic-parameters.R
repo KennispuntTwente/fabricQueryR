@@ -40,3 +40,37 @@ test_that("dynamic parameters reject implicit temporal and nonfinite conversions
     'dynamic({"moment":"2026-09-19T10:13:14.1234560Z"})'
   )
 })
+
+test_that("dynamic integer64 missingness respects the class at every depth", {
+  skip_if_not_installed("bit64")
+  for (text in c("-1", "9223372036854775807", "-9223372036854775807")) {
+    value <- bit64::as.integer64(text)
+    expect_identical(
+      kusto_encode_parameter(list(value = value)),
+      paste0('dynamic({"value":', text, '})')
+    )
+    expect_identical(
+      kusto_encode_parameter(list(outer = list(value = value))),
+      paste0('dynamic({"outer":{"value":', text, '}})')
+    )
+    expect_identical(
+      kusto_encode_parameter(list(value = c(value, value))),
+      paste0('dynamic({"value":[', text, ',', text, ']})')
+    )
+  }
+  for (missing in list(
+    bit64::as.integer64(NA),
+    NA_real_,
+    NA_character_,
+    NULL
+  )) {
+    expect_error(
+      kusto_encode_parameter(list(value = missing)),
+      "cannot be NULL or NA"
+    )
+    expect_error(
+      kusto_encode_parameter(list(outer = list(value = missing))),
+      "cannot be NULL or NA"
+    )
+  }
+})

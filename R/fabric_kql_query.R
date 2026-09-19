@@ -803,7 +803,7 @@ kusto_encode_parameter <- function(value) {
     kusto_validate_dynamic_parameter(value)
   }
 
-  if (is.null(value) || anyNA(value)) {
+  if (kusto_parameter_has_missing(value)) {
     .fabric_abort(
       paste0(
         "KQL parameter values cannot be NULL or NA. ",
@@ -882,6 +882,18 @@ kusto_encode_parameter <- function(value) {
     digits = 22
   )
   paste0("dynamic(", json, ")")
+}
+
+# Inspect leaves so base list missingness cannot reinterpret integer64 storage
+# as a floating-point NaN. Keep integer64's own missing-value semantics.
+kusto_parameter_has_missing <- function(value) {
+  if (is.null(value)) {
+    return(TRUE)
+  }
+  if (is.list(value) && !inherits(value, "POSIXlt")) {
+    return(any(vapply(value, kusto_parameter_has_missing, logical(1))))
+  }
+  anyNA(value)
 }
 
 # Require explicit representations for nested values JSON cannot preserve.
