@@ -168,7 +168,10 @@ FabricRecord <- R6::R6Class(
 #' arguments are forwarded unchanged, and the credential used for discovery is
 #' reused while the object is in the current R process. An explicitly
 #' supplied `token`, `tenant_id`, `client_id`, `auth_args`, or `api_base` takes
-#' precedence. The Fabric API base used for discovery is also reused, so chained
+#' precedence. Job and refresh lifecycle methods prefer the supplied handle's
+#' in-process credential over the discovery credential. Bare IDs and handles
+#' whose credentials were removed by serialization use the discovery credential.
+#' The Fabric API base used for discovery is also reused, so chained
 #' methods stay on the same public, sovereign-cloud, or workspace endpoint.
 #'
 #' SQL-capable resources inherit common `sql_*()` methods. Lakehouses,
@@ -1585,6 +1588,21 @@ fabric_r6_record <- function(
     dots$api_base <- api_base
   }
   auth_names <- c("token", "tenant_id", "client_id", "auth_args")
+  handle <- args$job %||% args$refresh
+  if (inherits(handle, "fabric_job_instance")) {
+    handle <- handle$job
+  } else if (inherits(handle, "fabric_pbi_refresh_detail")) {
+    handle <- handle$refresh
+  }
+  if (inherits(handle, c("fabric_job", "fabric_pbi_refresh"))) {
+    stored <- handle[["credential"]]
+    retained <- if (inherits(stored, "fabric_credential")) {
+      stored
+    } else {
+      .fabric_r6_credential_value(stored)
+    }
+    credential <- retained %||% credential
+  }
   if (
     isTRUE(authenticated) &&
       !is.null(credential) &&
