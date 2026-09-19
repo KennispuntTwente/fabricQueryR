@@ -133,6 +133,14 @@ fabric_job_instances <- function(
 #' saving behavior is controlled by Fabric using `time_zone`, not by the R
 #' process's local time zone. Arguments that do not belong to the selected
 #' documented schedule type are rejected.
+#'
+#' Non-UTC firing remains unverified in the package's persistent Fabric sandbox:
+#' enabled Amsterdam schedules have not produced the expected run within the
+#' test window. The cause has not been established. Monthly recurrence and
+#' nonexistent or repeated local times at daylight-saving transitions also lack
+#' live execution evidence. Verify a scheduled run through
+#' [fabric_job_instances()] in the target workspace before relying on these
+#' configurations; successful schedule creation only confirms API acceptance.
 #' @references
 #' [Create item schedule](https://learn.microsoft.com/en-us/rest/api/fabric/core/job-scheduler/create-item-schedule)
 #'

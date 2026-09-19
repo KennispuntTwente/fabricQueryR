@@ -64,6 +64,14 @@ accept a cron expression because the REST API does not use one. Daylight
 saving behavior is controlled by Fabric using \code{time_zone}, not by the R
 process's local time zone. Arguments that do not belong to the selected
 documented schedule type are rejected.
+
+Non-UTC firing remains unverified in the package's persistent Fabric sandbox:
+enabled Amsterdam schedules have not produced the expected run within the
+test window. The cause has not been established. Monthly recurrence and
+nonexistent or repeated local times at daylight-saving transitions also lack
+live execution evidence. Verify a scheduled run through
+\code{\link[=fabric_job_instances]{fabric_job_instances()}} in the target workspace before relying on these
+configurations; successful schedule creation only confirms API acceptance.
 }
 \examples{
 # Describe a schedule in the Windows time zone used by Fabric
