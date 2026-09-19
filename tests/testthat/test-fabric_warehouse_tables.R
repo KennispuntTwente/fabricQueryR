@@ -438,7 +438,12 @@ test_that("Warehouse writer stages Parquet and issues a mapped COPY", {
       connection
     },
     .fabric_warehouse_query = function(...) {
-      data.frame(column_name = c("id", "display name"))
+      data.frame(
+        column_name = c("id", "display name"),
+        type_name = c("int", "varchar"),
+        precision = c(10L, 0L),
+        scale = 0L
+      )
     },
     .fabric_warehouse_execute = function(connection, sql) {
       statements <<- c(statements, sql)
@@ -533,7 +538,12 @@ test_that("Warehouse writer uploads bounded Parquet parts", {
     },
     .fabric_warehouse_connect = function(...) list(),
     .fabric_warehouse_query = function(...) {
-      data.frame(column_name = "id")
+      data.frame(
+        column_name = "id",
+        type_name = "int",
+        precision = 10L,
+        scale = 0L
+      )
     },
     .fabric_warehouse_execute = function(connection, sql) {
       statement <<- sql
@@ -574,7 +584,12 @@ test_that("Warehouse overwrite is one explicit transaction", {
     onelake_upload_target = function(...) tibble::tibble(),
     .fabric_warehouse_connect = function(...) list(),
     .fabric_warehouse_query = function(...) {
-      data.frame(column_name = "id")
+      data.frame(
+        column_name = "id",
+        type_name = "int",
+        precision = 10L,
+        scale = 0L
+      )
     },
     .fabric_warehouse_begin = function(...) {
       events <<- c(events, "begin")
@@ -826,7 +841,12 @@ test_that("Warehouse writer rolls back and retains ambiguous SQL staging", {
     onelake_upload_target = function(...) tibble::tibble(),
     .fabric_warehouse_connect = function(...) list(),
     .fabric_warehouse_query = function(...) {
-      data.frame(column_name = "id")
+      data.frame(
+        column_name = "id",
+        type_name = "int",
+        precision = 10L,
+        scale = 0L
+      )
     },
     .fabric_warehouse_begin = function(...) {
       events <<- c(events, "begin")
@@ -933,7 +953,12 @@ test_that("Warehouse writer streams a lazy Arrow Dataset", {
     },
     .fabric_warehouse_connect = function(...) list(),
     .fabric_warehouse_query = function(...) {
-      data.frame(column_name = c("id", "label"))
+      data.frame(
+        column_name = c("id", "label"),
+        type_name = c("int", "varchar"),
+        precision = c(10L, 0L),
+        scale = 0L
+      )
     },
     .fabric_warehouse_execute = function(...) 4L,
     .fabric_warehouse_disconnect = function(...) TRUE,

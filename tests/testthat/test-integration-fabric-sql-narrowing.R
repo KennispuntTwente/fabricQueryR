@@ -19,6 +19,14 @@ test_that("live Warehouse rejects narrowing without changing existing rows", {
   sql <- paste0("[dbo].[", table, "]")
   withr::defer(DBI::dbExecute(con, paste("DROP TABLE IF EXISTS", sql)))
   cases <- list(
+    list("real", "1.25", arrow::Array$create(1 + .Machine$double.eps)),
+    list(
+      "float",
+      "1",
+      arrow::Array$create("9007199254740993")$cast(arrow::int64())
+    ),
+    list("bigint", "1", arrow::Array$create(1.5)),
+    list("decimal(24,2)", "1.23", arrow::Array$create(1.2399)),
     list(
       "decimal(24,2)",
       "1.23",

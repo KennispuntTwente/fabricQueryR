@@ -1,11 +1,23 @@
-test_that("Warehouse rejects decimal and temporal narrowing before modifying tables", {
+test_that("Warehouse rejects numeric and temporal narrowing before modifying tables", {
   skip_if_not_installed("arrow")
   cases <- list(
     list(arrow::decimal128(24, 4), "decimal", 24L, 2L),
     list(arrow::decimal128(24, 4), "decimal", 24L, 5L),
     list(arrow::decimal128(24, 4), "float", 53L, 0L),
     list(arrow::timestamp("us"), "datetime2", 23L, 3L),
-    list(arrow::time64("us"), "time", 12L, 3L)
+    list(arrow::time64("us"), "time", 12L, 3L),
+    list(arrow::float64(), "real", 24L, 0L),
+    list(arrow::float64(), "float", 24L, 0L),
+    list(arrow::float64(), "bigint", 19L, 0L),
+    list(arrow::float64(), "decimal", 38L, 18L),
+    list(arrow::int64(), "float", 53L, 0L),
+    list(arrow::int32(), "real", 24L, 0L),
+    list(arrow::int32(), "smallint", 5L, 0L),
+    list(arrow::int8(), "tinyint", 3L, 0L),
+    list(arrow::uint16(), "smallint", 5L, 0L),
+    list(arrow::uint64(), "bigint", 19L, 0L),
+    list(arrow::int64(), "decimal", 20L, 2L),
+    list(arrow::uint64(), "decimal", 19L, 0L)
   )
   for (case in cases) {
     local_mocked_bindings(.fabric_warehouse_query = function(...) {
@@ -50,6 +62,42 @@ test_that("Warehouse rejects decimal and temporal narrowing before modifying tab
   ))
 })
 
+test_that("Warehouse accepts lossless numeric destinations", {
+  skip_if_not_installed("arrow")
+  cases <- list(
+    list(arrow::float64(), "float", 53L, 0L),
+    list(arrow::float32(), "real", 24L, 0L),
+    list(arrow::float32(), "float", 53L, 0L),
+    list(arrow::int8(), "smallint", 5L, 0L),
+    list(arrow::uint8(), "smallint", 5L, 0L),
+    list(arrow::int32(), "int", 10L, 0L),
+    list(arrow::int32(), "bigint", 19L, 0L),
+    list(arrow::int64(), "bigint", 19L, 0L),
+    list(arrow::uint32(), "bigint", 19L, 0L),
+    list(arrow::uint16(), "real", 24L, 0L),
+    list(arrow::int32(), "float", 53L, 0L),
+    list(arrow::int64(), "decimal", 21L, 2L),
+    list(arrow::uint64(), "decimal", 22L, 2L)
+  )
+  for (case in cases) {
+    local_mocked_bindings(.fabric_warehouse_query = function(...) {
+      data.frame(
+        column_name = "value",
+        type_name = case[[2L]],
+        precision = case[[3L]],
+        scale = case[[4L]]
+      )
+    })
+    expect_no_error(.fabric_warehouse_validate_destination_columns(
+      NULL,
+      "dbo",
+      "target",
+      "value",
+      arrow::schema(value = case[[1L]])
+    ))
+  }
+})
+
 test_that("Warehouse append and overwrite reject narrowing before SQL mutation", {
   skip_if_not_installed("arrow")
   local_mocked_bindings(
@@ -70,7 +118,7 @@ test_that("Warehouse append and overwrite reject narrowing before SQL mutation",
   )
   value <- arrow::Array$create("1.2399")$cast(arrow::decimal128(24, 4))
   dictionary <- arrow::DictionaryArray$create(arrow::Array$create(0L), value)
-  for (column in list(value, dictionary)) {
+  for (column in list(value, dictionary, arrow::Array$create(1.2399))) {
     data <- arrow::Table$create(value = column)
     for (mode in c("Append", "Overwrite")) {
       error <- expect_error(

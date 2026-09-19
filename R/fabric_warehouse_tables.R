@@ -398,6 +398,9 @@ fabric_warehouse_read_table <- function(
 #' destructive SQL is issued. Decimal inputs require a decimal destination with
 #' at least the source scale and integer-digit capacity; timestamp and time
 #' inputs require matching temporal types with sufficient fractional precision.
+#' Integer and floating-point inputs require destinations that can represent
+#' their full source range and precision. In particular, `int64` to SQL `float`
+#' and Arrow `double` to SQL `real`, integer, or decimal types are rejected.
 #' Cast the input explicitly when a lossy conversion is intended. These schema
 #' checks do not validate every possible SQL conversion or individual value.
 #' With
@@ -1395,7 +1398,11 @@ fabric_warehouse_write_table <- function(
     decimal <- inherits(type, "DecimalType")
     timestamp <- inherits(type, "Timestamp")
     time <- inherits(type, c("Time32Type", "Time64Type", "Time32", "Time64"))
-    if (!decimal && !timestamp && !time) {
+    numeric <- grepl(
+      "^(u?int(8|16|32|64)|halffloat|float|double)$",
+      type$ToString()
+    )
+    if (!decimal && !timestamp && !time && !numeric) {
       next
     }
     metadata <- value[match(field$name, destination), , drop = FALSE]
@@ -1407,7 +1414,9 @@ fabric_warehouse_write_table <- function(
       )
     }
     target <- tolower(metadata$type_name)
-    safe <- if (decimal) {
+    safe <- if (numeric) {
+      .fabric_warehouse_numeric_destination_safe(type, metadata)
+    } else if (decimal) {
       target %in%
         c("decimal", "numeric") &&
         metadata$scale >= type$scale() &&
@@ -1431,6 +1440,47 @@ fabric_warehouse_write_table <- function(
     }
   }
   invisible(destination)
+}
+
+.fabric_warehouse_numeric_destination_safe <- function(type, metadata) {
+  target <- tolower(metadata$type_name)
+  floating_precision <- switch(
+    target,
+    real = 24L,
+    float = metadata$precision,
+    0L
+  )
+  if (type$ToString() %in% c("halffloat", "float", "double")) {
+    source_precision <- switch(
+      type$ToString(),
+      halffloat = 11L,
+      float = 24L,
+      double = 53L
+    )
+    return(!is.null(source_precision) && floating_precision >= source_precision)
+  }
+  source <- type$ToString()
+  unsigned <- startsWith(source, "uint")
+  bits <- as.integer(sub("^u?int", "", source))
+  if (floating_precision > 0L) {
+    return(floating_precision >= bits - as.integer(!unsigned))
+  }
+  if (target %in% c("decimal", "numeric")) {
+    digits <- ceiling((bits - as.integer(!unsigned)) * log10(2))
+    return(metadata$precision - metadata$scale >= digits)
+  }
+  target_bits <- switch(
+    target,
+    tinyint = 8L,
+    smallint = 16L,
+    int = 32L,
+    bigint = 64L,
+    0L
+  )
+  if (target == "tinyint") {
+    return(unsigned && bits <= target_bits)
+  }
+  target_bits >= bits + as.integer(unsigned)
 }
 
 .fabric_warehouse_query <- function(connection, sql) {
