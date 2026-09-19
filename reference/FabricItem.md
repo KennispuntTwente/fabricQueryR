@@ -29,8 +29,11 @@ Methods delegate to the corresponding `fabric_*()` function. Their `...`
 arguments are forwarded unchanged, and the credential used for discovery
 is reused while the object is in the current R process. An explicitly
 supplied `token`, `tenant_id`, `client_id`, `auth_args`, or `api_base`
-takes precedence. The Fabric API base used for discovery is also reused,
-so chained methods stay on the same public, sovereign-cloud, or
+takes precedence. Job and refresh lifecycle methods prefer the supplied
+handle's in-process credential over the discovery credential. Bare IDs
+and handles whose credentials were removed by serialization use the
+discovery credential. The Fabric API base used for discovery is also
+reused, so chained methods stay on the same public, sovereign-cloud, or
 workspace endpoint.
 
 SQL-capable resources inherit common `sql_*()` methods. Lakehouses,

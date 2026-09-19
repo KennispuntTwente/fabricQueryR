@@ -312,7 +312,15 @@ in order.</p>
 </h2>
 <p>Use <code>$livy_batch_submit()</code>
 (<code><a href="../reference/fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code>) when the work is a repeatable
-Python, R, or Java/Scala script stored in OneLake or ADLS:</p>
+Python, R, or Java/Scala script stored in OneLake or ADLS.</p>
+<p>Python and Java batch applications have produced the expected output
+in the package’s persistent Fabric sandbox. Standalone R batches remain
+experimental: attempts have failed during Spark-context initialization,
+so successful R batch execution has not been established. Validate the
+application’s output in the target runtime before relying on it. Passing
+interactive SparkR statements does not verify this separate batch
+path.</p>
+<p>For example, submit a Python application and wait for completion:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_batch_submit</span><span class="op">(</span></span>
 <span>  file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>

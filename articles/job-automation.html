@@ -145,6 +145,15 @@ select a numbered day or an ordinal weekday. See
 <code><a href="../reference/fabric_job_schedule_config.html">?fabric_job_schedule_config</a></code> for those shapes. Use a Windows
 time zone such as <code>"W. Europe Standard Time"</code>, not an IANA
 name such as <code>"Europe/Amsterdam"</code>.</p>
+<p>Non-UTC firing remains unverified in the package’s persistent Fabric
+sandbox. Enabled Amsterdam schedules have not produced the expected run
+within the test window, and the cause has not been established. Actual
+monthly recurrence and nonexistent or repeated local times at
+daylight-saving transitions also lack live execution evidence. Before
+relying on one of these configurations, verify an actual scheduled run
+using <code>$instances()</code> and <code>$status()</code>. Successful
+schedule creation only confirms that Fabric accepted the
+configuration.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">weekly</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_job_schedule_config.html">fabric_job_schedule_config</a></span><span class="op">(</span></span>
 <span>  <span class="st">"Weekly"</span>,</span>

@@ -239,7 +239,16 @@ order.
 Use `$livy_batch_submit()`
 ([`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md))
 when the work is a repeatable Python, R, or Java/Scala script stored in
-OneLake or ADLS:
+OneLake or ADLS.
+
+Python and Java batch applications have produced the expected output in
+the package’s persistent Fabric sandbox. Standalone R batches remain
+experimental: attempts have failed during Spark-context initialization,
+so successful R batch execution has not been established. Validate the
+application’s output in the target runtime before relying on it. Passing
+interactive SparkR statements does not verify this separate batch path.
+
+For example, submit a Python application and wait for completion:
 
 ``` r
 

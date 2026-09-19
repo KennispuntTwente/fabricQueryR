@@ -110,7 +110,11 @@ Put changing values in `parameters` and declare them in KQL with
 `declare query_parameters(...)`. The values are sent separately from the
 query text, which is safer and easier to quote correctly than using
 [`paste()`](https://rdrr.io/r/base/paste.html). Scalar R values become
-KQL scalar values; vectors and lists become `dynamic` arrays or objects
+KQL scalar values; vectors and lists become `dynamic` arrays or objects.
+Nested date/time objects and non-finite numbers are rejected because
+JSON conversion can change their values or types. Use explicit strings
+(including timezone and fractional seconds for timestamps) and cast them
+in KQL, or pass these values as separate scalar parameters
 
 ## Advanced request options
 

@@ -243,6 +243,9 @@ including letter case. The writer checks the Warehouse catalog before any
 destructive SQL is issued. Decimal inputs require a decimal destination with
 at least the source scale and integer-digit capacity; timestamp and time
 inputs require matching temporal types with sufficient fractional precision.
+Integer and floating-point inputs require destinations that can represent
+their full source range and precision. In particular, <code>int64</code> to SQL <code>float</code>
+and Arrow <code>double</code> to SQL <code>real</code>, integer, or decimal types are rejected.
 Cast the input explicitly when a lossy conversion is intended. These schema
 checks do not validate every possible SQL conversion or individual value.
 With

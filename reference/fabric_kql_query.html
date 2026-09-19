@@ -147,7 +147,10 @@ existing data; it does not load data or run management commands</p>
 <code>declare query_parameters(...)</code>. The values are sent separately from the
 query text, which is safer and easier to quote correctly than using
 <code><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste()</a></code>. Scalar R values become KQL scalar values; vectors and lists become
-<code>dynamic</code> arrays or objects</p>
+<code>dynamic</code> arrays or objects. Nested date/time objects and non-finite numbers
+are rejected because JSON conversion can change their values or types. Use
+explicit strings (including timezone and fractional seconds for timestamps)
+and cast them in KQL, or pass these values as separate scalar parameters</p>
     </div>
     <div class="section level2">
     <h2 id="advanced-request-options">Advanced request options<a class="anchor" aria-label="anchor" href="#advanced-request-options"></a></h2>

@@ -94,8 +94,8 @@ fabric_sql_read_table(
 
 - table:
 
-  Table or view name, or a one-row record containing `name` and
-  optionally `schema`.
+  Table or view name, or a one-row data frame or named list containing
+  `name` and optionally `schema`.
 
 - columns:
 

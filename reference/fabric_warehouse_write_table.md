@@ -200,9 +200,12 @@ including letter case. The writer checks the Warehouse catalog before
 any destructive SQL is issued. Decimal inputs require a decimal
 destination with at least the source scale and integer-digit capacity;
 timestamp and time inputs require matching temporal types with
-sufficient fractional precision. Cast the input explicitly when a lossy
-conversion is intended. These schema checks do not validate every
-possible SQL conversion or individual value. With
+sufficient fractional precision. Integer and floating-point inputs
+require destinations that can represent their full source range and
+precision. In particular, `int64` to SQL `float` and Arrow `double` to
+SQL `real`, integer, or decimal types are rejected. Cast the input
+explicitly when a lossy conversion is intended. These schema checks do
+not validate every possible SQL conversion or individual value. With
 `create_if_missing = TRUE`, a missing table is created and populated by
 a single CTAS statement; Fabric infers its names and types from the
 staged Parquet files.
