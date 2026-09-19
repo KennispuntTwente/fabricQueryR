@@ -2,22 +2,6 @@
 
 ## New
 
-* `fabric_graphql_collect()` preserves nullable row elements and records their
-positions in the `null_rows` attribute, including incomplete collections.
-
-* Livy result parsing rejects malformed dates and fractional or out-of-range
-BYTE and SHORT values instead of truncating them.
-
-* Livy session waits give explicit failure information precedence over an idle state.
-
-* Livy session and batch attachment compare GUIDs without regard to letter case.
-
-* `fabric_warehouse_write_table()` rejects decimal and temporal schema narrowing
-before modifying existing destination tables.
-
-* `fabric_pbi_dax_query()` preserves JSON Variant columns containing both
-numbers and numeric-looking strings, including exact oversized integers.
-
 * Discovery functions find the Fabric workspaces and items available to the
 signed-in user or application. Use `fabric_workspaces()` and `fabric_items()`
 for general discovery, or typed helpers such as `fabric_lakehouses()` and
