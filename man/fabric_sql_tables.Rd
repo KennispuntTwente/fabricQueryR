@@ -71,8 +71,8 @@ and retry options passed to \code{\link[=fabric_sql_query]{fabric_sql_query()}}.
 read-only status, and idempotency are controlled by these helpers and
 cannot be supplied here.}
 
-\item{table}{Table or view name, or a one-row record containing \code{name} and
-optionally \code{schema}.}
+\item{table}{Table or view name, or a one-row data frame or named list
+containing \code{name} and optionally \code{schema}.}
 
 \item{columns}{Optional unique column names to project.}
 

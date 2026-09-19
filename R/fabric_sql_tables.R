@@ -12,8 +12,8 @@
 #'   the schema in a discovered table row, otherwise `"dbo"`.
 #' @param detail Whether table or view discovery should retrieve column
 #'   metadata.
-#' @param table Table or view name, or a one-row record containing `name` and
-#'   optionally `schema`.
+#' @param table Table or view name, or a one-row data frame or named list
+#'   containing `name` and optionally `schema`.
 #' @param columns Optional unique column names to project.
 #' @param limit Optional non-negative maximum number of rows to return.
 #' @param result Result representation for `fabric_sql_read_table()`; either a
@@ -456,6 +456,28 @@ fabric_sql_read_table <- function(
 
 .fabric_sql_table_target <- function(table, schema) {
   record <- fabric_as_record(table)
+  if (is.null(record) && is.list(table) && !is.data.frame(table)) {
+    keys <- names(table)
+    if (
+      !is.null(keys) &&
+        !anyNA(keys) &&
+        all(nzchar(keys)) &&
+        !anyDuplicated(keys)
+    ) {
+      for (key in intersect(
+        keys,
+        c("name", "table", "displayName", "schema", "schema_name")
+      )) {
+        if (!is.null(table[[key]])) {
+          .fabric_sql_name(
+            table[[key]],
+            if (startsWith(key, "schema")) "schema" else "table"
+          )
+        }
+      }
+      record <- table
+    }
+  }
   if (!is.null(record)) {
     table <- fabric_record_value(record, "name", "table", "displayName")
     schema <- schema %||% fabric_record_value(record, "schema", "schema_name")
