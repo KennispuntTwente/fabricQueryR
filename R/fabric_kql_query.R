@@ -456,7 +456,10 @@ kusto_read_identifier <- function(value) {
 #' `declare query_parameters(...)`. The values are sent separately from the
 #' query text, which is safer and easier to quote correctly than using
 #' `paste()`. Scalar R values become KQL scalar values; vectors and lists become
-#' `dynamic` arrays or objects
+#' `dynamic` arrays or objects. Nested date/time objects and non-finite numbers
+#' are rejected because JSON conversion can change their values or types. Use
+#' explicit strings (including timezone and fractional seconds for timestamps)
+#' and cast them in KQL, or pass these values as separate scalar parameters
 #'
 #' @section Advanced request options:
 #' `request_properties` controls server behavior such as timeouts and result
@@ -793,6 +796,13 @@ kusto_encode_parameter <- function(value) {
     return(paste0("dynamic(", empty, ")"))
   }
 
+  if (
+    !inherits(value, c("POSIXt", "Date", "difftime", "integer64")) &&
+      (is.list(value) || length(value) > 1L)
+  ) {
+    kusto_validate_dynamic_parameter(value)
+  }
+
   if (is.null(value) || anyNA(value)) {
     .fabric_abort(
       paste0(
@@ -872,6 +882,37 @@ kusto_encode_parameter <- function(value) {
     digits = 22
   )
   paste0("dynamic(", json, ")")
+}
+
+# Require explicit representations for nested values JSON cannot preserve.
+# Scalar KQL parameters retain their dedicated typed encoders above.
+kusto_validate_dynamic_parameter <- function(value) {
+  if (inherits(value, c("POSIXt", "Date", "difftime"))) {
+    .fabric_abort(
+      paste0(
+        "Dynamic KQL parameters cannot contain date/time objects; use ",
+        "explicit strings with timezone and fractional precision and cast ",
+        "them in KQL, or supply separate scalar parameters"
+      ),
+      class = "fabric_kql_parameter_error"
+    )
+  }
+  if (inherits(value, "integer64")) {
+    return(invisible(NULL))
+  }
+  if (is.list(value)) {
+    invisible(lapply(value, kusto_validate_dynamic_parameter))
+  } else if (is.numeric(value) && any(is.infinite(value) | is.nan(value))) {
+    .fabric_abort(
+      paste0(
+        "Dynamic KQL parameters cannot contain Inf, -Inf or NaN; use ",
+        "explicit strings and cast them in KQL, or supply separate scalar ",
+        "parameters"
+      ),
+      class = "fabric_kql_parameter_error"
+    )
+  }
+  invisible(NULL)
 }
 
 # Format a KQL number independently of R's display locale. KQL literals always
