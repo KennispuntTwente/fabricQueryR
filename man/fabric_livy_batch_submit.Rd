@@ -142,6 +142,13 @@ application file must already be accessible through an ABFS/ABFSS URI; this
 function does not upload a local script. Use \code{\link[=fabric_onelake_upload]{fabric_onelake_upload()}} first
 when needed
 
+Python and Java batch applications have produced their expected output in
+the package's persistent Fabric sandbox. Standalone R batches remain
+unverified: attempts have failed during Spark-context initialization. Treat
+the R batch path as experimental and validate an application's output in the
+target runtime before relying on it. Successful \code{kind = "sparkr"} interactive
+statements do not establish standalone R batch support.
+
 Delegated sign-in requires \code{Lakehouse.Execute.All}, \code{Lakehouse.Read.All},
 \code{Code.AccessFabric.All}, and \code{Code.AccessStorage.All}. Add
 \code{Code.AccessAzureKeyvault.All}, \code{Code.AccessAzureDataLake.All},

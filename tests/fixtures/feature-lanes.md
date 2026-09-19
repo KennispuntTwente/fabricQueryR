@@ -67,12 +67,16 @@ and writes a unique marker to its own OneLake folder. The Java source and a
 deterministic rebuild script (`generate-livy-batch-java.py`, requiring javac
 11+) accompany the small compiled fixture. No compiler is needed for CI runs.
 
-This lane remains required separately because successful Java/R batch execution
-has not yet been established in the persistent sandbox. Its failures are not
-treated as passes or silently accepted workload limitations. R attempts returned
-`Spark_User_SparkContext_DidNotInitialize`; the Java attempt did not produce its
-output marker during the validation window. Ordinary Livy statement languages
-and the passing Python batch/dependency tests do not prove these batch paths.
+On 2026-09-19, the checked-in Java fixture completed in the persistent sandbox
+with its exact unique `marker:3` output, using the playground connection and
+service-principal authentication. It created and removed its own OneLake folder;
+the full seeded fixture revision was not certified by that focused probe.
+
+This lane remains required separately because standalone R batch execution has
+not yet been established. R attempts returned
+`Spark_User_SparkContext_DidNotInitialize`. The earlier Java attempt without an
+output marker is superseded by the successful focused execution above. Ordinary
+Livy statement languages and Python batches do not prove the standalone R path.
 
 ## Restricted access (`authorization`)
 
