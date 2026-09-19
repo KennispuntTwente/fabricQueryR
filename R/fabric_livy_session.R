@@ -428,12 +428,14 @@ FabricLivySession <- R6::R6Class(
           response$fabricSessionStateInfo$state %||% ""
         )
         result <- tolower(response$result %||% "")
+        error_message <- response$fabricSessionStateInfo[["errorMessage"]]
         if (
           state %in%
             .fabric_livy_session_terminal_states ||
             fabric_state %in% c("error", "cancelled", "canceled") ||
             result %in% c("failed", "cancelled", "canceled") ||
-            length(response$fabricSessionStateInfo$error) > 0L
+            length(response$fabricSessionStateInfo[["error"]]) > 0L ||
+            any(nzchar(trimws(error_message)), na.rm = TRUE)
         ) {
           fabric_livy_abort_session(response)
         }
