@@ -1,3 +1,82 @@
+test_that("repeatable Livy fixtures retry submission and wait on the accepted ID once", {
+  submissions <- 0L
+  waits <- 0L
+  result <- list(id = 42L, output = list(status = "ok"))
+  session <- list(submit = function(code, kind) {
+    submissions <<- submissions + 1L
+    expect_identical(code, "print(42)")
+    expect_identical(kind, "pyspark")
+    if (submissions == 1L) {
+      rlang::abort("Unavailable", class = "fabric_http_error", status = 503L)
+    }
+    list(
+      wait = function(timeout, poll_interval) {
+        waits <<- waits + 1L
+        expect_identical(timeout, 300)
+        expect_identical(poll_interval, 2)
+      },
+      result = function(refresh) {
+        expect_identical(refresh, FALSE)
+        result
+      }
+    )
+  })
+
+  expect_message(
+    actual <- fabric_test_livy_run_idempotent(session, "print(42)", delay = 0),
+    "HTTP 503 (attempt 2/3)",
+    fixed = TRUE
+  )
+  expect_identical(actual, result)
+  expect_identical(submissions, 2L)
+  expect_identical(waits, 1L)
+})
+
+test_that("repeatable Livy fixtures preserve permanent and exhausted errors", {
+  errors <- list(
+    rlang::error_cnd("fabric_http_error", status = 400L),
+    rlang::error_cnd("fabric_http_error", status = 403L),
+    rlang::error_cnd("fabric_http_error", status = 503L, is_retriable = FALSE),
+    rlang::error_cnd("fabric_livy_statement_error"),
+    rlang::error_cnd("fabric_http_error", status = 503L)
+  )
+  expected_attempts <- c(1L, 1L, 1L, 1L, 3L)
+  for (index in seq_along(errors)) {
+    submissions <- 0L
+    session <- list(submit = function(...) {
+      submissions <<- submissions + 1L
+      stop(errors[[index]])
+    })
+    error <- tryCatch(
+      suppressMessages(fabric_test_livy_run_idempotent(
+        session,
+        "print(42)",
+        delay = 0
+      )),
+      error = identity
+    )
+    expect_identical(error, errors[[index]])
+    expect_identical(submissions, expected_attempts[[index]])
+  }
+})
+
+test_that("repeatable Livy fixtures never resubmit after an accepted statement fails", {
+  for (class in c("fabric_http_error", "fabric_livy_statement_error")) {
+    failure <- rlang::error_cnd(class, status = 503L)
+    submissions <- 0L
+    session <- list(submit = function(...) {
+      submissions <<- submissions + 1L
+      list(wait = function(...) stop(failure))
+    })
+    error <- tryCatch(
+      fabric_test_livy_run_idempotent(session, "print(42)", delay = 0),
+      error = identity
+    )
+    expect_identical(error, failure)
+    expect_identical(submissions, 1L)
+  }
+})
+
 test_that("required Fabric integration mode fails instead of skipping", {
   withr::local_options(fabricQueryR.integration_token_provider = NULL)
   old_required <- Sys.getenv("FABRIC_INTEGRATION_REQUIRED", unset = NA)

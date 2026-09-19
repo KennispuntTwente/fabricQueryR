@@ -226,7 +226,8 @@ test_that("high-concurrency Livy executes on Runtime 2.0", {
   on.exit(try(session_b$close(), silent = TRUE), add = TRUE)
   session_b$wait(timeout = 900, poll_interval = 5)
 
-  assignment <- session_a$run(
+  assignment <- fabric_test_livy_run_idempotent(
+    session_a,
     "fabricqueryr_runtime_2_hc_secret = 'session-a-only'",
     kind = "pyspark",
     timeout = 300,
@@ -246,7 +247,8 @@ test_that("high-concurrency Livy executes on Runtime 2.0", {
   expect_identical(recovered_a$id, session_a$id)
   expect_identical(recovered_a$session_id, session_a$session_id)
   expect_identical(recovered_a$repl_id, session_a$repl_id)
-  recovered <- recovered_a$run(
+  recovered <- fabric_test_livy_run_idempotent(
+    recovered_a,
     "print('FABRICQUERYR_RUNTIME_2_HC_RECOVERED=' + fabricqueryr_runtime_2_hc_secret)",
     kind = "pyspark",
     timeout = 300,
@@ -257,7 +259,8 @@ test_that("high-concurrency Livy executes on Runtime 2.0", {
     "FABRICQUERYR_RUNTIME_2_HC_RECOVERED=session-a-only",
     fixed = TRUE
   )
-  isolated <- session_b$run(
+  isolated <- fabric_test_livy_run_idempotent(
+    session_b,
     paste0(
       "print('FABRICQUERYR_RUNTIME_2_HC_VISIBLE=' + ",
       "str('fabricqueryr_runtime_2_hc_secret' in globals()))"

@@ -2,13 +2,65 @@
 
 from collections.abc import Sequence
 from os import environ
+import re
+import sys
+import time
 
 from fabric_cicd import FabricWorkspace, append_feature_flag, publish_all_items
+from fabric_cicd._common._exceptions import InvokeError, PublishError
 
 from .credentials import get_credential
 from .deployment_revision import record_deployments
 from .fabric_api import FabricApi
 from .settings import SandboxSettings
+
+
+PUBLISH_ATTEMPTS = 3
+TRANSIENT_PUBLISH_STATUSES = {408, 429, 500, 502, 503, 504}
+
+
+def _publish_failure_status(error: Exception) -> int | None:
+    # fabric-cicd 1.2 wraps the response in InvokeError's diagnostic text;
+    # the public message omits its status. Never log the request/body text.
+    if not isinstance(error, InvokeError):
+        return None
+    match = re.search(
+        r"^Response Status: (\d{3})$", error.additional_info or "", re.MULTILINE,
+    )
+    return int(match[1]) if match else None
+
+
+def _publish_with_retry(workspace_arguments: dict, selected: list[str] | None) -> None:
+    for attempt in range(1, PUBLISH_ATTEMPTS + 1):
+        try:
+            # Re-discover on every attempt: a failed create may have succeeded
+            # remotely. Publishing reconciles by name and updates that item.
+            workspace = FabricWorkspace(**workspace_arguments)
+            publish_all_items(workspace, items_to_include=selected)
+            return
+        except (InvokeError, PublishError) as error:
+            failures = (
+                error.errors if isinstance(error, PublishError)
+                else [("workspace", error)]
+            )
+            statuses = [_publish_failure_status(failure) for _, failure in failures]
+            print(
+                f"Fabric publish failed; HTTP statuses: {statuses}",
+                file=sys.stderr, flush=True,
+            )
+            if (
+                attempt == PUBLISH_ATTEMPTS
+                or not statuses
+                or any(status not in TRANSIENT_PUBLISH_STATUSES for status in statuses)
+            ):
+                raise
+            delay = 5 * attempt
+            print(
+                f"Retrying Fabric publication after {delay} seconds "
+                f"(attempt {attempt + 1}/{PUBLISH_ATTEMPTS})",
+                file=sys.stderr, flush=True,
+            )
+            time.sleep(delay)
 
 
 def _selected_items(
@@ -113,14 +165,14 @@ def deploy(
     if selected:
         selected_types = [item.rsplit(".", 1)[1] for item in selected]
         item_types = list(dict.fromkeys([*item_types, *selected_types]))
-    workspace = FabricWorkspace(
+    workspace_arguments = dict(
         workspace_id=workspace_id,
         repository_directory=str(settings.workspace_definition_dir),
         environment=settings.environment,
         item_type_in_scope=item_types,
         token_credential=credential,
     )
-    publish_all_items(workspace, items_to_include=selected)
+    _publish_with_retry(workspace_arguments, selected)
     record_deployments(
         settings, workspace_id, lakehouse_id, selected, credential=credential,
     )

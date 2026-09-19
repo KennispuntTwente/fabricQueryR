@@ -1,6 +1,7 @@
 from os import environ
 from pathlib import Path
 import json
+import logging
 import re
 from types import SimpleNamespace
 
@@ -8,15 +9,106 @@ from azure.core.credentials import AccessToken
 import fabric_cicd.constants as fabric_cicd_constants
 from fabric_cicd import FabricWorkspace, append_feature_flag
 from fabric_cicd._items._environment import _process_environment_file
+from fabric_cicd._common._exceptions import InvokeError, PublishError
+from fabric_cicd._common._fabric_endpoint import _format_invoke_log
 import pytest
+import requests
 
-from fabricqueryr_sandbox.deploy import deploy
+from fabricqueryr_sandbox.deploy import _publish_with_retry, deploy
 from fabricqueryr_sandbox.settings import SandboxSettings
 
 
 class StaticCredential:
     def get_token(self, *_scopes, **_kwargs):
         return AccessToken("test-token", 4_102_444_800)
+
+
+def publish_error(status):
+    response = requests.Response()
+    response.status_code = status
+    response._content = b'{"message": "An error occurred while processing the operation"}'
+    response.headers["Content-Type"] = "application/json"
+    diagnostic = _format_invoke_log(
+        response, "POST", "https://api.powerbi.com/v1/workspaces/test/items",
+        {"private": "do-not-log-request-content"},
+    )
+    logger = logging.getLogger(__name__)
+    return PublishError(
+        [("TestPipeline", InvokeError("Publish failed", logger, diagnostic))],
+        logger,
+    )
+
+
+@pytest.mark.parametrize("status", [408, 429, 500, 502, 503, 504])
+def test_publish_reconciles_with_fresh_workspace_after_transient_failure(
+    monkeypatch, capsys, status,
+):
+    workspaces = []
+    publications = []
+    delays = []
+    def workspace(**kwargs):
+        value = SimpleNamespace(**kwargs)
+        workspaces.append(value)
+        return value
+    def publish(value, **kwargs):
+        publications.append((value, kwargs))
+        if len(publications) == 1:
+            raise publish_error(status)
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.FabricWorkspace", workspace)
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.publish_all_items", publish)
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.time.sleep", delays.append)
+
+    _publish_with_retry({"workspace_id": "test"}, ["TestPipeline.DataPipeline"])
+
+    assert len(workspaces) == 2
+    assert workspaces[0] is not workspaces[1]
+    assert [call[1] for call in publications] == [
+        {"items_to_include": ["TestPipeline.DataPipeline"]},
+    ] * 2
+    assert delays == [5]
+    output = capsys.readouterr().err
+    assert str(status) in output
+    assert "do-not-log-request-content" not in output
+
+
+@pytest.mark.parametrize("status,attempts", [(400, 1), (401, 1), (403, 1), (404, 1), (503, 3)])
+def test_publish_preserves_permanent_or_exhausted_failure(monkeypatch, status, attempts):
+    error = publish_error(status)
+    publications = []
+    delays = []
+    def publish(*args, **kwargs):
+        publications.append(kwargs)
+        raise error
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.FabricWorkspace", lambda **kwargs: kwargs)
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.publish_all_items", publish)
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.time.sleep", delays.append)
+
+    with pytest.raises(PublishError) as caught:
+        _publish_with_retry({}, None)
+
+    assert caught.value is error
+    assert publications == [{"items_to_include": None}] * attempts
+    assert delays == [5, 10][:attempts - 1]
+
+
+def test_publish_does_not_retry_unknown_or_mixed_failures(monkeypatch):
+    logger = logging.getLogger(__name__)
+    errors = [
+        PublishError([("TestPipeline", InvokeError("Unknown", logger))], logger),
+        PublishError(publish_error(503).errors + publish_error(400).errors, logger),
+        PublishError([], logger),
+    ]
+    publications = []
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.FabricWorkspace", lambda **kwargs: kwargs)
+    def publish(*args, **kwargs):
+        publications.append(kwargs)
+        raise error
+    monkeypatch.setattr("fabricqueryr_sandbox.deploy.publish_all_items", publish)
+    for error in errors:
+        with pytest.raises(PublishError) as caught:
+            _publish_with_retry({}, None)
+        assert caught.value is error
+    assert len(publications) == len(errors)
 
 
 @pytest.fixture(autouse=True)

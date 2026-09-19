@@ -128,6 +128,47 @@ fabric_test_eventually <- function(
   )
 }
 
+# Only use for fixture statements that are safe to execute more than once.
+# Retry submission, never a failed wait or Spark execution on an accepted ID.
+fabric_test_livy_run_idempotent <- function(
+  session,
+  code,
+  kind = "pyspark",
+  timeout = 300,
+  poll_interval = 2,
+  attempts = 3L,
+  delay = 5
+) {
+  for (attempt in seq_len(attempts)) {
+    statement <- tryCatch(
+      session$submit(code, kind = kind),
+      fabric_http_error = function(error) {
+        if (
+          attempt == attempts ||
+            isFALSE(error$is_retriable) ||
+            !error$status %in% c(408L, 429L, 500L, 502L, 503L, 504L)
+        ) {
+          stop(error)
+        }
+        message(
+          "Retrying repeatable Livy fixture submission after HTTP ",
+          error$status,
+          " (attempt ",
+          attempt + 1L,
+          "/",
+          attempts,
+          ")"
+        )
+        Sys.sleep(delay * attempt)
+        NULL
+      }
+    )
+    if (!is.null(statement)) break
+  }
+  statement$wait(timeout = timeout, poll_interval = poll_interval)
+  statement$result(refresh = FALSE)
+}
+
 fabric_test_repository_root <- function(start = getwd()) {
   current <- normalizePath(start, winslash = "/", mustWork = TRUE)
   repeat {
