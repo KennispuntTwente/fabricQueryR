@@ -109,6 +109,7 @@ fabric_job_instances <- function(
 #'   `"Weekly"`, or `"Monthly"`.
 #' @param start_time,end_time A scalar `POSIXt` value or RFC 3339 string with an
 #'   explicit `Z` or numeric offset. These boundaries are converted to UTC.
+#'   Fractional seconds are rejected; round or truncate explicitly before use.
 #' @param time_zone Windows time-zone identifier used to interpret `times`, such
 #'   as `"UTC"`, `"W. Europe Standard Time"`, or
 #'   `"Central Standard Time"`. Fabric validates the identifier.
@@ -1186,6 +1187,16 @@ print.fabric_job_schedule <- function(x, ...) {
 }
 
 .fabric_schedule_utc <- function(value, name) {
+  fractional_text <- is.character(value) &&
+    length(value) == 1L &&
+    !is.na(value) &&
+    grepl("[.][0-9]*[1-9][0-9]*(Z|[+-][0-9]{2}:[0-9]{2})$", value)
+  if (fractional_text) {
+    .fabric_abort(sprintf(
+      "`%s` must have whole-second precision; round or truncate explicitly before submission",
+      name
+    ))
+  }
   if (inherits(value, "POSIXt")) {
     if (length(value) != 1L || is.na(value)) {
       .fabric_abort(sprintf("`%s` must be one non-missing date-time", name))
@@ -1207,6 +1218,13 @@ print.fabric_job_schedule <- function(x, ...) {
   }
   if (is.na(parsed)) {
     .fabric_abort(sprintf("`%s` is not a valid date-time", name))
+  }
+  seconds <- as.numeric(parsed)
+  if (!is.finite(seconds) || seconds != trunc(seconds)) {
+    .fabric_abort(sprintf(
+      "`%s` must have whole-second precision; round or truncate explicitly before submission",
+      name
+    ))
   }
   format(parsed, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
 }

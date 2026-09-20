@@ -130,6 +130,34 @@ test_that("schedule boundaries are UTC and independent of the process time zone"
   expect_equal(configuration$localTimeZoneId, "W. Europe Standard Time")
 })
 
+test_that("schedule boundaries reject fractional seconds explicitly", {
+  timestamp <- as.POSIXct("2026-01-01 00:00:00", tz = "UTC") + 0.75
+  for (value in list(
+    timestamp,
+    as.POSIXlt(timestamp),
+    "2026-01-01T00:00:00.75Z",
+    "2026-01-01T01:00:00.000000001+01:00"
+  )) {
+    expect_snapshot(
+      fabric_job_schedule_config(
+        "Daily",
+        start_time = value,
+        end_time = "2027-01-01T00:00:00Z",
+        times = "09:00"
+      ),
+      error = TRUE
+    )
+  }
+  expect_identical(
+    .fabric_schedule_utc("2026-01-01T01:00:00.000+01:00", "start_time"),
+    "2026-01-01T00:00:00Z"
+  )
+  expect_snapshot(
+    .fabric_schedule_utc(timestamp, "end_time"),
+    error = TRUE
+  )
+})
+
 test_that("known schedule inputs are validated before requests", {
   expect_error(
     fabric_job_schedule_config(

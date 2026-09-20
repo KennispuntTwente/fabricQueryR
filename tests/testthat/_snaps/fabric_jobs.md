@@ -39,6 +39,54 @@
       Error in `.fabric_job_parameter()`:
       ! Fabric parameter `value` must be one non-missing scalar
 
+# character DateTime parameters validate calendar and clock values
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = "DateTime"))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must contain a valid calendar date and clock time
+
+---
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = "DateTime"))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must contain a valid calendar date and clock time
+
+---
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = "DateTime"))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must contain a valid calendar date and clock time
+
+---
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = "DateTime"))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must contain a valid calendar date and clock time
+
+---
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = "DateTime"))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must contain a valid calendar date and clock time
+
+---
+
+    Code
+      .fabric_job_parameters(list(watermark = value), c(watermark = "DateTime"))
+    Condition
+      Error in `.fabric_job_parameter()`:
+      ! DateTime parameter `watermark` must contain a valid calendar date and clock time
+
 # job date-times reject fractional seconds before serialization
 
     Code

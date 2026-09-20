@@ -23,7 +23,8 @@ fabric_job_schedule_config(
 \code{"Weekly"}, or \code{"Monthly"}.}
 
 \item{start_time, end_time}{A scalar \code{POSIXt} value or RFC 3339 string with an
-explicit \code{Z} or numeric offset. These boundaries are converted to UTC.}
+explicit \code{Z} or numeric offset. These boundaries are converted to UTC.
+Fractional seconds are rejected; round or truncate explicitly before use.}
 
 \item{time_zone}{Windows time-zone identifier used to interpret \code{times}, such
 as \code{"UTC"}, \code{"W. Europe Standard Time"}, or

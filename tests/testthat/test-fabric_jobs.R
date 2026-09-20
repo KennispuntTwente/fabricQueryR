@@ -2757,6 +2757,32 @@ test_that("job recovery budgets start after the initial Retry-After wait", {
     expect_equal(now, started + retry_after + 1)
   }
 })
+test_that("character DateTime parameters validate calendar and clock values", {
+  for (value in c(
+    "2026-02-30T00:00:00Z",
+    "2026-02-29T00:00:00Z",
+    "2026-04-31T00:00:00Z",
+    "2026-01-01T24:00:00Z",
+    "2026-01-01T12:60:00Z",
+    "2026-01-01T12:00:60Z"
+  )) {
+    expect_snapshot(
+      .fabric_job_parameters(
+        list(watermark = value),
+        c(watermark = "DateTime")
+      ),
+      error = TRUE
+    )
+  }
+  value <- "2024-02-29T23:59:59Z"
+  expect_identical(
+    .fabric_job_parameters(list(watermark = value), c(watermark = "DateTime"))[[
+      1L
+    ]]$value,
+    value
+  )
+})
+
 test_that("job date-times reject fractional seconds before serialization", {
   timestamp <- as.POSIXct("2026-08-07 12:34:56", tz = "UTC") + 0.75
   for (value in list(timestamp, as.POSIXlt(timestamp))) {

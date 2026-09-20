@@ -2617,6 +2617,16 @@ print.fabric_job_instance <- function(x, ...) {
         name
       ))
     }
+    parsed <- as.POSIXct(value, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+    if (
+      is.na(parsed) ||
+        !identical(format(parsed, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), value)
+    ) {
+      .fabric_abort(sprintf(
+        "DateTime parameter `%s` must contain a valid calendar date and clock time",
+        name
+      ))
+    }
   } else if (identical(type, "Integer")) {
     # Integers must fit the full signed 32-bit range
     if (
