@@ -1593,6 +1593,36 @@ test_that("OneLake download returns raw zero bytes for an empty file", {
   expect_identical(value, raw())
 })
 
+test_that("OneLake staging reservation exclusively creates the containing directory", {
+  target <- onelake_resolve_target(
+    "Analytics",
+    "Curated.Lakehouse",
+    "Files/staging/load/part.parquet"
+  )
+  parents <- NULL
+  local_mocked_bindings(onelake_create_parents = function(target, credential) {
+    parents <<- target$path
+  })
+  requests <- list()
+  httr2::local_mocked_responses(function(req) {
+    requests[[length(requests) + 1L]] <<- req
+    onelake_test_response(status = 201L, url = req$url)
+  })
+  expect_identical(
+    onelake_reserve_staging(target, fabric_credential(token = "token")),
+    TRUE
+  )
+  expect_identical(parents, "Files/staging/load")
+  expect_length(requests, 1L)
+  expect_identical(requests[[1L]]$method, "PUT")
+  expect_match(
+    requests[[1L]]$url,
+    "/Files/staging/load?resource=directory",
+    fixed = TRUE
+  )
+  expect_identical(requests[[1L]]$headers[["If-None-Match"]], "*")
+})
+
 test_that("OneLake upload chunks to a temporary path and renames atomically", {
   captured <- list()
   httr2::local_mocked_responses(function(req) {

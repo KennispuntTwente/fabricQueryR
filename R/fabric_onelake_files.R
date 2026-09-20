@@ -2457,6 +2457,27 @@ onelake_validate_parent_directory <- function(metadata, parent_path) {
   invisible(TRUE)
 }
 
+# Reserve the parent of a staged part before its writer can upload or clean up.
+onelake_reserve_staging <- function(target, credential) {
+  directory <- target
+  directory$path <- dirname(target$path)
+  onelake_create_parents(directory, credential)
+  request <- onelake_request(
+    onelake_path_url(directory),
+    "PUT",
+    headers = list(`If-None-Match` = "*")
+  ) |>
+    httr2::req_url_query(resource = "directory") |>
+    httr2::req_body_raw(raw())
+  .httr2_perform(
+    request,
+    credential = credential,
+    audience = .fabric_audience$storage,
+    idempotent = FALSE
+  )
+  invisible(TRUE)
+}
+
 # Stage, append, flush, and atomically rename an upload to `target`. Returns a
 # metadata tibble only after the destination commit succeeds
 onelake_upload_target <- function(

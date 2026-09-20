@@ -101,6 +101,7 @@ test_that("Warehouse accepts lossless numeric destinations", {
 test_that("Warehouse append and overwrite reject narrowing before SQL mutation", {
   skip_if_not_installed("arrow")
   local_mocked_bindings(
+    onelake_reserve_staging = function(...) invisible(TRUE),
     onelake_upload_target = function(...) NULL,
     .fabric_warehouse_connect = function(...) NULL,
     .fabric_warehouse_disconnect = function(...) TRUE,

@@ -1082,6 +1082,38 @@ test_that("Lakehouse CSV delimiters follow the published schema", {
   }
 })
 
+test_that("Lakehouse writer never uploads or cleans up an unreserved directory", {
+  skip_if_not_installed("arrow")
+  uploads <- 0L
+  removals <- 0L
+  local_mocked_bindings(
+    onelake_create_parents = function(...) invisible(TRUE),
+    onelake_upload_target = function(...) uploads <<- uploads + 1L,
+    .fabric_lakehouse_remove_staging = function(...) removals <<- removals + 1L
+  )
+  httr2::local_mocked_responses(function(req) {
+    expect_identical(req$method, "PUT")
+    expect_identical(req$headers[["If-None-Match"]], "*")
+    expect_match(req$url, "resource=directory", fixed = TRUE)
+    onelake_test_response(status = 412L, url = req$url)
+  })
+  error <- tryCatch(
+    fabric_lakehouse_write_table(
+      lakehouse_table_test_item(),
+      "orders",
+      data.frame(id = 1L),
+      keep_staging_on_failure = FALSE,
+      token = "fabric-token",
+      storage_token = "storage-token"
+    ),
+    error = identity
+  )
+  expect_s3_class(error, "fabric_http_error")
+  expect_identical(error$status, 412L)
+  expect_identical(uploads, 0L)
+  expect_identical(removals, 0L)
+})
+
 test_that("Lakehouse writer serializes, loads, and cleans up after success", {
   skip_if_not_installed("arrow")
   uploaded <- NULL
@@ -1092,6 +1124,7 @@ test_that("Lakehouse writer serializes, loads, and cleans up after success", {
   )
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "load-fixed",
+    onelake_reserve_staging = function(...) invisible(TRUE),
     onelake_upload_target = function(target, credential, source, ...) {
       uploaded <<- list(
         target = target,
@@ -1174,6 +1207,7 @@ test_that("Lakehouse writer loads bounded Parquet folders", {
   )
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "multi-file",
+    onelake_reserve_staging = function(...) invisible(TRUE),
     onelake_upload_target = function(target, source, ...) {
       uploads[[length(uploads) + 1L]] <<- list(
         path = target$path,
@@ -1261,6 +1295,7 @@ test_that("Lakehouse writer reports retained staging on load failure", {
   cleanup_calls <- 0L
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "load-failed",
+    onelake_reserve_staging = function(...) invisible(TRUE),
     onelake_upload_target = function(...) tibble::tibble(),
     .fabric_lakehouse_load_submit = function(...) {
       rlang::abort(
@@ -1313,6 +1348,7 @@ test_that("Lakehouse writer never removes staging after an ambiguous timeout", {
   cleanup_calls <- 0L
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "load-timeout",
+    onelake_reserve_staging = function(...) invisible(TRUE),
     onelake_upload_target = function(...) tibble::tibble(),
     .fabric_lakehouse_load_submit = function(...) {
       rlang::abort(
@@ -1353,6 +1389,7 @@ test_that("Lakehouse writer retains staging when accepted-load polling fails", {
   )
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() paste0("poll-", poll_status),
+    onelake_reserve_staging = function(...) invisible(TRUE),
     onelake_upload_target = function(target, credential, ...) {
       storage_credential_seen <<- credential
       tibble::tibble(path = target$path)
@@ -1459,6 +1496,7 @@ test_that("Lakehouse writer streams a lazy Arrow Dataset", {
   )
   local_mocked_bindings(
     .fabric_lakehouse_staging_id = function() "lazy-dataset",
+    onelake_reserve_staging = function(...) invisible(TRUE),
     onelake_upload_target = function(target, credential, source, ...) {
       uploaded <<- as.data.frame(arrow::read_parquet(source))
       tibble::tibble(path = target$path)

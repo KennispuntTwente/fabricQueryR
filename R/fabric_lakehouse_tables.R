@@ -701,6 +701,8 @@ fabric_lakehouse_write_table <- function(
 
   # 4 Upload every complete staged part -----------------------------------------------------------
 
+  # Only a successful exclusive reservation permits the cleanup paths below.
+  onelake_reserve_staging(storage_target, storage_credential)
   tryCatch(
     for (index in seq_along(storage_targets)) {
       onelake_upload_target(
@@ -714,7 +716,7 @@ fabric_lakehouse_write_table <- function(
           8 * 1024^2
         ),
         content_type = "application/vnd.apache.parquet",
-        create_parents = TRUE
+        create_parents = FALSE
       )
     },
     error = function(error) {

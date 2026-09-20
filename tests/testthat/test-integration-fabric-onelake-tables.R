@@ -1,5 +1,84 @@
 # Fabric integration coverage: schema-aware table metadata and managed loads
 
+test_that("table writer staging collisions preserve existing directory contents", {
+  fabric_test_require_package("arrow")
+  manifest <- fabric_test_manifest()
+  lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
+  warehouse <- fabric_test_manifest_item(manifest, "TestWarehouse")
+  token <- fabric_test_token_provider()
+  root <- paste0("Files/fabricqueryr-collision-", basename(tempfile()))
+  path <- paste0(root, "/existing/marker.txt")
+  marker <- charToRaw("belongs to a different operation")
+  root_target <- onelake_resolve_target(
+    manifest$workspace_id,
+    lakehouse$id,
+    paste0(root, "/marker.txt")
+  )
+  onelake_reserve_staging(root_target, fabric_credential(token = token))
+  on.exit(
+    fabric_onelake_delete(
+      manifest$workspace_id,
+      lakehouse$id,
+      root,
+      recursive = TRUE,
+      confirm = TRUE,
+      token = token
+    ),
+    add = TRUE
+  )
+  fabric_onelake_upload(
+    manifest$workspace_id,
+    lakehouse$id,
+    path,
+    source = marker,
+    token = token
+  )
+  local_mocked_bindings(
+    .fabric_lakehouse_staging_id = function() "existing",
+    .fabric_warehouse_staging_id = function() "existing"
+  )
+  for (kind in c("lakehouse", "warehouse")) {
+    writer <- if (kind == "lakehouse") {
+      function() {
+        fabric_lakehouse_write_table(
+          lakehouse,
+          "collision_test",
+          data.frame(id = 1L),
+          workspace = manifest$workspace_id,
+          staging_root = root,
+          keep_staging_on_failure = FALSE,
+          token = token
+        )
+      }
+    } else {
+      function() {
+        fabric_warehouse_write_table(
+          warehouse,
+          "collision_test",
+          data.frame(id = 1L),
+          workspace = manifest$workspace_id,
+          staging_lakehouse = lakehouse,
+          staging_root = root,
+          keep_staging_on_failure = FALSE,
+          token = token
+        )
+      }
+    }
+    error <- tryCatch(writer(), error = identity)
+    expect_s3_class(error, "fabric_http_error")
+    expect_in(error$status, c(409L, 412L))
+    expect_identical(
+      fabric_onelake_download(
+        manifest$workspace_id,
+        lakehouse$id,
+        path,
+        token = token
+      ),
+      marker
+    )
+  }
+})
+
 test_that("OneLake table metadata APIs report existence", {
   manifest <- fabric_test_manifest()
   lakehouse <- fabric_test_manifest_item(manifest, "TestLakehouse")
