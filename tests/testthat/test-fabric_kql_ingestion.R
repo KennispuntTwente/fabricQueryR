@@ -660,6 +660,41 @@ test_that("ingestion status redacts every storage credential suffix", {
   expect_match(captured$url, "details=true", fixed = TRUE)
 })
 
+test_that("raw operation status can be polled and resumed after serialization", {
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    expect_match(req$url, "/Telemetry/Raw/operation%3Bresume", fixed = TRUE)
+    kusto_ingestion_test_response(
+      if (calls <= 3L) {
+        kusto_ingestion_test_status(in_progress = 1L)
+      } else {
+        kusto_ingestion_test_status(succeeded = 1L)
+      },
+      url = req$url
+    )
+  })
+  status <- fabric_kql_ingestion_status(
+    "operation;resume",
+    cluster = "https://ingest-cluster.kusto.fabric.microsoft.com",
+    database = "Telemetry",
+    table = "Raw",
+    token = "original-secret-token"
+  )
+  expect_identical(status$expected, NA_integer_)
+  status <- fabric_kql_ingestion_status(status)
+  saved <- serialize(status, NULL, ascii = TRUE)
+  expect_identical(grepl("original-secret-token", rawToChar(saved)), FALSE)
+  resumed <- fabric_kql_ingestion_status(
+    unserialize(saved),
+    token = "replacement-secret-token"
+  )
+  result <- fabric_kql_ingestion_status(resumed, wait = TRUE)
+  expect_identical(result$state, "Succeeded")
+  expect_identical(result$expected, NA_integer_)
+  expect_identical(calls, 4L)
+})
+
 test_that("ingestion status permits a missing last-updated timestamp", {
   response <- kusto_ingestion_test_status(in_progress = 1L)
   response$lastUpdated <- NULL

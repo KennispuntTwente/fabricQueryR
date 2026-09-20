@@ -1048,6 +1048,37 @@ test_that("Warehouse and mirrored methods all delegate their item identity", {
   expect_identical(mirrored_delta$workspace_name, mirrored$workspaceId)
 })
 
+test_that("KQL methods resume status records reconstructed from raw IDs", {
+  database <- fabric_r6_record(
+    list(
+      id = "11111111-1111-4111-8111-111111111111",
+      type = "KQLDatabase",
+      displayName = "Telemetry",
+      ingestion_service_uri = "https://ingest-cluster.kusto.fabric.microsoft.com"
+    ),
+    legacy_class = c("fabric_item", "list"),
+    credential = fabric_credential(token = "discovery-token")
+  )
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    kusto_ingestion_test_response(
+      if (calls < 3L) {
+        kusto_ingestion_test_status(in_progress = 1L)
+      } else {
+        kusto_ingestion_test_status(succeeded = 1L)
+      },
+      url = req$url
+    )
+  })
+  status <- database$ingestion_status("saved-operation", table = "Raw")
+  status <- database$ingestion_status(status)
+  saved <- unserialize(serialize(status, NULL))
+  result <- database$ingestion_wait(saved)
+  expect_identical(result$state, "Succeeded")
+  expect_identical(result$operation_id, "saved-operation")
+})
+
 test_that("KQL and GraphQL methods all delegate their item identity", {
   calls <- new.env(parent = emptyenv())
   mapping <- c(

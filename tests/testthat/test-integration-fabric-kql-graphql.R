@@ -453,6 +453,21 @@ test_that("tracked Eventhouse ingestion completes and prevents duplicates", {
   expect_equal(status$succeeded, 1)
   expect_equal(status$details$source_id, ingestion$sources$source_id)
 
+  recovered <- fabric_kql_ingestion_status(
+    ingestion$id,
+    cluster = database,
+    table = table,
+    token = token
+  )
+  resumed <- fabric_kql_ingestion_status(
+    unserialize(serialize(recovered, NULL)),
+    token = token
+  )
+  expect_equal(
+    fabric_kql_ingestion_status(resumed, wait = TRUE)$state,
+    "Succeeded"
+  )
+
   rows <- fabric_kql_query(
     database$query_service_uri,
     query = paste(table, "| order by id asc"),

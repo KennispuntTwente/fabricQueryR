@@ -1017,6 +1017,11 @@ kusto_ingestion_context <- function(
     } else {
       kusto_ingestion_credential(ingestion)
     }
+    if (isTRUE(override_auth)) {
+      reference <- kusto_ingestion_credential_reference(credential)
+      ingestion$credential <- reference$reference
+      ingestion$.credential_key <- reference$key
+    }
     target <- kusto_resolve_ingestion_target(
       ingestion$endpoint,
       ingestion$database,
@@ -1046,12 +1051,25 @@ kusto_ingestion_context <- function(
     token = token,
     auth_args = auth_args
   )
+  handle <- kusto_ingestion_handle(
+    ingestion,
+    target,
+    blobs = list(),
+    format = NULL,
+    mapping = NULL,
+    tags = NULL,
+    ingest_if_not_exists = NULL,
+    credential = credential,
+    request_id = NULL
+  )
+  handle$source_count <- NA_integer_
+  handle$submitted_at <- as.POSIXct(NA, tz = "UTC")
   list(
     id = ingestion,
     target = target,
     expected_count = NA_integer_,
     credential = credential,
-    ingestion = NULL
+    ingestion = handle
   )
 }
 
