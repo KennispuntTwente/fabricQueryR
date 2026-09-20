@@ -35,7 +35,8 @@ fabric_job_schedule_config(
 - start_time, end_time:
 
   A scalar `POSIXt` value or RFC 3339 string with an explicit `Z` or
-  numeric offset. These boundaries are converted to UTC.
+  numeric offset. These boundaries are converted to UTC. Fractional
+  seconds are rejected; round or truncate explicitly before use.
 
 - time_zone:
 

@@ -75,7 +75,8 @@ UTC.</p>
 
 <dt id="arg-start-time-end-time">start_time, end_time<a class="anchor" aria-label="anchor" href="#arg-start-time-end-time"></a></dt>
 <dd><p>A scalar <code>POSIXt</code> value or RFC 3339 string with an
-explicit <code>Z</code> or numeric offset. These boundaries are converted to UTC.</p></dd>
+explicit <code>Z</code> or numeric offset. These boundaries are converted to UTC.
+Fractional seconds are rejected; round or truncate explicitly before use.</p></dd>
 
 
 <dt id="arg-time-zone">time_zone<a class="anchor" aria-label="anchor" href="#arg-time-zone"></a></dt>
