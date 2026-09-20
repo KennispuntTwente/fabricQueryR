@@ -847,11 +847,14 @@ test_that("fabric_graphql_query executes variables and preserves nulls", {
 test_that("GraphQL discovery by workspace name uses workspace-specific endpoints", {
   manifest <- fabric_test_manifest()
   provisioned <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  auth <- fabric_test_azure_auth_config()
   api <- fabric_item(
     manifest$workspace_name,
     provisioned$id,
     type = "GraphQLApi",
-    token = fabric_test_token_provider()
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args
   )
   expect_match(api$workspaceApiEndpoint, "^https://")
   expect_equal(
@@ -871,12 +874,18 @@ test_that("GraphQL discovery by workspace name uses workspace-specific endpoints
 test_that("disabled Fabric GraphQL introspection reports its setting", {
   manifest <- fabric_test_manifest()
   api <- fabric_test_manifest_item(manifest, "TestGraphQL")
+  auth <- fabric_test_azure_auth_config()
   endpoint <- Sys.getenv("FABRIC_TEST_GRAPHQL_DISABLED_ENDPOINT")
   if (!nzchar(endpoint)) {
     endpoint <- api$endpoint
   }
   outcome <- expect_error(
-    fabric_graphql_schema(endpoint, token = fabric_test_token_provider()),
+    fabric_graphql_schema(
+      endpoint,
+      tenant_id = auth$tenant_id,
+      client_id = auth$client_id,
+      auth_args = auth$auth_args
+    ),
     class = "fabric_graphql_introspection_error"
   )
   expect_match(outcome$message, "API Settings > Introspection", fixed = TRUE)
@@ -894,7 +903,12 @@ test_that("enabled Fabric GraphQL introspection resolves collection type referen
     "FABRIC_TEST_GRAPHQL_INTROSPECTION_ROOT"
   )
   fabric_test_manifest()
-  token <- fabric_test_token_provider()
+  auth <- fabric_test_azure_auth_config()
+  token <- fabric_credential(
+    tenant_id = auth$tenant_id,
+    client_id = auth$client_id,
+    auth_args = auth$auth_args
+  )
   schema <- fabric_graphql_schema(endpoint, token = token)
   expect_s3_class(schema, "fabric_graphql_schema")
   types <- stats::setNames(
