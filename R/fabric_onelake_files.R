@@ -387,7 +387,11 @@ fabric_onelake_read_file <- function(
           col_names = col_names,
           na = na,
           col_types = col_types,
-          skip_empty_rows = FALSE
+          skip_empty_rows = FALSE,
+          parse_options = arrow::CsvParseOptions$create(
+            newlines_in_values = TRUE,
+            ignore_empty_lines = FALSE
+          )
         ),
         arrow = if (.fabric_onelake_ipc_file(local_path)) {
           arrow::read_feather(local_path, as_data_frame = FALSE)
@@ -2235,7 +2239,11 @@ onelake_commit_new_download <- function(temporary, dest) {
     col_names = col_names,
     na = na,
     col_types = col_types,
-    skip_empty_rows = FALSE
+    skip_empty_rows = FALSE,
+    parse_options = arrow::CsvParseOptions$create(
+      newlines_in_values = TRUE,
+      ignore_empty_lines = FALSE
+    )
   )
   schema <- source$schema
   explicit <- if (is.null(col_types)) character() else names(col_types)
@@ -2293,7 +2301,11 @@ onelake_commit_new_download <- function(temporary, dest) {
           col_names = col_names,
           na = na,
           col_types = col_types,
-          skip_empty_rows = FALSE
+          skip_empty_rows = FALSE,
+          parse_options = arrow::CsvParseOptions$create(
+            newlines_in_values = TRUE,
+            ignore_empty_lines = FALSE
+          )
         )
         reader <- arrow::as_record_batch_reader(owner)
       } else if (.fabric_onelake_ipc_file(path)) {

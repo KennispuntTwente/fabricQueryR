@@ -2374,6 +2374,41 @@ test_that("OneLake distinguishes literal percent filenames from URI escapes", {
   expect_identical(target$path, "Files/a%2Fb.txt")
   expect_match(onelake_path_url(target), "/Files/a%252Fb.txt$", fixed = FALSE)
 })
+test_that("large CSV round trips preserve quoted embedded newlines", {
+  skip_if_not_installed("arrow")
+  fixture <- withr::local_tempfile(fileext = ".csv")
+  local_mocked_bindings(
+    fabric_onelake_upload = function(source, ...) {
+      file.copy(source, fixture, overwrite = TRUE)
+      tibble::tibble(path = "Files/multiline.csv")
+    },
+    fabric_onelake_download = function(dest, ...) {
+      file.copy(fixture, dest)
+      invisible(dest)
+    }
+  )
+  data <- tibble::tibble(
+    id = seq_len(40000L),
+    value = rep(paste0(strrep("a", 50L), "\n", strrep("b", 50L)), 40000L)
+  )
+  fabric_onelake_write_file("workspace", "item", "Files/multiline.csv", data)
+  expect_gt(file.size(fixture), 4 * 1024^2)
+  for (output in c("tibble", "arrow_stream")) {
+    result <- fabric_onelake_read_file(
+      "workspace",
+      "item",
+      "Files/multiline.csv",
+      result = output
+    )
+    if (output == "arrow_stream") {
+      stream <- result
+      withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
+      result <- .fabric_arrow_exact_tibble(stream)
+    }
+    expect_equal(result, data)
+  }
+})
+
 test_that("CSV round trips retain leading trailing consecutive and all missing rows", {
   skip_if_not_installed("arrow")
   fixture <- withr::local_tempfile(fileext = ".csv")
