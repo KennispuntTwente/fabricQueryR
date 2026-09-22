@@ -38,7 +38,11 @@ jobs:
           needs: website, ci
 
       - name: Build site
-        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        run: |
+          # pkgdown renders root and .github Markdown as public pages.
+          # Remove internal notes only from this disposable CI checkout.
+          unlink(c(".github/copilot-instructions.md", "RELEASE-CHECKLIST.md"))
+          pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
 
       - name: Deploy to GitHub pages 🚀
