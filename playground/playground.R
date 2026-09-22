@@ -11,6 +11,19 @@ playground_require_sandbox <- function(sandbox) {
   invisible(sandbox)
 }
 
+playground_target <- function(sandbox, target) {
+  playground_require_sandbox(sandbox)
+  item <- sandbox$targets[[target]]
+  if (is.null(item)) {
+    cli::cli_abort(c(
+      "The sandbox has no {.val {target}} target",
+      "i" = "SQL Database can be omitted when the capacity's database limit is reached",
+      "i" = "Use {.code names(Filter(Negate(is.null), sandbox$targets))} to list available targets"
+    ))
+  }
+  item
+}
+
 playground_table_row <- function(tables, name, schema = NULL) {
   matches <- tables$name == name
   if (!is.null(schema) && "schema" %in% names(tables)) {
@@ -75,10 +88,18 @@ demo_discovery <- function(sandbox) {
   )
 }
 
-# Query every seeded SQL surface through the package's one-shot helpers
-demo_sql <- function(sandbox, backend = c("odbc", "adbc")) {
+# Query available SQL surfaces, or choose one with targets = "warehouse"
+demo_sql <- function(
+  sandbox,
+  backend = c("odbc", "adbc"),
+  targets = c("lakehouse", "warehouse", "warehouse_snapshot", "sql_database"),
+  numeric_policy = c("auto", "exact", "driver"),
+  verbose = FALSE
+) {
   playground_require_sandbox(sandbox)
   backend <- match.arg(backend)
+  numeric_policy <- match.arg(numeric_policy)
+  targets <- match.arg(targets, several.ok = TRUE)
 
   cases <- list(
     lakehouse = list(
@@ -99,11 +120,25 @@ demo_sql <- function(sandbox, backend = c("odbc", "adbc")) {
     )
   )
 
+  cases <- cases[targets]
+  missing <- names(cases)[vapply(
+    cases,
+    function(case) {
+      is.null(case$target)
+    },
+    logical(1)
+  )]
+  if (length(missing)) {
+    cli::cli_inform("Skipping unavailable SQL target{?s}: {.val {missing}}")
+    cases <- cases[setdiff(names(cases), missing)]
+  }
+
   lapply(cases, function(case) {
     tables <- fabric_sql_tables(
       case$target,
       schema = "dbo",
       backend = backend,
+      verbose = verbose,
       token = sandbox$token
     )
     rows <- fabric_sql_read_table(
@@ -113,6 +148,8 @@ demo_sql <- function(sandbox, backend = c("odbc", "adbc")) {
       columns = c("id", "name", "amount"),
       limit = 3L,
       backend = backend,
+      numeric_policy = numeric_policy,
+      verbose = verbose,
       token = sandbox$token
     )
     summary <- fabric_sql_query(
@@ -123,6 +160,8 @@ demo_sql <- function(sandbox, backend = c("odbc", "adbc")) {
         paste0("FROM dbo.[", case$table, "]")
       ),
       backend = backend,
+      numeric_policy = numeric_policy,
+      verbose = verbose,
       token = sandbox$token
     )
 
@@ -144,12 +183,43 @@ open_playground_sql_connection <- function(
   playground_require_sandbox(sandbox)
   target <- match.arg(target)
   backend <- match.arg(backend)
+  item <- playground_target(sandbox, target)
 
   fabric_sql_connect(
-    sandbox$targets[[target]],
+    item,
     backend = backend,
     token = sandbox$token
   )
+}
+
+# Process a SQL result batch by batch and close both stream handles on exit
+demo_arrow_batches <- function(sandbox, backend = c("odbc", "adbc")) {
+  warehouse <- playground_target(sandbox, "warehouse")
+  backend <- match.arg(backend)
+  stream <- warehouse$sql_query(
+    "SELECT id, name, amount FROM dbo.fabricqueryr_sql_types ORDER BY id",
+    backend = backend,
+    result = "arrow_stream"
+  )
+  on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+  reader <- arrow::as_record_batch_reader(stream)
+  on.exit(reader$Close(), add = TRUE, after = FALSE)
+  batches <- 0L
+  rows <- 0
+  amount_sum <- 0
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) {
+      break
+    }
+    data <- as.data.frame(batch)
+    batches <- batches + 1L
+    rows <- rows + nrow(data)
+    amount_sum <- amount_sum + sum(as.numeric(data$amount), na.rm = TRUE)
+  }
+  # This sum demonstrates batch processing of the small seeded amounts.
+  # Converting exact decimal strings to numeric deliberately loses precision.
+  list(batches = batches, rows = rows, amount_sum = amount_sum)
 }
 
 # Read seeded files, Delta tables, and a mirrored table through OneLake
@@ -517,10 +587,10 @@ demo_power_bi <- function(sandbox) {
   )
 }
 
-# Submit a semantic-model refresh and wait for its terminal state
+# Refresh the Import model; the JSON demo's Push model cannot be refreshed
 demo_power_bi_refresh <- function(sandbox) {
   playground_require_sandbox(sandbox)
-  model <- sandbox$targets$semantic_model
+  model <- sandbox$targets$arrow_semantic_model
   refresh <- fabric_pbi_refresh(
     model,
     token = sandbox$token,

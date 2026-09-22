@@ -7,7 +7,7 @@ test_that("playground R files parse", {
 
   expect_setequal(
     basename(files),
-    c("playground.R", "sandbox.R")
+    c("playground.R", "sandbox.R", "tour.R")
   )
   for (file in files) {
     expect_type(parse(file = file), "expression")
@@ -29,6 +29,7 @@ test_that("playground exposes persistent sandbox demos", {
     "connect_playground_sandbox",
     "demo_discovery",
     "demo_sql",
+    "demo_arrow_batches",
     "demo_onelake",
     "demo_onelake_write",
     "demo_onelake_shortcut",
@@ -70,7 +71,10 @@ test_that("playground discovery and refresh execute with R6 sandbox objects", {
     list(
       workspace = workspace,
       items = list(),
-      targets = list(semantic_model = list(id = "model")),
+      targets = list(
+        semantic_model = list(id = "push-model"),
+        arrow_semantic_model = list(id = "import-model")
+      ),
       token = function(...) "token"
     ),
     class = "fabricqueryr_playground_sandbox"
@@ -90,6 +94,7 @@ test_that("playground discovery and refresh execute with R6 sandbox objects", {
   )
   principal <- NULL
   environment$fabric_pbi_refresh <- function(model, token, principal_type) {
+    expect_identical(model$id, "import-model")
     principal <<- principal_type
     list(state = "Completed")
   }
@@ -159,7 +164,7 @@ test_that("playground targets allow names shared by different item types", {
 })
 
 test_that("playground examples do not embed live Fabric endpoints", {
-  files <- .playground_test_path(c("playground.R", "sandbox.R"))
+  files <- .playground_test_path(c("playground.R", "sandbox.R", "tour.R"))
   source <- paste(
     unlist(lapply(files, readLines, warn = FALSE), use.names = FALSE),
     collapse = "\n"
@@ -176,6 +181,86 @@ test_that("playground examples do not embed live Fabric endpoints", {
     ),
     FALSE
   )
+})
+
+test_that("playground SQL skips absent targets and forwards precision choices", {
+  environment <- new.env(parent = globalenv())
+  sys.source(.playground_test_path("playground.R"), envir = environment)
+  sandbox <- structure(
+    list(
+      targets = list(warehouse = list(id = "warehouse")),
+      token = function(...) "token"
+    ),
+    class = "fabricqueryr_playground_sandbox"
+  )
+  calls <- 0L
+  environment$fabric_sql_tables <- function(server, ...) {
+    expect_identical(server$id, "warehouse")
+    data.frame(name = "fabricqueryr_sql_types", schema = "dbo")
+  }
+  read <- function(server, backend, numeric_policy, ...) {
+    expect_identical(server$id, "warehouse")
+    expect_identical(backend, "adbc")
+    expect_identical(numeric_policy, "exact")
+    calls <<- calls + 1L
+    data.frame(amount = "10.50")
+  }
+  environment$fabric_sql_read_table <- read
+  environment$fabric_sql_query <- read
+  environment$fabric_sql_connection_info <- function(server) list()
+  expect_message(
+    result <- environment$demo_sql(
+      sandbox,
+      backend = "adbc",
+      targets = c("warehouse", "sql_database"),
+      numeric_policy = "exact"
+    ),
+    "Skipping unavailable SQL target"
+  )
+  expect_named(result, "warehouse")
+  expect_identical(calls, 2L)
+  expect_identical(result$warehouse$rows$amount, "10.50")
+
+  error <- tryCatch(
+    environment$open_playground_sql_connection(
+      sandbox,
+      target = "sql_database"
+    ),
+    error = identity
+  )
+  expect_s3_class(error, "error")
+  expect_match(conditionMessage(error), "sandbox has no", fixed = TRUE)
+})
+
+test_that("playground batch demo processes and releases a real Arrow stream", {
+  skip_if_not_installed("arrow", "9.0.0")
+  skip_if_not_installed("nanoarrow", "0.6.0")
+  environment <- new.env(parent = globalenv())
+  sys.source(.playground_test_path("playground.R"), envir = environment)
+  stream <- nanoarrow::as_nanoarrow_array_stream(data.frame(
+    id = 1:3,
+    name = c("alpha", "beta", "gamma"),
+    amount = c("10.50", "20.00", NA_character_)
+  ))
+  sandbox <- structure(
+    list(
+      targets = list(
+        warehouse = list(
+          sql_query = function(sql, backend, result) {
+            expect_identical(backend, "adbc")
+            expect_identical(result, "arrow_stream")
+            stream
+          }
+        )
+      )
+    ),
+    class = "fabricqueryr_playground_sandbox"
+  )
+  result <- environment$demo_arrow_batches(sandbox, backend = "adbc")
+  expect_identical(result$rows, 3)
+  expect_identical(result$amount_sum, 30.5)
+  expect_gte(result$batches, 1L)
+  expect_identical(nanoarrow::nanoarrow_pointer_is_valid(stream), FALSE)
 })
 test_that("playground GraphQL objects retain application authentication", {
   environment <- new.env(parent = globalenv())
