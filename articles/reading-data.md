@@ -92,6 +92,22 @@ results with INT, BIGINT, DECIMAL, or NUMERIC columns. Use
 `backend = "adbc"` with the default exact policy to preserve numeric
 precision.
 
+The ADBC backend needs the optional ‘adbi’ and ‘adbcdrivermanager’
+packages, plus the Microsoft SQL Server ADBC driver. ‘adbi’ is available
+from the R-DBI repository while it is archived on CRAN:
+
+``` r
+
+install.packages(
+  c("adbi", "adbcdrivermanager"),
+  repos = c("https://r-dbi.r-universe.dev", "https://cloud.r-project.org")
+)
+```
+
+Install the SQL Server driver separately with `dbc install mssql`. See
+[`?fabric_sql_connect`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
+for driver selection and connection options.
+
 Put changing values in `params` rather than pasting them into the SQL
 text. This handles quoting safely. Use `$sql_connect()`
 ([`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md))

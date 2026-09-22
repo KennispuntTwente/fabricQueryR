@@ -33,16 +33,13 @@ consistency.
 
 ## Sign in
 
-This development guide uses APIs that may not yet be in the CRAN
-release. Install the development version, load it, and set your
-organization’s Microsoft Entra tenant ID:
+This guide uses APIs available in ‘fabricQueryR’ 1.0.0 and later.
+Install the package, load it, and set your organization’s Microsoft
+Entra tenant ID:
 
 ``` r
 
-if (!requireNamespace("remotes", quietly = TRUE)) {
-  install.packages("remotes")
-}
-remotes::install_github("kennispunttwente/fabricQueryR")
+install.packages("fabricQueryR")
 
 library(fabricQueryR)
 Sys.setenv(FABRICQUERYR_TENANT_ID = "<your-tenant-id>")
