@@ -129,15 +129,15 @@ Entra tenant ID:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"fabricQueryR"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_TENANT_ID <span class="op">=</span> <span class="st">"&lt;your-tenant-id&gt;"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Optional, if your organization requires an approved application:</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_CLIENT_ID <span class="op">=</span> <span class="st">"&lt;your-app-client-id&gt;"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_TENANT_ID <span class="op">=</span> <span class="st">"&lt;your-tenant-id&gt;"</span><span class="op">)</span></span></code></pre></div>
 <p>The first Fabric call may open a browser. Sign in with the same work
 or school account that you use in the Fabric portal.</p>
 <p>If your organization requires an approved application, your
 administrator may also give you a client ID to set as
 <code>FABRICQUERYR_CLIENT_ID</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Run this only when your administrator supplies a client ID:</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>FABRICQUERYR_CLIENT_ID <span class="op">=</span> <span class="st">"&lt;your-app-client-id&gt;"</span><span class="op">)</span></span></code></pre></div>
 <p>The <a href="authentication.html">authentication vignette</a>
 explains this setup and the different ways to authenticate in more
 detail.</p>
@@ -146,7 +146,7 @@ detail.</p>
 <h2 id="find-a-workspace-and-an-item">Find a workspace and an item<a class="anchor" aria-label="anchor" href="#find-a-workspace-and-an-item"></a>
 </h2>
 <p>Start by listing the workspaces that your account can access:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># List all workspaces you can access</span></span>
 <span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>The result is a list of <code>FabricWorkspace</code> R6 objects. Each
@@ -156,13 +156,13 @@ discovery methods. For example, <code>$items()</code> corresponds to
 to <code><a href="../reference/fabric_typed_items.html">fabric_lakehouses()</a></code>. If the list is empty, check that
 your account has been granted access to a workspace in the Fabric
 portal. If the list is not empty, select a specific workspace:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Select the first workspace in the list</span></span>
 <span><span class="va">workspace</span> <span class="op">&lt;-</span> <span class="va">workspaces</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">workspace</span><span class="op">$</span><span class="va">displayName</span></span></code></pre></div>
 <p>For a script that will run repeatedly, selecting by exact name is
 more robust:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Select a workspace by name</span></span>
 <span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">matches</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Filter</a></span><span class="op">(</span></span>
@@ -174,7 +174,7 @@ more robust:</p>
 <p>Now list all items with <code>$items()</code>
 (<code><a href="../reference/fabric_items.html">fabric_items()</a></code>), or ask directly for Lakehouses with
 <code>$lakehouses()</code> (<code><a href="../reference/fabric_typed_items.html">fabric_lakehouses()</a></code>):</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># List all items in the workspace</span></span>
 <span><span class="va">items</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">items</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">items</span></span>
@@ -210,7 +210,7 @@ simple first workflow. Use <code>$tables()</code>
 (<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code>) to discover its tables and
 <code>$read_table()</code> (<code><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>)
 to read one:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># List the tables in the Lakehouse</span></span>
 <span><span class="va">tables</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">tables</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">tables</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"schema"</span>, <span class="st">"name"</span>, <span class="st">"type"</span><span class="op">)</span><span class="op">]</span></span>
@@ -228,6 +228,12 @@ to read one:</p>
 plotting packages, or other familiar R tools. <code>limit = 100L</code>
 keeps this first request small while you confirm that access and table
 selection are correct.</p>
+<p>This direct Delta read uses Python through ‘reticulate’. The first
+read may download the required runtime and packages. Use
+<code><a href="../reference/fabric_delta_config.html">fabric_delta_config()</a></code> to inspect requirements, or
+<code>fabric_delta_config(initialize = TRUE)</code> to prepare the
+runtime before reading. Direct reads also need OneLake data access; use
+SQL or Spark if the table uses an unsupported Delta feature. The <a href="reading-data.html">reading guide</a> explains these choices.</p>
 </div>
 <div class="section level2">
 <h2 id="choose-the-next-guide">Choose the next guide<a class="anchor" aria-label="anchor" href="#choose-the-next-guide"></a>

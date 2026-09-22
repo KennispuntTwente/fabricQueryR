@@ -253,7 +253,10 @@ with KQL. Discover KQL databases with <code>$kql_databases()</code>
 <span></span>
 <span><span class="va">kql_result</span><span class="op">$</span><span class="va">status</span><span class="op">$</span><span class="va">state</span></span></code></pre></div>
 <p>The high-level writer stages the R object, submits tracked ingestion,
-waits, and cleans up after confirmed success.</p>
+and waits. With the default <code>cleanup = TRUE</code>, service-owned
+Storage sources can be deleted after download, before ingestion
+succeeds. OneLake staging is deleted only after confirmed success. Use
+<code>cleanup = FALSE</code> to retain staging for recovery.</p>
 <p><a href="eventhouse-ingestion.html">Working with Fabric Eventhouses
 (real-time data)</a> covers predefined mappings, existing storage files,
 idempotency keys, and failure recovery.</p>

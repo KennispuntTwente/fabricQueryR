@@ -36,32 +36,6 @@ runtime:
 | `Code.AccessAzureDataExplorer.All` | Azure Data Explorer (Kusto) |
 | `Code.AccessSQL.All` | Azure SQL |
 
-An explicit `audience` replaces the defaults rather than extending them.
-For example, include all four required scopes when adding Azure SQL
-access. The Lakehouse `$livy_query()` method below calls
-[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md):
-
-``` r
-
-livy_scopes <- paste0(
-  paste0("https", "://api.fabric.microsoft.com/"),
-  c(
-    "Lakehouse.Execute.All",
-    "Lakehouse.Read.All",
-    "Code.AccessFabric.All",
-    "Code.AccessStorage.All",
-    "Code.AccessSQL.All"
-  )
-)
-
-# `$livy_query()` is the object interface to `fabric_livy_query()`
-result <- lakehouse$livy_query(
-  code = "SELECT * FROM external_sql_table",
-  kind = "sql",
-  audience = livy_scopes
-)
-```
-
 Client-credentials authentication instead uses the single Fabric/Power
 BI `.default` audience selected by the package. Microsoft currently
 documents service-principal (SPN) tokens for session jobs. Add that
@@ -107,6 +81,32 @@ expose the service metadata. `$livy_query()`, `$livy_session()`, and
 [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md),
 and
 [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
+
+An explicit `audience` replaces the defaults rather than extending them.
+For example, include all four required scopes when adding Azure SQL
+access. The Lakehouse `$livy_query()` method below calls
+[`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md):
+
+``` r
+
+livy_scopes <- paste0(
+  paste0("https", "://api.fabric.microsoft.com/"),
+  c(
+    "Lakehouse.Execute.All",
+    "Lakehouse.Read.All",
+    "Code.AccessFabric.All",
+    "Code.AccessStorage.All",
+    "Code.AccessSQL.All"
+  )
+)
+
+# `$livy_query()` is the object interface to `fabric_livy_query()`
+result <- lakehouse$livy_query(
+  code = "SELECT * FROM external_sql_table",
+  kind = "sql",
+  audience = livy_scopes
+)
+```
 
 If discovery cannot retrieve the endpoint in your environment, copy the
 session-job connection string from *Lakehouse settings \> Livy endpoint*

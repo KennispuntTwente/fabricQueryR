@@ -177,10 +177,18 @@ Spark, or another appropriate writer to change their data
 `backend = "odbc"` is the default and works well for ordinary 'DBI' use.
 It requires Microsoft ODBC Driver 18 or newer. Use `backend = "adbc"`
 when you want a native Arrow result path, typically for larger
-analytical results ADBC requires version 1.5.0 or newer of the external
-`mssql` driver, where Fabric Data Warehouse support was introduced.
-Install or update it separately with `dbc install mssql`. The connected
-driver must report its version through the standard ADBC information API
+analytical results.
+
+Install the R packages 'DBI' and 'odbc' for ODBC, or 'DBI', 'adbi', and
+'adbcdrivermanager' for ADBC. 'adbi' is archived on CRAN and is
+available from `https://r-dbi.r-universe.dev`; see
+[`vignette("reading-data", package = "fabricQueryR")`](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md)
+for installation.
+
+ADBC requires version 1.5.0 or newer of the external `mssql` driver,
+where Fabric Data Warehouse support was introduced. Install or update it
+separately with `dbc install mssql`. The connected driver must report
+its version through the standard ADBC information API
 
 ## Connection and permissions
 

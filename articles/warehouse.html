@@ -67,10 +67,11 @@ how to add or replace data from R.</p>
 <div class="section level2">
 <h2 id="find-and-connect-to-a-warehouse">Find and connect to a Warehouse<a class="anchor" aria-label="anchor" href="#find-and-connect-to-a-warehouse"></a>
 </h2>
-<p>Start by finding the workspace and Warehouse by name. The returned
-<code>warehouse</code> is a read-only <code>FabricWarehouse</code> R6
-object. It keeps its Fabric fields, IDs, SQL connection details, and
-credential, and provides methods for the useful next actions:</p>
+<p>Find the workspace by name, then select one of its Warehouses. The
+returned <code>warehouse</code> is a read-only
+<code>FabricWarehouse</code> R6 object. It keeps its Fabric fields, IDs,
+SQL connection details, and credential, and provides methods for the
+useful next actions:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
@@ -173,7 +174,13 @@ frame. Use <code>$write_table()</code>
 (<code><a href="../reference/fabric_warehouse_write_table.html">fabric_warehouse_write_table()</a></code>) when the new data should
 replace the current rows:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">replaced</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">replacement</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  id <span class="op">=</span> <span class="fl">4</span><span class="op">:</span><span class="fl">6</span>,</span>
+<span>  label <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"delta"</span>, <span class="st">"epsilon"</span>, <span class="st">"zeta"</span><span class="op">)</span>,</span>
+<span>  amount <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">40</span>, <span class="fl">50</span>, <span class="fl">60</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">replaced</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders"</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">replacement</span>,</span>
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">staging_lakehouse</span>,</span>

@@ -177,14 +177,22 @@ settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-on
 
 This function uses the Python
 [deltalake](https://pypi.org/project/deltalake/) reader through
-'reticulate' Some newer Delta features, including Type Widening, V2
-Checkpoints, and shredded Fabric Variant, are not supported by that
-reader. The reader can query an unshredded Variant table only when
-`columns` explicitly excludes every top-level column containing Variant
-values. It otherwise returns Variant's physical binary storage instead
-of decoded logical values, so this function rejects that projection. Use
-SQL or Spark (Livy) for Variant values or when the function reports
-another unsupported table feature
+'reticulate'. Python 3.10 or newer and compatible Python 'deltalake' and
+'nanoarrow' packages are required. Inspect the exact requirements with
+[`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md),
+or call `fabric_delta_config(initialize = TRUE)` to initialize the
+runtime. 'reticulate' can download a managed environment on first use;
+an already initialized custom environment must provide the required
+packages itself.
+
+Some newer Delta features, including Type Widening, V2 Checkpoints, and
+shredded Fabric Variant, are not supported by that reader. The reader
+can query an unshredded Variant table only when `columns` explicitly
+excludes every top-level column containing Variant values. It otherwise
+returns Variant's physical binary storage instead of decoded logical
+values, so this function rejects that projection. Use SQL or Spark
+(Livy) for Variant values or when the function reports another
+unsupported table feature
 
 Compatible Warehouse tables can also be read through their published
 Delta logs. If the reader cannot open a Warehouse table, use
@@ -207,13 +215,22 @@ rows <- fabric_lakehouse_read_table(
 )
 
 # Stream the same table when it may not fit in R memory
-stream <- fabric_lakehouse_read_table(
-  lakehouse = lakehouse,
-  table = table,
-  result = "arrow_stream"
-)
-reader <- arrow::as_record_batch_reader(stream)
-rows <- reader$read_table()
-reader$Close()
+row_count <- local({
+  stream <- fabric_lakehouse_read_table(
+    lakehouse = lakehouse,
+    table = table,
+    result = "arrow_stream"
+  )
+  on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+  reader <- arrow::as_record_batch_reader(stream)
+  on.exit(reader$Close(), add = TRUE, after = FALSE)
+  count <- 0
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) break
+    count <- count + batch$num_rows
+  }
+  count
+})
 } # }
 ```

@@ -7,10 +7,10 @@ how to add or replace data from R.
 
 ## Find and connect to a Warehouse
 
-Start by finding the workspace and Warehouse by name. The returned
-`warehouse` is a read-only `FabricWarehouse` R6 object. It keeps its
-Fabric fields, IDs, SQL connection details, and credential, and provides
-methods for the useful next actions:
+Find the workspace by name, then select one of its Warehouses. The
+returned `warehouse` is a read-only `FabricWarehouse` R6 object. It
+keeps its Fabric fields, IDs, SQL connection details, and credential,
+and provides methods for the useful next actions:
 
 ``` r
 
@@ -143,6 +143,12 @@ Use overwrite mode with `$write_table()`
 when the new data should replace the current rows:
 
 ``` r
+
+replacement <- data.frame(
+  id = 4:6,
+  label = c("delta", "epsilon", "zeta"),
+  amount = c(40, 50, 60)
+)
 
 replaced <- warehouse$write_table(
   table = "orders",

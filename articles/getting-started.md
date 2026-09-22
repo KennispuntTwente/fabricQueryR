@@ -43,9 +43,6 @@ install.packages("fabricQueryR")
 
 library(fabricQueryR)
 Sys.setenv(FABRICQUERYR_TENANT_ID = "<your-tenant-id>")
-
-# Optional, if your organization requires an approved application:
-Sys.setenv(FABRICQUERYR_CLIENT_ID = "<your-app-client-id>")
 ```
 
 The first Fabric call may open a browser. Sign in with the same work or
@@ -54,6 +51,12 @@ school account that you use in the Fabric portal.
 If your organization requires an approved application, your
 administrator may also give you a client ID to set as
 `FABRICQUERYR_CLIENT_ID`.
+
+``` r
+
+# Run this only when your administrator supplies a client ID:
+Sys.setenv(FABRICQUERYR_CLIENT_ID = "<your-app-client-id>")
+```
 
 The [authentication
 vignette](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md)
@@ -169,6 +172,16 @@ The result is a tibble, which can be used with base R, ‘dplyr’, plotting
 packages, or other familiar R tools. `limit = 100L` keeps this first
 request small while you confirm that access and table selection are
 correct.
+
+This direct Delta read uses Python through ‘reticulate’. The first read
+may download the required runtime and packages. Use
+[`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
+to inspect requirements, or `fabric_delta_config(initialize = TRUE)` to
+prepare the runtime before reading. Direct reads also need OneLake data
+access; use SQL or Spark if the table uses an unsupported Delta feature.
+The [reading
+guide](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md)
+explains these choices.
 
 ## Choose the next guide
 

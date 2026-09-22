@@ -15,7 +15,7 @@ historical reads.
 
 ## Find and connect to a Lakehouse
 
-Start by finding the workspace and Lakehouse by name:
+Find the workspace by name, then select one of its Lakehouses:
 
 ``` r
 
@@ -48,9 +48,17 @@ SQL query, call `$sql_query()`
 ``` r
 
 orders <- lakehouse$sql_query(
-  "SELECT TOP 10 * FROM dbo.orders"
+  "SELECT TOP 10 * FROM dbo.orders",
+  numeric_policy = "driver"
 )
 ```
+
+This example accepts ODBC’s numeric conversion, which can lose
+precision. The default `numeric_policy = "exact"` rejects ODBC results
+with INT, BIGINT, DECIMAL, or NUMERIC columns. Use `backend = "adbc"`
+with the default exact policy when those values must be preserved; see
+the setup in [Bring Fabric data into
+R](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md).
 
 The method opens and closes the SQL connection for you. If you want to
 run several commands with ‘DBI’, use `$sql_connect()`
@@ -75,9 +83,16 @@ only when you want to keep a connection open for several ‘DBI’ calls.
 You can also read a Delta table directly through OneLake with
 `$read_table()`
 ([`fabric_lakehouse_read_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_read_table.md)).
-This is useful for an Arrow stream or an earlier table version. The
-`$onelake_*()` methods correspond to the `fabric_onelake_*()` functions
-and work with ordinary files under `Files/`, while `$write_table()`
+This is useful for an Arrow stream or an earlier table version. Direct
+Delta reads use Python through ‘reticulate’; see
+[`?fabric_delta_config`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
+for runtime requirements and setup diagnostics. They require OneLake
+data access and a supported Delta protocol. Use SQL or Spark for tables
+with unsupported features such as Type Widening or V2 Checkpoints.
+
+The `$onelake_*()` methods correspond to the `fabric_onelake_*()`
+functions and work with ordinary files under `Files/`, while
+`$write_table()`
 ([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))
 adds or replaces managed table data. These operations do not need a SQL
 connection. Never change the files underneath `Tables/` directly because

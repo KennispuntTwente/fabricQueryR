@@ -178,7 +178,10 @@ kql_result$status$state
 ```
 
 The high-level writer stages the R object, submits tracked ingestion,
-waits, and cleans up after confirmed success.
+and waits. With the default `cleanup = TRUE`, service-owned Storage
+sources can be deleted after download, before ingestion succeeds.
+OneLake staging is deleted only after confirmed success. Use
+`cleanup = FALSE` to retain staging for recovery.
 
 [Working with Fabric Eventhouses (real-time
 data)](https://kennispunttwente.github.io/fabricQueryR/articles/eventhouse-ingestion.md)

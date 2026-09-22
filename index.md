@@ -321,10 +321,11 @@ result$data$customers$items
 GraphQL](https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.html)
 covers schema inspection, cursor pagination, and row collection.
 
-### 10. Invoke a User Data Function
+### 10. Invoke a User Data Function (experimental)
 
 Call published Fabric business logic through its public function URL and
-inspect the structured result.
+inspect the structured result. This API is experimental; its service
+shapes may change. See the vignette for the current validation limits.
 
 ``` r
 
@@ -362,8 +363,7 @@ completed$state
 
 See [Working with Semantic Models (DAX
 queries)](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html)
-for DAX queries, enhanced refresh, cancellation, capacity limits, and
-Direct Lake behavior.
+for DAX queries, enhanced refresh, permissions, and refresh diagnostics.
 
 ### 12. Run and monitor Fabric jobs
 

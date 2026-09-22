@@ -103,6 +103,15 @@ fabric_lakehouse_read_table(
 A tibble, or a disk-backed `nanoarrow_array_stream` when
 `result = "arrow_stream"`. Explicit release deletes its temporary file.
 
+## Details
+
+Direct reads use the Python runtime described in
+[`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md).
+See
+[`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
+for runtime setup, supported Delta features, OneLake permissions, and
+column-type conversion rules.
+
 ## References
 
 [OneLake table APIs for
@@ -124,14 +133,23 @@ table <- tables[1L, ]
 # Read the discovered table into a tibble
 rows <- fabric_lakehouse_read_table(lakehouse, table)
 
-# Stream selected columns when the full table may not fit in R memory
-stream <- fabric_lakehouse_read_table(
-  lakehouse,
-  table,
-  result = "arrow_stream"
-)
-reader <- arrow::as_record_batch_reader(stream)
-rows <- reader$read_table()
-reader$Close()
+# Count rows in batches when the full table may not fit in R memory
+row_count <- local({
+  stream <- fabric_lakehouse_read_table(
+    lakehouse,
+    table,
+    result = "arrow_stream"
+  )
+  on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+  reader <- arrow::as_record_batch_reader(stream)
+  on.exit(reader$Close(), add = TRUE, after = FALSE)
+  count <- 0
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) break
+    count <- count + batch$num_rows
+  }
+  count
+})
 } # }
 ```

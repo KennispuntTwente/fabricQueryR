@@ -199,8 +199,14 @@ engine instead. See the
 <a href="https://learn.microsoft.com/en-us/fabric/security/permission-model" class="external-link">Fabric permission model</a>
 and <a href="https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake" class="external-link">OneLake tenant settings</a></p>
 <p>This function uses the Python
-<a href="https://pypi.org/project/deltalake/" class="external-link">deltalake</a> reader through 'reticulate'
-Some newer Delta features, including Type Widening, V2 Checkpoints, and
+<a href="https://pypi.org/project/deltalake/" class="external-link">deltalake</a> reader through 'reticulate'.
+Python 3.10 or newer and compatible Python 'deltalake' and 'nanoarrow'
+packages are required. Inspect the exact requirements with
+<code><a href="fabric_delta_config.html">fabric_delta_config()</a></code>, or call <code>fabric_delta_config(initialize = TRUE)</code>
+to initialize the runtime. 'reticulate' can download a managed environment
+on first use; an already initialized custom environment must provide the
+required packages itself.</p>
+<p>Some newer Delta features, including Type Widening, V2 Checkpoints, and
 shredded Fabric Variant, are not supported by that reader. The reader can
 query an unshredded Variant table only when <code>columns</code> explicitly excludes
 every top-level column containing Variant values. It otherwise returns
@@ -227,14 +233,23 @@ logs. If the reader cannot open a Warehouse table, use <code><a href="fabric_sql
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Stream the same table when it may not fit in R memory</span></span></span>
-<span class="r-in"><span><span class="va">stream</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  lakehouse <span class="op">=</span> <span class="va">lakehouse</span>,</span></span>
-<span class="r-in"><span>  table <span class="op">=</span> <span class="va">table</span>,</span></span>
-<span class="r-in"><span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">rows</span> <span class="op">&lt;-</span> <span class="va">reader</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">reader</span><span class="op">$</span><span class="fu">Close</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">row_count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">stream</span> <span class="op">&lt;-</span> <span class="fu"><a href="fabric_lakehouse_read_table.html">fabric_lakehouse_read_table</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    lakehouse <span class="op">=</span> <span class="va">lakehouse</span>,</span></span>
+<span class="r-in"><span>    table <span class="op">=</span> <span class="va">table</span>,</span></span>
+<span class="r-in"><span>    result <span class="op">=</span> <span class="st">"arrow_stream"</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="fu">nanoarrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/nanoarrow/latest/r/reference/nanoarrow_pointer_is_valid.html" class="external-link">nanoarrow_pointer_release</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="va">reader</span><span class="op">$</span><span class="fu">Close</span><span class="op">(</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span>, after <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fl">0</span></span></span>
+<span class="r-in"><span>  <span class="kw">repeat</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>    <span class="va">batch</span> <span class="op">&lt;-</span> <span class="va">reader</span><span class="op">$</span><span class="fu">read_next_batch</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">batch</span><span class="op">)</span><span class="op">)</span> <span class="kw">break</span></span></span>
+<span class="r-in"><span>    <span class="va">count</span> <span class="op">&lt;-</span> <span class="va">count</span> <span class="op">+</span> <span class="va">batch</span><span class="op">$</span><span class="va">num_rows</span></span></span>
+<span class="r-in"><span>  <span class="op">}</span></span></span>
+<span class="r-in"><span>  <span class="va">count</span></span></span>
+<span class="r-in"><span><span class="op">}</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

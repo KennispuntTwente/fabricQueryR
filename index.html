@@ -233,9 +233,9 @@
 <p><a href="https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.html">Working with GraphQL</a> covers schema inspection, cursor pagination, and row collection.</p>
 </div>
 <div class="section level3">
-<h3 id="id_10-invoke-a-user-data-function">10. Invoke a User Data Function<a class="anchor" aria-label="anchor" href="#id_10-invoke-a-user-data-function"></a>
+<h3 id="id_10-invoke-a-user-data-function-experimental">10. Invoke a User Data Function (experimental)<a class="anchor" aria-label="anchor" href="#id_10-invoke-a-user-data-function-experimental"></a>
 </h3>
-<p>Call published Fabric business logic through its public function URL and inspect the structured result.</p>
+<p>Call published Fabric business logic through its public function URL and inspect the structured result. This API is experimental; its service shapes may change. See the vignette for the current validation limits.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fabric_function_invoke.html">fabric_function_invoke</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"FABRIC_FUNCTION_URL"</span><span class="op">)</span>,</span>
@@ -255,7 +255,7 @@
 <span><span class="va">completed</span> <span class="op">&lt;-</span> <span class="va">semantic_model</span><span class="op">$</span><span class="fu">refresh_wait</span><span class="op">(</span><span class="va">refresh</span>, timeout <span class="op">=</span> <span class="fl">1800</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">completed</span><span class="op">$</span><span class="va">state</span></span></code></pre></div>
-<p>See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html">Working with Semantic Models (DAX queries)</a> for DAX queries, enhanced refresh, cancellation, capacity limits, and Direct Lake behavior.</p>
+<p>See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html">Working with Semantic Models (DAX queries)</a> for DAX queries, enhanced refresh, permissions, and refresh diagnostics.</p>
 </div>
 <div class="section level3">
 <h3 id="id_12-run-and-monitor-fabric-jobs">12. Run and monitor Fabric jobs<a class="anchor" aria-label="anchor" href="#id_12-run-and-monitor-fabric-jobs"></a>

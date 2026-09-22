@@ -218,11 +218,12 @@ into the SQL text. This handles quoting safely. Use
 normal ‘DBI’ functions when several queries should share one
 connection:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">sql_connect</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
-<span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT TOP 100 * FROM dbo.orders"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>  <span class="va">con</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">sql_connect</span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>  <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbListTables.html" class="external-link">dbListTables</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
+<span>  <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT TOP 100 * FROM dbo.orders"</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
 <p>Direct ‘DBI’ reads use the driver’s numeric conversion.</p>
 <p>The default SQL backend uses Microsoft ODBC Driver 18 for SQL Server.
 See <code><a href="../reference/fabric_sql_connect.html">?fabric_sql_connect</a></code> for the ODBC and ADBC setup
@@ -258,6 +259,15 @@ conversion.</p>
 <p>Use <code>lakehouse$tables()</code>
 (<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code>) when you are unsure which
 Lakehouse tables or schemas are available.</p>
+<p>Direct Lakehouse reads use Python’s ‘deltalake’ and ‘nanoarrow’
+through ‘reticulate’. The first read may download a managed Python
+environment and its dependencies. Inspect the requirements with
+<code><a href="../reference/fabric_delta_config.html">fabric_delta_config()</a></code> or prepare the runtime with
+<code>fabric_delta_config(initialize = TRUE)</code>. If Python is
+already initialized in a custom environment, its packages must satisfy
+those requirements. See <code><a href="../reference/fabric_onelake_read_delta_table.html">?fabric_onelake_read_delta_table</a></code>
+for supported table features, OneLake permissions, and exact numeric
+conversions.</p>
 </div>
 <div class="section level2">
 <h2 id="read-eventhouse-data">Read Eventhouse data<a class="anchor" aria-label="anchor" href="#read-eventhouse-data"></a>
@@ -355,14 +365,28 @@ be used with the ‘arrow’ R package to read the data in batches. Here
 <code>$read_table()</code> calls
 <code><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">stream</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
-<span>  table <span class="op">=</span> <span class="st">"large_orders"</span>,</span>
-<span>  result <span class="op">=</span> <span class="st">"arrow_stream"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span>
-<span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">reader</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">reader</span><span class="op">$</span><span class="fu">Close</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">row_count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>  <span class="va">stream</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
+<span>    table <span class="op">=</span> <span class="st">"large_orders"</span>,</span>
+<span>    result <span class="op">=</span> <span class="st">"arrow_stream"</span></span>
+<span>  <span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="fu">nanoarrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/nanoarrow/latest/r/reference/nanoarrow_pointer_is_valid.html" class="external-link">nanoarrow_pointer_release</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>  <span class="va">reader</span> <span class="op">&lt;-</span> <span class="fu">arrow</span><span class="fu">::</span><span class="fu"><a href="https://arrow.apache.org/docs/r/reference/as_record_batch_reader.html" class="external-link">as_record_batch_reader</a></span><span class="op">(</span><span class="va">stream</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="va">reader</span><span class="op">$</span><span class="fu">Close</span><span class="op">(</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span>, after <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fl">0</span></span>
+<span>  <span class="kw">repeat</span> <span class="op">{</span></span>
+<span>    <span class="va">batch</span> <span class="op">&lt;-</span> <span class="va">reader</span><span class="op">$</span><span class="fu">read_next_batch</span><span class="op">(</span><span class="op">)</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">batch</span><span class="op">)</span><span class="op">)</span> <span class="kw">break</span></span>
+<span>    <span class="co"># Process or write this batch before reading the next one.</span></span>
+<span>    <span class="va">count</span> <span class="op">&lt;-</span> <span class="va">count</span> <span class="op">+</span> <span class="va">batch</span><span class="op">$</span><span class="va">num_rows</span></span>
+<span>  <span class="op">}</span></span>
+<span>  <span class="va">count</span></span>
+<span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
+<p><code>reader$read_table()</code> collects every remaining batch into
+one Arrow Table; use it only when the full selected result fits in
+memory. Direct Delta reads stage the selected data to a temporary file
+before returning the stream, so allow enough local disk space even when
+processing batches.</p>
 <p>Close an Arrow reader after use. For disk-backed OneLake Delta
 streams, this also deletes the staged temporary file; when consuming one
 directly through ‘nanoarrow’, call <code>stream[["release"]]()</code>

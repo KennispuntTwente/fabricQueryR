@@ -144,7 +144,9 @@ authenticate again.</p>
 <p>For example, a data-load workflow can use the Lakehouse
 <code>$write_table()</code> method
 (<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code>) and refresh only after the
-source update has committed successfully:</p>
+source update has committed successfully. Here <code>lakehouse</code> is
+a discovered Lakehouse containing the model’s source table, and
+<code>new_sales</code> is the data frame to load:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">load</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"Sales"</span>,</span>

@@ -116,28 +116,6 @@ code needs the corresponding Azure service at runtime:</p>
 </tr>
 </tbody>
 </table>
-<p>An explicit <code>audience</code> replaces the defaults rather than
-extending them. For example, include all four required scopes when
-adding Azure SQL access. The Lakehouse <code>$livy_query()</code> method
-below calls <code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">livy_scopes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"https"</span>, <span class="st">"://api.fabric.microsoft.com/"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>    <span class="st">"Lakehouse.Execute.All"</span>,</span>
-<span>    <span class="st">"Lakehouse.Read.All"</span>,</span>
-<span>    <span class="st">"Code.AccessFabric.All"</span>,</span>
-<span>    <span class="st">"Code.AccessStorage.All"</span>,</span>
-<span>    <span class="st">"Code.AccessSQL.All"</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># `$livy_query()` is the object interface to `fabric_livy_query()`</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
-<span>  code <span class="op">=</span> <span class="st">"SELECT * FROM external_sql_table"</span>,</span>
-<span>  kind <span class="op">=</span> <span class="st">"sql"</span>,</span>
-<span>  audience <span class="op">=</span> <span class="va">livy_scopes</span></span>
-<span><span class="op">)</span></span></code></pre></div>
 <p>Client-credentials authentication instead uses the single
 Fabric/Power BI <code>.default</code> audience selected by the package.
 Microsoft currently documents service-principal (SPN) tokens for session
@@ -155,7 +133,7 @@ rejects the SPN.</p>
 containing the Livy endpoint and data-source items.</p>
 <p>Then, you can discover the Lakehouse item which you want to use Livy
 with:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">workspaces</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fabric_workspaces.html">fabric_workspaces</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -174,6 +152,28 @@ Its fields expose the service metadata. <code>$livy_query()</code>,
 correspond to <code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>,
 <code><a href="../reference/fabric_livy_session.html">fabric_livy_session()</a></code>, and
 <code><a href="../reference/fabric_livy_batch_submit.html">fabric_livy_batch_submit()</a></code>.</p>
+<p>An explicit <code>audience</code> replaces the defaults rather than
+extending them. For example, include all four required scopes when
+adding Azure SQL access. The Lakehouse <code>$livy_query()</code> method
+below calls <code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">livy_scopes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"https"</span>, <span class="st">"://api.fabric.microsoft.com/"</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"Lakehouse.Execute.All"</span>,</span>
+<span>    <span class="st">"Lakehouse.Read.All"</span>,</span>
+<span>    <span class="st">"Code.AccessFabric.All"</span>,</span>
+<span>    <span class="st">"Code.AccessStorage.All"</span>,</span>
+<span>    <span class="st">"Code.AccessSQL.All"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># `$livy_query()` is the object interface to `fabric_livy_query()`</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
+<span>  code <span class="op">=</span> <span class="st">"SELECT * FROM external_sql_table"</span>,</span>
+<span>  kind <span class="op">=</span> <span class="st">"sql"</span>,</span>
+<span>  audience <span class="op">=</span> <span class="va">livy_scopes</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 <p>If discovery cannot retrieve the endpoint in your environment, copy
 the session-job connection string from <em>Lakehouse settings &gt; Livy
 endpoint</em> and pass that URL instead.</p>

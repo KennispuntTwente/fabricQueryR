@@ -78,7 +78,7 @@ large or historical reads.</p>
 <div class="section level2">
 <h2 id="find-and-connect-to-a-lakehouse">Find and connect to a Lakehouse<a class="anchor" aria-label="anchor" href="#find-and-connect-to-a-lakehouse"></a>
 </h2>
-<p>Start by finding the workspace and Lakehouse by name:</p>
+<p>Find the workspace by name, then select one of its Lakehouses:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
 <span></span>
@@ -104,8 +104,14 @@ For a single SQL query, call <code>$sql_query()</code>
 (<code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code>):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">sql_query</span><span class="op">(</span></span>
-<span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span></span>
+<span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="st">"driver"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>This example accepts ODBC’s numeric conversion, which can lose
+precision. The default <code>numeric_policy = "exact"</code> rejects
+ODBC results with INT, BIGINT, DECIMAL, or NUMERIC columns. Use
+<code>backend = "adbc"</code> with the default exact policy when those
+values must be preserved; see the setup in <a href="reading-data.html">Bring Fabric data into R</a>.</p>
 <p>The method opens and closes the SQL connection for you. If you want
 to run several commands with ‘DBI’, use <code>$sql_connect()</code>
 (<code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>):</p>
@@ -123,8 +129,13 @@ only when you want to keep a connection open for several ‘DBI’
 calls.</p>
 <p>You can also read a Delta table directly through OneLake with
 <code>$read_table()</code> (<code><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>).
-This is useful for an Arrow stream or an earlier table version. The
-<code>$onelake_*()</code> methods correspond to the
+This is useful for an Arrow stream or an earlier table version. Direct
+Delta reads use Python through ‘reticulate’; see
+<code><a href="../reference/fabric_delta_config.html">?fabric_delta_config</a></code> for runtime requirements and setup
+diagnostics. They require OneLake data access and a supported Delta
+protocol. Use SQL or Spark for tables with unsupported features such as
+Type Widening or V2 Checkpoints.</p>
+<p>The <code>$onelake_*()</code> methods correspond to the
 <code>fabric_onelake_*()</code> functions and work with ordinary files
 under <code>Files/</code>, while <code>$write_table()</code>
 (<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_write_table()</a></code>) adds or replaces managed

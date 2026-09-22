@@ -100,7 +100,9 @@ authenticate again.
 For example, a data-load workflow can use the Lakehouse `$write_table()`
 method
 ([`fabric_lakehouse_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))
-and refresh only after the source update has committed successfully:
+and refresh only after the source update has committed successfully.
+Here `lakehouse` is a discovered Lakehouse containing the model’s source
+table, and `new_sales` is the data frame to load:
 
 ``` r
 

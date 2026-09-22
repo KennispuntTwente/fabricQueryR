@@ -185,9 +185,11 @@ loaded <- database$query(
 
 The caller needs permission to ingest into the destination table and
 read the source file. Keep a manually staged source until the tracked
-result is final and verified; `$write_table()`
-([`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md))
-manages this retention rule for you.
+result is final and verified. With `$write_table()`
+([`fabric_kql_write_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_kql_write_table.md)),
+select `cleanup = FALSE` if service-owned Storage sources must remain
+available until you verify the result; the default permits deletion
+after download.
 
 ## Scale up with Arrow
 
