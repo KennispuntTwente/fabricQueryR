@@ -77,7 +77,9 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {os: macos-latest,   r: 'release'}
+          - os: macos-latest
+            r: 'release'
+            cran: 'https://packagemanager.posit.co/cran/latest'
           - {os: windows-latest, r: 'release'}
           - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
           - {os: ubuntu-latest,   r: 'release'}
@@ -96,9 +98,15 @@ jobs:
         with:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
+          # Use PPM for the CRAN fallback too, including source-only packages.
+          cran: ${{ matrix.config.cran }}
           # Include macOS: CRAN's zstd binaries are not supported by pak yet.
           # https://github.com/r-lib/pak/issues/915
           use-public-rspm: always
+
+      - name: Install unixODBC for macOS source builds
+        if: runner.os == 'macOS'
+        run: brew install unixodbc
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
