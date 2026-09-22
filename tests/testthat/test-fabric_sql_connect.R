@@ -598,6 +598,9 @@ test_that("SQL timeouts are not constrained by the TCP port range", {
 })
 
 test_that("SQL connections configure the ADBC MSSQL driver with a safe URI", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   captured <- NULL
   connection <- structure(list(), class = "test_connection")
   token <- "token+/with=?&reserved"
@@ -641,6 +644,8 @@ test_that("SQL connections configure the ADBC MSSQL driver with a safe URI", {
 })
 
 test_that("ADBC version metadata streams are released on success and failure", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
   skip_if_not_installed("adbi")
   skip_if_not_installed("adbcdrivermanager")
   connection <- methods::new("AdbiConnection")
@@ -666,6 +671,9 @@ test_that("ADBC version metadata streams are released on success and failure", {
 })
 
 test_that("missing ADBC drivers fail before authentication with install guidance", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   acquired <- FALSE
   missing_driver <- "fabricqueryr_missing_mssql_driver"
 
@@ -760,6 +768,9 @@ test_that("SQL connections retry transient Fabric failures with fresh tokens", {
 })
 
 test_that("ADBC connection retries rebuild the URI with a fresh token", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   attempts <- 0L
   tokens <- character()
   connection <- structure(list(), class = "test_connection")
@@ -999,6 +1010,9 @@ test_that("ADBC parameter translation ignores SQL literals and comments", {
 })
 
 test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   connection <- structure(list(), class = "test_connection")
   fake_stream <- nanoarrow::basic_array_stream(list(data.frame(id = 1L)))
   query_result <- structure(list(), class = "test_result")
@@ -1289,6 +1303,8 @@ test_that("integer64 bind translation validates parameter counts before sending"
 })
 
 test_that("SQL connection adapters construct ODBC and ADBC connections", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
   skip_if_not_installed("odbc")
   skip_if_not_installed("adbi")
   skip_if_not_installed("adbcdrivermanager")
@@ -1882,6 +1898,9 @@ test_that("SQL retry controls reject invalid values", {
 })
 
 test_that("SQL failures have actionable condition classes", {
+  # Requires adbi and exercises real retry backoff.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   local_mocked_bindings(
     .fabric_sql_db_connect = function(...) {
       rlang::abort("Login failed for user; error 18456")

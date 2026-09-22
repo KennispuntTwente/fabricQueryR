@@ -409,6 +409,8 @@ test_that("Livy requests use the audience stored on the credential", {
 })
 
 test_that("regular session runs multiple statements and closes", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   calls <- list()
   session_gets <- 0L
   statement_gets <- new.env(parent = emptyenv())
@@ -740,6 +742,8 @@ test_that("session statement listing rejects inconsistent collections", {
 })
 
 test_that("statement errors preserve output and traceback", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   responses <- list(
     list(id = "s", state = "idle"),
     list(id = 1L, state = "waiting"),
@@ -1441,6 +1445,8 @@ test_that("session finalizer does not perform network cleanup", {
 })
 
 test_that("high-concurrency sessions use HC and REPL endpoints", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   calls <- list()
   local_mocked_bindings(
     fabric_livy_json = function(
@@ -1603,6 +1609,8 @@ test_that("fabric_livy_query warns without losing a successful result", {
 })
 
 test_that("fabric_livy_query retains execution and bounded cleanup failures", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   cleanup_deadline <- NULL
   fake_session <- new.env(parent = emptyenv())
   fake_session$url <- "https://api.fabric.microsoft.com/livy/sessions/42"
@@ -1641,6 +1649,8 @@ test_that("fabric_livy_query retains execution and bounded cleanup failures", {
 })
 
 test_that("batch jobs expose success logs and structured results", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   calls <- list()
   gets <- 0L
   local_mocked_bindings(
@@ -1745,6 +1755,8 @@ test_that("Livy vector fields remain JSON arrays when length one", {
 })
 
 test_that("batch failures and cancellation preserve service details", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   mode <- "failure"
   accepted <- NULL
   local_mocked_bindings(
@@ -1792,6 +1804,8 @@ test_that("batch failures and cancellation preserve service details", {
 })
 
 test_that("batch timeout can request cancellation", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   cancelled <- FALSE
   cancel_deadline <- NULL
   local_mocked_bindings(
@@ -1838,6 +1852,8 @@ test_that("batch timeout can request cancellation", {
 })
 
 test_that("batch timeout retains a bounded cleanup cancellation failure", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   local_mocked_bindings(
     fabric_livy_json = function(...) {
       list(id = "slow-batch", state = "running")
@@ -1883,6 +1899,8 @@ test_that("batch timeout retains a bounded cleanup cancellation failure", {
 })
 
 test_that("statement wait polls through cancelling until cancelled", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   responses <- list(
     list(id = "session", state = "idle"),
     list(id = 7L, state = "running"),
@@ -2477,6 +2495,8 @@ test_that("Livy does not retry genuinely empty or exhausted pages", {
 })
 
 test_that("session waits stop on all documented terminal states", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   check_terminal <- function(
     initial_state,
     result = NULL,
@@ -2520,6 +2540,8 @@ test_that("session waits stop on all documented terminal states", {
 })
 
 test_that("idle Livy sessions with explicit Fabric errors are not ready", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   for (hc in c(FALSE, TRUE)) {
     response <- list(
       id = "session",
@@ -2570,6 +2592,8 @@ test_that("Livy dates and narrow integers reject lossy conversion", {
 })
 
 test_that("session wait continues through an Uncertain intermediate result", {
+  # Uses a short wall-clock deadline; retain deterministic polling tests on CRAN.
+  skip_on_cran()
   responses <- list(
     list(id = "uncertain-session", state = "starting"),
     list(id = "uncertain-session", state = "running", result = "Uncertain"),

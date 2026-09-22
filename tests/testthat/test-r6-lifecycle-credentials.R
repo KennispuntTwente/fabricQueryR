@@ -1,4 +1,6 @@
 test_that("R6 job lifecycle requests preserve execution credentials", {
+  # Exercises repeated real-time polling.
+  skip_on_cran()
   discovery <- fabric_credential(token = "discovery")
   execution <- fabric_credential(token = "execution")
   override <- fabric_credential(token = "override")
@@ -49,6 +51,8 @@ test_that("R6 job lifecycle requests preserve execution credentials", {
 })
 
 test_that("R6 refresh lifecycle requests preserve execution credentials", {
+  # Exercises repeated real-time polling.
+  skip_on_cran()
   discovery <- fabric_credential(token = "discovery")
   execution <- fabric_credential(token = "execution")
   override <- fabric_credential(token = "override")

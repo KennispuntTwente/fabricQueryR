@@ -1,4 +1,6 @@
 test_that("Livy ready sessions distinguish empty and actual Fabric errors", {
+  # Exercises wall-clock waits with one-second deadlines.
+  skip_on_cran()
   withr::local_options(warnPartialMatchDollar = TRUE)
   for (hc in c(FALSE, TRUE)) {
     for (message in list(NULL, "", "  \t\n", "Spark initialization failed")) {

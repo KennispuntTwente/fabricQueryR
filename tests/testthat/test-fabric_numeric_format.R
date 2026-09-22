@@ -1,4 +1,6 @@
 test_that("numeric text recovers finite binary64 values across their range", {
+  # Stress test over 20,000 random bit patterns.
+  skip_on_cran()
   withr::local_seed(3701)
   values <- readBin(
     as.raw(sample.int(256L, 8L * 20000L, replace = TRUE) - 1L),

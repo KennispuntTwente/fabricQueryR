@@ -39,6 +39,9 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  NOT_CRAN: "true"
+
 concurrency:
   group: fabric-integration-${{ github.repository }}
   cancel-in-progress: false
