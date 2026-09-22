@@ -9,6 +9,9 @@ name: R-CMD-check.yaml
 
 permissions: read-all
 
+env:
+  NOT_CRAN: "true"
+
 jobs:
   minimum-arrow:
     runs-on: windows-latest
@@ -116,6 +119,31 @@ jobs:
           Rscript -e
           'options(testthat.snapshot.update = FALSE);
           devtools::test(shuffle = TRUE, stop_on_failure = TRUE)'
+
+      - name: Test the CRAN subset without adbi
+        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+        env:
+          NOT_CRAN: "false"
+        shell: Rscript {0}
+        run: |
+          # Isolate the test library without changing the full-suite dependencies.
+          lib <- tempfile("cran-test-library-")
+          dir.create(lib)
+          packages <- installed.packages()
+          packages <- packages[
+            !duplicated(packages[, "Package"]) & packages[, "Package"] != "adbi",
+            , drop = FALSE
+          ]
+          stopifnot(all(file.symlink(
+            file.path(packages[, "LibPath"], packages[, "Package"]),
+            file.path(lib, packages[, "Package"])
+          )))
+          .libPaths(c(lib, .Library), include.site = FALSE)
+          stopifnot(!requireNamespace("adbi", quietly = TRUE))
+          stopifnot(!rlang::is_installed("adbi"))
+          pkgload::load_all(quiet = TRUE)
+          withr::with_dir("tests", source("testthat.R"))
+          stopifnot(!"adbi" %in% loadedNamespaces())
 
       - name: Set up uv for delta-rs runtime tests
         if: matrix.config.r == 'release'
