@@ -1,4 +1,17 @@
-# 'fabricQueryR' (development version)
+# fabricQueryR 1.0.0
+
+## Breaking changes
+
+* `fabric_onelake_read_delta_table()` now uses the optional Python 'deltalake'
+reader through 'reticulate'. The `dest_dir` argument has been removed. Remove
+this argument from existing calls; use `columns` and `limit` to restrict a
+read, or `result = "arrow_stream"` to consume batches. Tables using unsupported
+Delta features should be read through SQL or Spark instead.
+
+* `fabric_sql_query()` now defaults to `numeric_policy = "exact"`. ODBC
+results with INT, BIGINT, DECIMAL, or NUMERIC columns are rejected under this
+policy. Use `backend = "adbc"` to preserve numeric precision, or explicitly set
+`numeric_policy = "driver"` to accept the ODBC driver's conversions.
 
 ## New
 
@@ -52,7 +65,7 @@ objects.
 * `fabric_kql_ingest()`, `fabric_kql_write_table()`, and `fabric_kql_export()`
 load existing files or R and Arrow data into Eventhouse, monitor the load, and
 export large query results to OneLake or other supported storage. A
-destination table can be created when needed. 
+destination table can be created when needed.
 
 * `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
 schema, work through paginated results, and collect the result into tidy R
@@ -66,6 +79,10 @@ to data stored elsewhere.
 
 * `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel, and
 inspect the history of semantic-model refreshes.
+
+* `fabric_sql_connect()` and `fabric_sql_query()` support ODBC and ADBC
+connections, discovered SQL items, bound query parameters, and Arrow streams
+for larger results.
 
 * `fabric_job_*()` functions run, monitor, wait for, and cancel Fabric
 Notebooks, data pipelines, Spark job definitions, and other supported item
@@ -92,8 +109,6 @@ Number columns preserve both signed 64-bit extrema exactly.
 and compatible Warehouse tables through an optional Python Delta reader. It
 supports selected columns, row limits, and Arrow streams for large or nested
 results, including through discovered workspace-private OneLake endpoints.
-The `dest_dir` argument has been removed. Tables using unsupported
-Delta features should be read through SQL or Spark instead.
 
 * `fabric_livy_query()` table results now follow the declared Spark schema and
 preserve large whole numbers and decimals exactly.

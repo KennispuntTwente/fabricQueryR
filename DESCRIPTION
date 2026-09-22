@@ -1,6 +1,6 @@
 Package: fabricQueryR
-Title: Access and Manage 'Microsoft Fabric' from R
-Version: 0.2.1.9000
+Title: Access and Manage 'Microsoft Fabric'
+Version: 1.0.0
 Authors@R: 
     c(person(given = "Luka",
              family = "Koning",
@@ -33,6 +33,7 @@ Suggests:
     webfakes,
     withr
 VignetteBuilder: knitr
+Additional_repositories: https://r-dbi.r-universe.dev
 Config/testthat/edition: 3
 Config/Needs/ci:
     adbcdrivermanager=url::https://cloud.r-project.org/src/contrib/Archive/adbcdrivermanager/adbcdrivermanager_0.23.0-2.tar.gz,
