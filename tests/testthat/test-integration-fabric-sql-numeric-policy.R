@@ -1,3 +1,7 @@
+# Fabric integration coverage: SQL numeric policies and precision warnings
+# Exercise default and explicit policies through live Warehouse queries and
+# table reads with ODBC and ADBC, including tibble and Arrow stream results.
+
 test_that("SQL defaults work on Fabric with one ODBC precision warning", {
   manifest <- fabric_test_manifest()
   backends <- fabric_test_sql_backends()
