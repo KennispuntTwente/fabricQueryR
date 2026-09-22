@@ -2043,6 +2043,11 @@ test_that("conflicting SQL credentials are redacted in condition metadata", {
   }
 })
 test_that("ODBC defaults return driver values and warn once across SQL workflows", {
+  withr::local_envvar(c(
+    FABRICQUERYR_TENANT_ID = NA_character_,
+    FABRICQUERYR_CLIENT_ID = NA_character_,
+    FABRICQUERYR_CLIENT_SECRET = NA_character_
+  ))
   withr::local_options(rlib_warning_verbosity = "default")
   warning_id <- "fabricQueryR.sql.odbc_precision"
   rlang::reset_warning_verbosity(warning_id)
@@ -2093,6 +2098,7 @@ test_that("ODBC defaults return driver values and warn once across SQL workflows
       ordinary <- fabric_sql_query(
         warehouse,
         "SELECT id, amount FROM dbo.orders",
+        token = "sql-token",
         verbose = FALSE
       )
       expect_identical(ordinary, tibble::as_tibble(rows))
