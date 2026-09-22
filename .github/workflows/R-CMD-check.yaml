@@ -93,7 +93,9 @@ jobs:
         with:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
-          use-public-rspm: true
+          # Include macOS: CRAN's zstd binaries are not supported by pak yet.
+          # https://github.com/r-lib/pak/issues/915
+          use-public-rspm: always
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:

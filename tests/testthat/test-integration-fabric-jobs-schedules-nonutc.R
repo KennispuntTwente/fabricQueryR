@@ -110,7 +110,7 @@ test_that("Spark job schedules use their workload route through CRUD", {
     workspaceId = manifest$workspace_id,
     type = fixture$type
   )
-  start <- Sys.time() + 86400
+  start <- trunc(Sys.time(), "secs") + 86400
   schedule <- fabric_job_schedule_create(
     item,
     fabric_job_schedule_config(
