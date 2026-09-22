@@ -37,8 +37,8 @@
 <h2 class="pkg-version" data-toc-text="1.0.0" id="fabricqueryr-100">fabricQueryR 1.0.0<a class="anchor" aria-label="anchor" href="#fabricqueryr-100"></a></h2>
 <div class="section level3">
 <h3 id="breaking-changes-1-0-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-0-0"></a></h3>
-<ul><li><p><code><a href="../reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> now uses the optional Python ‘deltalake’ reader through ‘reticulate’. The <code>dest_dir</code> argument has been removed. Remove this argument from existing calls; use <code>columns</code> and <code>limit</code> to restrict a read, or <code>result = "arrow_stream"</code> to consume batches. Tables using unsupported Delta features should be read through SQL or Spark instead.</p></li>
-<li><p><code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code> now defaults to <code>numeric_policy = "exact"</code>. ODBC results with INT, BIGINT, DECIMAL, or NUMERIC columns are rejected under this policy. Use <code>backend = "adbc"</code> to preserve numeric precision, or explicitly set <code>numeric_policy = "driver"</code> to accept the ODBC driver’s conversions.</p></li>
+<ul><li>
+<code><a href="../reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> now uses the optional Python ‘deltalake’ reader through ‘reticulate’. The <code>dest_dir</code> argument has been removed. Remove this argument from existing calls; use <code>columns</code> and <code>limit</code> to restrict a read, or <code>result = "arrow_stream"</code> to consume batches. Tables using unsupported Delta features should be read through SQL or Spark instead.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="new-1-0-0">New<a class="anchor" aria-label="anchor" href="#new-1-0-0"></a></h3>
@@ -54,7 +54,7 @@
 <li><p><code><a href="../reference/fabric_function_invoke.html">fabric_function_invoke()</a></code> calls published Fabric User Data Functions from R.</p></li>
 <li><p><code><a href="../reference/fabric_onelake_shortcuts.html">fabric_onelake_shortcuts()</a></code> and <code>fabric_onelake_shortcut_*()</code> functions inspect, create, update, and delete OneLake shortcuts, which link Fabric items to data stored elsewhere.</p></li>
 <li><p><code>fabric_pbi_refresh_*()</code> functions start, monitor, wait for, cancel, and inspect the history of semantic-model refreshes.</p></li>
-<li><p><code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> and <code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code> support ODBC and ADBC connections, discovered SQL items, bound query parameters, and Arrow streams for larger results.</p></li>
+<li><p><code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code> and <code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code> support ODBC and ADBC connections, discovered SQL items, bound query parameters, and Arrow streams for larger results. SQL queries and Warehouse reads default to the driver’s numeric conversion for ODBC, with a once-per-session precision warning, and exact conversion for ADBC. Set <code>numeric_policy = "driver"</code> to explicitly accept driver conversion without the warning, or <code>numeric_policy = "exact"</code> to reject potentially lossy ODBC results.</p></li>
 <li><p><code>fabric_job_*()</code> functions run, monitor, wait for, and cancel Fabric Notebooks, data pipelines, Spark job definitions, and other supported item jobs. They also inspect run history and manage recurring schedules.</p></li>
 <li><p><code>fabric_operation_*()</code> functions resume, monitor, and retrieve the results of longer-running Fabric tasks such as Lakehouse loads.</p></li>
 </ul></div>

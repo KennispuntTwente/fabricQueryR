@@ -120,10 +120,9 @@
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">customers</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">sql_query</span><span class="op">(</span></span>
-<span>  <span class="st">"SELECT * FROM dbo.Customers WHERE region = 'West'"</span>,</span>
-<span>  numeric_policy <span class="op">=</span> <span class="st">"driver"</span></span>
+<span>  <span class="st">"SELECT * FROM dbo.Customers WHERE region = 'West'"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><code>$sql_connect()</code> (<code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>) supports both ODBC and ADBC. The default ODBC backend requires <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Microsoft ODBC Driver 18 for SQL Server</a>. The query explicitly accepts ODBC’s numeric conversion, which can lose precision. The default <code>numeric_policy = "exact"</code> rejects ODBC results with INT, BIGINT, DECIMAL, or NUMERIC columns. Use <code>backend = "adbc"</code> with the default exact policy when numeric precision must be preserved.</p>
+<p><code>$sql_connect()</code> (<code><a href="reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>) supports both ODBC and ADBC. The default ODBC backend requires <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server" class="external-link">Microsoft ODBC Driver 18 for SQL Server</a>. The default <code>numeric_policy = "auto"</code> uses ODBC’s numeric conversion and warns once per session that precision may be lost. Use <code>backend = "adbc"</code> for exact conversion, or <code>numeric_policy = "exact"</code> to reject potentially lossy ODBC results. Explicit <code>numeric_policy = "driver"</code> accepts conversion without the warning.</p>
 </div>
 <div class="section level3">
 <h3 id="id_3-query-a-semantic-model-with-dax">3. Query a semantic model with DAX<a class="anchor" aria-label="anchor" href="#id_3-query-a-semantic-model-with-dax"></a>
@@ -189,7 +188,7 @@
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">warehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">warehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">lakehouse</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">lakehouses</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="st">"orders"</span>, numeric_policy <span class="op">=</span> <span class="st">"driver"</span><span class="op">)</span></span>
+<span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">warehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span><span class="st">"orders"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">warehouse</span><span class="op">$</span><span class="fu">write_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"orders_copy"</span>,</span>
@@ -197,7 +196,7 @@
 <span>  staging_lakehouse <span class="op">=</span> <span class="va">lakehouse</span>,</span>
 <span>  create_if_missing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The default <code>numeric_policy = "exact"</code> prevents the ODBC backend from fetching <code>INT</code>, <code>BIGINT</code>, <code>DECIMAL</code>, or <code>NUMERIC</code> columns because the driver may convert them lossily. Use <code>numeric_policy = "driver"</code> when ordinary driver conversion is acceptable, as above, or use the ADBC backend for exact conversion.</p>
+<p>Warehouse reads use the same numeric policy as SQL queries: driver conversion with a once-per-session warning for ODBC, or exact conversion for ADBC. Set <code>numeric_policy = "exact"</code> to reject unsafe ODBC conversions, or <code>numeric_policy = "driver"</code> to explicitly accept conversion without a warning.</p>
 <p>See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.html">Working with Fabric Warehouses</a> for staging, table creation, overwrite behavior, schema matching, and large Arrow inputs.</p>
 </div>
 <div class="section level3">

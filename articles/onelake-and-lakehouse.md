@@ -48,16 +48,16 @@ SQL query, call `$sql_query()`
 ``` r
 
 orders <- lakehouse$sql_query(
-  "SELECT TOP 10 * FROM dbo.orders",
-  numeric_policy = "driver"
+  "SELECT TOP 10 * FROM dbo.orders"
 )
 ```
 
-This example accepts ODBC’s numeric conversion, which can lose
-precision. The default `numeric_policy = "exact"` rejects ODBC results
-with INT, BIGINT, DECIMAL, or NUMERIC columns. Use `backend = "adbc"`
-with the default exact policy when those values must be preserved; see
-the setup in [Bring Fabric data into
+The default `numeric_policy = "auto"` uses ODBC’s numeric conversion and
+warns once per session that precision may be lost. Use
+`numeric_policy = "driver"` to explicitly accept that conversion without
+a warning, or `"exact"` to reject unsafe ODBC results. Use
+`backend = "adbc"` for exact conversion; see the setup in [Bring Fabric
+data into
 R](https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.md).
 
 The method opens and closes the SQL connection for you. If you want to

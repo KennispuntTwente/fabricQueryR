@@ -108,8 +108,7 @@ DBI::dbListTables(con)
 DBI::dbDisconnect(con)
 
 customers <- lakehouse$sql_query(
-  "SELECT * FROM dbo.Customers WHERE region = 'West'",
-  numeric_policy = "driver"
+  "SELECT * FROM dbo.Customers WHERE region = 'West'"
 )
 ```
 
@@ -118,10 +117,11 @@ customers <- lakehouse$sql_query(
 supports both ODBC and ADBC. The default ODBC backend requires
 [Microsoft ODBC Driver 18 for SQL
 Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server).
-The query explicitly accepts ODBC’s numeric conversion, which can lose
-precision. The default `numeric_policy = "exact"` rejects ODBC results
-with INT, BIGINT, DECIMAL, or NUMERIC columns. Use `backend = "adbc"`
-with the default exact policy when numeric precision must be preserved.
+The default `numeric_policy = "auto"` uses ODBC’s numeric conversion and
+warns once per session that precision may be lost. Use
+`backend = "adbc"` for exact conversion, or `numeric_policy = "exact"`
+to reject potentially lossy ODBC results. Explicit
+`numeric_policy = "driver"` accepts conversion without the warning.
 
 ### 3. Query a semantic model with DAX
 
@@ -248,7 +248,7 @@ and
 
 warehouse <- workspace$warehouses()[[1L]]
 lakehouse <- workspace$lakehouses()[[1L]]
-orders <- warehouse$read_table("orders", numeric_policy = "driver")
+orders <- warehouse$read_table("orders")
 
 warehouse$write_table(
   table = "orders_copy",
@@ -258,11 +258,11 @@ warehouse$write_table(
 )
 ```
 
-The default `numeric_policy = "exact"` prevents the ODBC backend from
-fetching `INT`, `BIGINT`, `DECIMAL`, or `NUMERIC` columns because the
-driver may convert them lossily. Use `numeric_policy = "driver"` when
-ordinary driver conversion is acceptable, as above, or use the ADBC
-backend for exact conversion.
+Warehouse reads use the same numeric policy as SQL queries: driver
+conversion with a once-per-session warning for ODBC, or exact conversion
+for ADBC. Set `numeric_policy = "exact"` to reject unsafe ODBC
+conversions, or `numeric_policy = "driver"` to explicitly accept
+conversion without a warning.
 
 See [Working with Fabric
 Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.html)

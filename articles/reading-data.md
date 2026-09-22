@@ -79,18 +79,19 @@ recent_orders <- warehouse$sql_query(
     "WHERE order_date >= ?",
     "ORDER BY order_date DESC"
   ),
-  params = list(as.Date("2026-01-01")),
-  numeric_policy = "driver"
+  params = list(as.Date("2026-01-01"))
 )
 
 head(recent_orders)
 ```
 
-This example explicitly accepts ODBC’s numeric conversion, which can
-lose precision. The default `numeric_policy = "exact"` rejects ODBC
-results with INT, BIGINT, DECIMAL, or NUMERIC columns. Use
-`backend = "adbc"` with the default exact policy to preserve numeric
-precision.
+The default `numeric_policy = "auto"` uses ODBC’s numeric conversion and
+warns once per R session that precision may be lost. Use
+`backend = "adbc"` for exact conversion, or `numeric_policy = "exact"`
+to reject ODBC results containing INT, BIGINT, DECIMAL, or NUMERIC
+columns before fetching. Casting these columns to `varchar` in SQL also
+preserves their values. Explicit `numeric_policy = "driver"` accepts
+driver conversion without the warning.
 
 The ADBC backend needs the optional ‘adbi’ and ‘adbcdrivermanager’
 packages, plus the Microsoft SQL Server ADBC driver. ‘adbi’ is available
@@ -151,16 +152,16 @@ lakehouse_rows <- lakehouse$read_table(
 warehouse_rows <- warehouse$read_table(
   table = "orders",
   schema = "dbo",
-  limit = 100L,
-  numeric_policy = "driver"
+  limit = 100L
 )
 ```
 
-Warehouse reads default to `numeric_policy = "exact"`. With the ODBC
-backend, that policy rejects `INT`, `BIGINT`, `DECIMAL`, and `NUMERIC`
-columns before fetching because the driver may convert them lossily.
-Select `numeric_policy = "driver"` when ordinary driver conversion is
-acceptable, as above, or use the ADBC backend for exact conversion.
+Warehouse reads use the same `numeric_policy = "auto"` default as SQL
+queries: driver conversion for ODBC, or exact conversion for ADBC. The
+ODBC precision warning is shared by queries and table reads and appears
+only once per session. Use `numeric_policy = "exact"` to reject unsafe
+ODBC results, or `numeric_policy = "driver"` to explicitly accept
+conversion without a warning.
 
 Use `lakehouse$tables()`
 ([`fabric_lakehouse_tables()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_lakehouse_tables.md))

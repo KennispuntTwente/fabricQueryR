@@ -74,7 +74,7 @@ than pasting them into the SQL text</p>
 <span>  max_tries <span class="op">=</span> <span class="fl">3L</span>,</span>
 <span>  retry_delay <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>  idempotent <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  numeric_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exact"</span>, <span class="st">"driver"</span><span class="op">)</span>,</span>
+<span>  numeric_policy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"exact"</span>, <span class="st">"driver"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -216,8 +216,13 @@ attempt</p></dd>
 
 
 <dt id="arg-numeric-policy">numeric_policy<a class="anchor" aria-label="anchor" href="#arg-numeric-policy"></a></dt>
-<dd><p><code>"exact"</code> (default) preserves ADBC decimals as
-character and BIGINT as <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, using character for columns
+<dd><p><code>"auto"</code> (default) uses <code>"driver"</code> for ODBC and
+<code>"exact"</code> for ADBC. Automatic ODBC conversion warns once per R session
+about possible numeric precision loss. Set <code>"driver"</code> explicitly to
+accept the driver's conversions without this warning, or use <code>"exact"</code>
+to reject unsafe ODBC results before fetching</p>
+<p><code>"exact"</code> preserves ADBC decimals as character and BIGINT as
+<code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code>, using character for columns
 containing the minimum BIGINT. INT columns containing <code>-2147483648</code> use
 exact doubles. Nested lists retain character decimals and 64-bit integers,
 and double 32-bit integers. Null struct parents require
@@ -229,7 +234,7 @@ or turn valid integer boundaries into missing values. Cast these columns
 to <code>varchar</code> in SQL or use ADBC. <code>"driver"</code> explicitly accepts the backend's
 conversions, including possible rounding and missing values, for either
 output format. This policy applies to this query helper; direct DBI calls
-on <code><a href="fabric_sql_connect.html">fabric_sql_connect()</a></code> use the selected driver's conversion settings.</p></dd>
+on <code><a href="fabric_sql_connect.html">fabric_sql_connect()</a></code> use the selected driver's conversion settings</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -253,8 +258,8 @@ supply character parameters with explicit SQL <code>bigint</code> casts.</p></dd
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>With <code>result = "tibble"</code>, a tibble containing the returned rows and
-driver-converted column types. With <code>result = "arrow_stream"</code>, a single-use
-<code>nanoarrow_array_stream</code> that can be consumed by Arrow-compatible tools</p>
+column types determined by <code>numeric_policy</code>. With <code>result = "arrow_stream"</code>,
+a single-use <code>nanoarrow_array_stream</code> for Arrow-compatible tools</p>
     </div>
 
     <div class="section level2">

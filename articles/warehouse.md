@@ -36,16 +36,15 @@ For a single query, call `$sql_query()`
 ``` r
 
 orders <- warehouse$sql_query(
-  "SELECT TOP 10 * FROM dbo.orders",
-  numeric_policy = "driver"
+  "SELECT TOP 10 * FROM dbo.orders"
 )
 ```
 
-This example explicitly accepts ODBC’s numeric conversion, which can
-lose precision. The default `numeric_policy = "exact"` rejects ODBC
-results with INT, BIGINT, DECIMAL, or NUMERIC columns. Use
-`backend = "adbc"` with the default exact policy when numeric precision
-must be preserved.
+The default `numeric_policy = "auto"` uses ODBC’s numeric conversion and
+warns once per session that precision may be lost. Use
+`backend = "adbc"` for exact conversion, or `numeric_policy = "exact"`
+to reject unsafe ODBC results. Explicit `numeric_policy = "driver"`
+accepts conversion without the warning.
 
 The method opens and closes the SQL connection for you. If you want to
 run several commands with ‘DBI’, use `$sql_connect()`

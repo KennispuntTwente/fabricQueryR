@@ -104,14 +104,15 @@ For a single SQL query, call <code>$sql_query()</code>
 (<code><a href="../reference/fabric_sql_query.html">fabric_sql_query()</a></code>):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">orders</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">sql_query</span><span class="op">(</span></span>
-<span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span>,</span>
-<span>  numeric_policy <span class="op">=</span> <span class="st">"driver"</span></span>
+<span>  <span class="st">"SELECT TOP 10 * FROM dbo.orders"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>This example accepts ODBC’s numeric conversion, which can lose
-precision. The default <code>numeric_policy = "exact"</code> rejects
-ODBC results with INT, BIGINT, DECIMAL, or NUMERIC columns. Use
-<code>backend = "adbc"</code> with the default exact policy when those
-values must be preserved; see the setup in <a href="reading-data.html">Bring Fabric data into R</a>.</p>
+<p>The default <code>numeric_policy = "auto"</code> uses ODBC’s numeric
+conversion and warns once per session that precision may be lost. Use
+<code>numeric_policy = "driver"</code> to explicitly accept that
+conversion without a warning, or <code>"exact"</code> to reject unsafe
+ODBC results. Use <code>backend = "adbc"</code> for exact conversion;
+see the setup in <a href="reading-data.html">Bring Fabric data into
+R</a>.</p>
 <p>The method opens and closes the SQL connection for you. If you want
 to run several commands with ‘DBI’, use <code>$sql_connect()</code>
 (<code><a href="../reference/fabric_sql_connect.html">fabric_sql_connect()</a></code>):</p>

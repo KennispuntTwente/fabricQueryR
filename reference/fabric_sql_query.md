@@ -35,7 +35,7 @@ fabric_sql_query(
   max_tries = 3L,
   retry_delay = 5,
   idempotent = FALSE,
-  numeric_policy = c("exact", "driver"),
+  numeric_policy = c("auto", "exact", "driver"),
   ...
 )
 ```
@@ -181,7 +181,13 @@ fabric_sql_query(
 
 - numeric_policy:
 
-  `"exact"` (default) preserves ADBC decimals as character and BIGINT as
+  `"auto"` (default) uses `"driver"` for ODBC and `"exact"` for ADBC.
+  Automatic ODBC conversion warns once per R session about possible
+  numeric precision loss. Set `"driver"` explicitly to accept the
+  driver's conversions without this warning, or use `"exact"` to reject
+  unsafe ODBC results before fetching
+
+  `"exact"` preserves ADBC decimals as character and BIGINT as
   [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html),
   using character for columns containing the minimum BIGINT. INT columns
   containing `-2147483648` use exact doubles. Nested lists retain
@@ -196,7 +202,7 @@ fabric_sql_query(
   including possible rounding and missing values, for either output
   format. This policy applies to this query helper; direct DBI calls on
   [`fabric_sql_connect()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.md)
-  use the selected driver's conversion settings.
+  use the selected driver's conversion settings
 
 - ...:
 
@@ -222,8 +228,8 @@ fabric_sql_query(
 ## Value
 
 With `result = "tibble"`, a tibble containing the returned rows and
-driver-converted column types. With `result = "arrow_stream"`, a
-single-use `nanoarrow_array_stream` that can be consumed by
+column types determined by `numeric_policy`. With
+`result = "arrow_stream"`, a single-use `nanoarrow_array_stream` for
 Arrow-compatible tools
 
 ## Examples
