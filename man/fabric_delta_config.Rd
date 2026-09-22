@@ -12,14 +12,49 @@ fabric_delta_config(initialize = FALSE)
 \value{
 A list describing initialization state, requirements, the selected
 interpreter, module availability, and installed package versions when
-initialized
+initialized. \code{initialized} only indicates whether Python has started;
+it does not mean the Delta dependencies are available
 }
 \description{
 Shows whether the optional Python tools used for direct Delta reads are ready
 By default this does not start Python. Set \code{initialize = TRUE} to prepare the
-environment and report installed versions; packages may be downloaded the
-first time
+environment, check the minimum Python version and required module imports,
+and report installed versions. An unusable runtime raises an error with
+setup instructions. Use \code{initialize = FALSE} to inspect it without this check
 }
+\section{Automatic setup}{
+
+'reticulate' installs the declared dependencies automatically only when it
+selects a managed environment. An existing Python selected through RStudio,
+environment variables, or \code{reticulate::use_python()} can take precedence;
+\code{initialize = TRUE} does not install packages into that environment
+
+To let 'reticulate' download a compatible Python and the required packages,
+restart R, then run these commands before any Python code:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{Sys.setenv(RETICULATE_PYTHON = "managed")
+library(fabricQueryR)
+fabric_delta_config(initialize = TRUE)
+}\if{html}{\out{</div>}}
+
+Python cannot be switched after it has initialized in an R session
+}
+
+\section{Using your own Python}{
+
+Select Python 3.10 or newer before initialization. Install the Python
+dependencies into that exact interpreter, for example from R:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{system2("/path/to/python", c(
+  "-m", "pip", "install", "deltalake==1.6.2", "nanoarrow==0.8.0"
+))
+}\if{html}{\out{</div>}}
+
+On Windows, use the full path to \code{python.exe} with forward slashes.
+Restart R, select that interpreter with \code{reticulate::use_python()}, then run
+\code{fabric_delta_config(initialize = TRUE)} to verify setup
+}
+
 \examples{
 # Inspect requirements without starting Python or downloading anything
 config <- fabric_delta_config()

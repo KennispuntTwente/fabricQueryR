@@ -525,7 +525,7 @@ test_that("reading vignette executes every non-connection backend", {
 
   example <- vignette_evaluate_chunks(
     path,
-    c(2L, 3L, 5:11),
+    c(2L, 3L, 5L, 7:12),
     bindings = list(
       fabric_workspaces = function(...) list(workspace)
     )

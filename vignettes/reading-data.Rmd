@@ -160,9 +160,20 @@ Lakehouse tables or schemas are available.
 Direct Lakehouse reads use Python's 'deltalake' and 'nanoarrow' through
 'reticulate'. The first read may download a managed Python environment and its
 dependencies. Inspect the requirements with `fabric_delta_config()` or prepare
-the runtime with `fabric_delta_config(initialize = TRUE)`. If Python is already
-initialized in a custom environment, its packages must satisfy those
-requirements. See `?fabric_onelake_read_delta_table` for supported table features,
+the runtime with `fabric_delta_config(initialize = TRUE)`. This checks that
+Python is at least version 3.10 and the required modules can be imported.
+An existing custom Python environment must provide those packages itself;
+initialization does not install them into that environment. For automatic
+setup, restart R and run the following before any Python code:
+
+```{r, eval = FALSE}
+Sys.setenv(RETICULATE_PYTHON = "managed")
+library(fabricQueryR)
+fabric_delta_config(initialize = TRUE)
+```
+
+See `?fabric_delta_config` for custom Python installation instructions, and
+`?fabric_onelake_read_delta_table` for supported table features,
 OneLake permissions, and exact numeric conversions.
 
 ## Read Eventhouse data
