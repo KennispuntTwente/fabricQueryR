@@ -4,6 +4,12 @@
 integration workflows explicitly set `NOT_CRAN=true`. Live Fabric and Python
 runtime tests still require their existing opt-in environment and fixtures.
 
+Test setup disables cli progress rendering for the duration of the test run,
+including `devtools::test()` and package checks. Polling progress still runs,
+while messages, warnings, errors, and test diagnostics remain visible. The
+caller's progress settings are restored afterwards. Tests specifically checking
+rendered progress can override `cli.progress_handlers_only` locally.
+
 With `NOT_CRAN` unset or set to `false`, `tests/testthat.R` excludes live Fabric
 integration, Python runtime fixtures, and repository/development-tool tests.
 Ordinary unit tests remain selected, including SQL parsing and binding, numeric
