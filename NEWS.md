@@ -93,6 +93,10 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* Arrow streams from `fabric_onelake_read_file()` and
+`fabric_pbi_dax_query()` release their temporary IPC files on Windows even
+when returned Arrow tables remain in use.
+
 * Authenticated functions now consistently accept an 'AzureAuth' token, a bearer
 token, or a function that supplies refreshed tokens through `token`;
 `auth_args` controls 'AzureAuth' sign-in. The older `access_token` argument for

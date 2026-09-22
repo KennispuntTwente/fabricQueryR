@@ -2312,7 +2312,9 @@ onelake_commit_new_download <- function(temporary, dest) {
         owner <- arrow::open_dataset(path, format = "ipc")
         reader <- arrow::as_record_batch_reader(owner)
       } else {
-        input <- arrow::mmap_open(path)
+        # Retained batches must not pin a memory mapping when Windows deletes
+        # the owned temporary file after stream release.
+        input <- arrow::ReadableFile$create(path)
         reader <- arrow::RecordBatchStreamReader$create(input)
         owner <- list(input = input, reader = reader)
       }

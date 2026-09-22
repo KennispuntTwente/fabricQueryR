@@ -1002,7 +1002,9 @@ pbi_parse_dax_arrow_response <- function(
     .fabric_abort("Power BI returned an empty Arrow DAX response")
   }
   buffer <- if (path_payload) {
-    arrow::mmap_open(payload)
+    # IPC batches may outlive their reader; copied batch buffers let Windows
+    # delete the staged response as soon as its file handles are closed.
+    arrow::ReadableFile$create(payload)
   } else {
     arrow::BufferReader$create(payload)
   }
@@ -1145,7 +1147,7 @@ pbi_parse_dax_arrow_response <- function(
     )
     rowsets <- lapply(seq_along(data_positions), function(index) {
       stream_buffer <- if (path_payload) {
-        arrow::mmap_open(payload)
+        arrow::ReadableFile$create(payload)
       } else {
         arrow::BufferReader$create(payload)
       }

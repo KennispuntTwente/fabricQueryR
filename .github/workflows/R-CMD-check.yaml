@@ -81,6 +81,8 @@ jobs:
             r: 'release'
             cran: 'https://packagemanager.posit.co/cran/latest'
           - {os: windows-latest, r: 'release'}
+          # Match win-builder's Windows Server version for file-lock checks.
+          - {os: windows-2022, r: 'devel'}
           - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
           - {os: ubuntu-latest,   r: 'release'}
           - {os: ubuntu-latest,   r: 'oldrel-1'}
