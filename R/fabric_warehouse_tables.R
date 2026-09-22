@@ -206,7 +206,7 @@ fabric_warehouse_read_table <- function(
   limit = NULL,
   result = c("tibble", "arrow_stream"),
   backend = c("odbc", "adbc"),
-  numeric_policy = c("exact", "driver"),
+  numeric_policy = c("auto", "exact", "driver"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv(
     "FABRICQUERYR_CLIENT_ID",

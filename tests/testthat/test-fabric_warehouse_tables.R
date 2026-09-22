@@ -306,7 +306,7 @@ test_that("Warehouse table reader resolves and safely quotes its query", {
   expect_identical(plain$id, 1L)
   expect_identical(queried$sql, "SELECT * FROM [dbo].[orders]")
   expect_identical(queried$result, "tibble")
-  expect_identical(queried$numeric_policy, c("exact", "driver"))
+  expect_identical(queried$numeric_policy, c("auto", "exact", "driver"))
 
   warehouse <- r6_test_record(
     "Warehouse",

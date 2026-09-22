@@ -13,7 +13,7 @@ fabric_warehouse_read_table(
   limit = NULL,
   result = c("tibble", "arrow_stream"),
   backend = c("odbc", "adbc"),
-  numeric_policy = c("exact", "driver"),
+  numeric_policy = c("auto", "exact", "driver"),
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID", unset =
     "04b07795-8ddb-461a-bbee-02f9e1bf7b46"),
@@ -55,8 +55,14 @@ released; consume it promptly or release it explicitly with
 
 \item{backend}{SQL connection backend, \code{"odbc"} or \code{"adbc"}.}
 
-\item{numeric_policy}{\code{"exact"} (default) preserves ADBC decimals as
-character and BIGINT as \code{bit64::integer64}, using character for columns
+\item{numeric_policy}{\code{"auto"} (default) uses \code{"driver"} for ODBC and
+\code{"exact"} for ADBC. Automatic ODBC conversion warns once per R session
+about possible numeric precision loss. Set \code{"driver"} explicitly to
+accept the driver's conversions without this warning, or use \code{"exact"}
+to reject unsafe ODBC results before fetching
+
+\code{"exact"} preserves ADBC decimals as character and BIGINT as
+\code{bit64::integer64}, using character for columns
 containing the minimum BIGINT. INT columns containing \code{-2147483648} use
 exact doubles. Nested lists retain character decimals and 64-bit integers,
 and double 32-bit integers. Null struct parents require
@@ -68,7 +74,7 @@ or turn valid integer boundaries into missing values. Cast these columns
 to \code{varchar} in SQL or use ADBC. \code{"driver"} explicitly accepts the backend's
 conversions, including possible rounding and missing values, for either
 output format. This policy applies to this query helper; direct DBI calls
-on \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} use the selected driver's conversion settings.}
+on \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} use the selected driver's conversion settings}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}

@@ -8,11 +8,6 @@ this argument from existing calls; use `columns` and `limit` to restrict a
 read, or `result = "arrow_stream"` to consume batches. Tables using unsupported
 Delta features should be read through SQL or Spark instead.
 
-* `fabric_sql_query()` now defaults to `numeric_policy = "exact"`. ODBC
-results with INT, BIGINT, DECIMAL, or NUMERIC columns are rejected under this
-policy. Use `backend = "adbc"` to preserve numeric precision, or explicitly set
-`numeric_policy = "driver"` to accept the ODBC driver's conversions.
-
 ## New
 
 * Discovery functions find the Fabric workspaces and items available to the
@@ -82,7 +77,11 @@ inspect the history of semantic-model refreshes.
 
 * `fabric_sql_connect()` and `fabric_sql_query()` support ODBC and ADBC
 connections, discovered SQL items, bound query parameters, and Arrow streams
-for larger results.
+for larger results. SQL queries and Warehouse reads default to the driver's
+numeric conversion for ODBC, with a once-per-session precision warning, and
+exact conversion for ADBC. Set `numeric_policy = "driver"` to explicitly
+accept driver conversion without the warning, or `numeric_policy = "exact"`
+to reject potentially lossy ODBC results.
 
 * `fabric_job_*()` functions run, monitor, wait for, and cancel Fabric
 Notebooks, data pipelines, Spark job definitions, and other supported item

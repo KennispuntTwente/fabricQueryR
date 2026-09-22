@@ -531,8 +531,14 @@ fabric_sql_connect <- function(
 #'   An Arrow stream owns its DBI result and connection until the stream is
 #'   released; consume it promptly or release it explicitly with
 #'   [nanoarrow::nanoarrow_pointer_release()]
-#' @param numeric_policy `"exact"` (default) preserves ADBC decimals as
-#'   character and BIGINT as `bit64::integer64`, using character for columns
+#' @param numeric_policy `"auto"` (default) uses `"driver"` for ODBC and
+#'   `"exact"` for ADBC. Automatic ODBC conversion warns once per R session
+#'   about possible numeric precision loss. Set `"driver"` explicitly to
+#'   accept the driver's conversions without this warning, or use `"exact"`
+#'   to reject unsafe ODBC results before fetching
+#'
+#'   `"exact"` preserves ADBC decimals as character and BIGINT as
+#'   `bit64::integer64`, using character for columns
 #'   containing the minimum BIGINT. INT columns containing `-2147483648` use
 #'   exact doubles. Nested lists retain character decimals and 64-bit integers,
 #'   and double 32-bit integers. Null struct parents require
@@ -544,15 +550,15 @@ fabric_sql_connect <- function(
 #'   to `varchar` in SQL or use ADBC. `"driver"` explicitly accepts the backend's
 #'   conversions, including possible rounding and missing values, for either
 #'   output format. This policy applies to this query helper; direct DBI calls
-#'   on [fabric_sql_connect()] use the selected driver's conversion settings.
+#'   on [fabric_sql_connect()] use the selected driver's conversion settings
 #' @param idempotent Logical. Set to `TRUE` only if running the entire statement
 #'   a second time has no unwanted effect (usually a plain `SELECT`). This
 #'   permits a retry when it is unclear whether Fabric executed the first
 #'   attempt
 #'
 #' @return With `result = "tibble"`, a tibble containing the returned rows and
-#'   driver-converted column types. With `result = "arrow_stream"`, a single-use
-#'   `nanoarrow_array_stream` that can be consumed by Arrow-compatible tools
+#'   column types determined by `numeric_policy`. With `result = "arrow_stream"`,
+#'   a single-use `nanoarrow_array_stream` for Arrow-compatible tools
 #' @export
 #'
 #' @examples
@@ -616,7 +622,7 @@ fabric_sql_query <- function(
   max_tries = 3L,
   retry_delay = 5,
   idempotent = FALSE,
-  numeric_policy = c("exact", "driver"),
+  numeric_policy = c("auto", "exact", "driver"),
   ...
 ) {
   # 1 Validate query options -----------------------------------------------------------------------
@@ -1983,7 +1989,7 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
   sql,
   params = NULL,
   result = c("tibble", "arrow_stream"),
-  numeric_policy = c("exact", "driver")
+  numeric_policy = c("auto", "exact", "driver")
 ) {
   result <- match.arg(result)
   numeric_policy <- match.arg(numeric_policy)
@@ -1992,8 +1998,25 @@ fabric_sql_redact_secrets <- function(message, secrets = NULL) {
     sql <- binding$sql
     params <- binding$params
   }
-  exact <- identical(numeric_policy, "exact")
   native <- inherits(con, "AdbiConnection")
+  if (identical(numeric_policy, "auto")) {
+    numeric_policy <- if (native) "exact" else "driver"
+    if (inherits(con, "OdbcConnection")) {
+      .fabric_warn(
+        c(
+          "ODBC driver conversion may lose numeric precision",
+          "i" = "Use {.code backend = \"adbc\"} for exact conversion, or {.code numeric_policy = \"exact\"} to reject unsafe ODBC results",
+          "i" = "Set {.code numeric_policy = \"driver\"} to accept driver conversion without this warning"
+        ),
+        class = "fabric_sql_precision_warning",
+        .frequency = "once",
+        .frequency_id = "fabricQueryR.sql.odbc_precision",
+        .format = TRUE,
+        call = NULL
+      )
+    }
+  }
+  exact <- identical(numeric_policy, "exact")
   if (exact && native && identical(result, "tibble")) {
     query_result <- .fabric_sql_db_send_query(
       con,
