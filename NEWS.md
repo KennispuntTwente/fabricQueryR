@@ -92,6 +92,9 @@ longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
 
+* `fabric_sql_tables()` and `fabric_sql_views()` retrieve objects and column
+metadata in a single query, avoiding a second connection for detailed discovery.
+
 * Arrow streams from `fabric_onelake_read_file()` and
 `fabric_pbi_dax_query()` release their temporary IPC files on Windows even
 when returned Arrow tables remain in use.

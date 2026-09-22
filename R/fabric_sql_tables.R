@@ -4,7 +4,9 @@
 #' Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse snapshot,
 #' and SQL Database objects, or the same direct server inputs as
 #' [fabric_sql_query()]. Discovery uses SQL catalog metadata views and is
-#' limited by the caller's SQL metadata permissions.
+#' limited by the caller's SQL metadata permissions. Each discovery call uses
+#' one query, including column metadata when `detail = TRUE`, on one connection
+#' per attempt. The connection closes before the result is returned.
 #'
 #' @param server Fabric SQL endpoint, portal connection string, or discovered
 #'   SQL-capable item object.
@@ -194,7 +196,7 @@ fabric_sql_read_table <- function(
   params <- if (is.null(schema)) NULL else list(schema)
   objects <- .fabric_sql_helper_query(
     server = server,
-    sql = .fabric_sql_objects_sql(object_type, schema),
+    sql = .fabric_sql_objects_sql(object_type, schema, detail),
     params = params,
     result = "tibble",
     database = database,
@@ -213,33 +215,28 @@ fabric_sql_read_table <- function(
 
   column_rows <- NULL
   if (isTRUE(detail)) {
-    column_rows <- .fabric_sql_helper_query(
-      server = server,
-      sql = .fabric_sql_columns_sql(object_type, schema),
-      params = params,
-      result = "tibble",
-      database = database,
-      target_type = target_type,
-      backend = backend,
-      token = token,
-      dots = dots
+    column_fields <- c(
+      "column_name",
+      "ordinal_position",
+      "column_default",
+      "is_nullable",
+      "data_type",
+      "character_maximum_length",
+      "numeric_precision",
+      "numeric_scale",
+      "datetime_precision",
+      "collation_name"
     )
-    column_rows <- .fabric_sql_metadata_columns(
-      column_rows,
-      c(
-        "schema_name",
-        "object_name",
-        "column_name",
-        "ordinal_position",
-        "column_default",
-        "is_nullable",
-        "data_type",
-        "character_maximum_length",
-        "numeric_precision",
-        "numeric_scale",
-        "datetime_precision",
-        "collation_name"
-      )
+    objects <- .fabric_sql_metadata_columns(objects, column_fields)
+    # Keep the object and column raw records separate, as with detail = FALSE.
+    # The left join retains objects even when no column metadata is visible.
+    column_rows <- objects[
+      !is.na(objects$column_name),
+      c("schema_name", "object_name", column_fields),
+      drop = FALSE
+    ]
+    objects <- unique(
+      objects[, setdiff(names(objects), column_fields), drop = FALSE]
     )
   }
 
@@ -279,7 +276,7 @@ fabric_sql_read_table <- function(
   .fabric_sql_object_tibble(rows)
 }
 
-.fabric_sql_objects_sql <- function(object_type, schema) {
+.fabric_sql_objects_sql <- function(object_type, schema, detail) {
   definition <- if (identical(object_type, "VIEW")) {
     paste0(
       ", m.definition AS view_definition, ",
@@ -307,46 +304,48 @@ fabric_sql_read_table <- function(
   } else {
     " FROM INFORMATION_SCHEMA.TABLES AS t"
   }
+  # These bounded catalog integers fit exactly in float(53), including every
+  # SQL INT value, and avoid ODBC's reserved R integer NA representation.
+  columns <- if (isTRUE(detail)) {
+    paste0(
+      ", c.COLUMN_NAME AS column_name, ",
+      "CAST(c.ORDINAL_POSITION AS float) AS ordinal_position, ",
+      "c.COLUMN_DEFAULT AS column_default, ",
+      "c.IS_NULLABLE AS is_nullable, ",
+      "c.DATA_TYPE AS data_type, ",
+      "CAST(c.CHARACTER_MAXIMUM_LENGTH AS float) AS character_maximum_length, ",
+      "CAST(c.NUMERIC_PRECISION AS float) AS numeric_precision, ",
+      "CAST(c.NUMERIC_SCALE AS float) AS numeric_scale, ",
+      "CAST(c.DATETIME_PRECISION AS float) AS datetime_precision, ",
+      "c.COLLATION_NAME AS collation_name"
+    )
+  } else {
+    ""
+  }
+  column_join <- if (isTRUE(detail)) {
+    paste0(
+      " LEFT JOIN INFORMATION_SCHEMA.COLUMNS AS c ",
+      "ON c.TABLE_CATALOG = t.TABLE_CATALOG ",
+      "AND c.TABLE_SCHEMA = t.TABLE_SCHEMA ",
+      "AND c.TABLE_NAME = t.TABLE_NAME"
+    )
+  } else {
+    ""
+  }
   paste0(
     "SELECT t.TABLE_SCHEMA AS schema_name, ",
     "t.TABLE_NAME AS object_name, ",
     "t.TABLE_TYPE AS object_type",
     definition,
+    columns,
     from,
+    column_join,
     " WHERE t.TABLE_TYPE = '",
     object_type,
     "'",
     if (is.null(schema)) "" else " AND t.TABLE_SCHEMA = ?",
-    " ORDER BY t.TABLE_SCHEMA, t.TABLE_NAME"
-  )
-}
-
-.fabric_sql_columns_sql <- function(object_type, schema) {
-  # These bounded catalog integers fit exactly in float(53), including every
-  # SQL INT value, and avoid ODBC's reserved R integer NA representation.
-  paste0(
-    "SELECT c.TABLE_SCHEMA AS schema_name, ",
-    "c.TABLE_NAME AS object_name, ",
-    "c.COLUMN_NAME AS column_name, ",
-    "CAST(c.ORDINAL_POSITION AS float) AS ordinal_position, ",
-    "c.COLUMN_DEFAULT AS column_default, ",
-    "c.IS_NULLABLE AS is_nullable, ",
-    "c.DATA_TYPE AS data_type, ",
-    "CAST(c.CHARACTER_MAXIMUM_LENGTH AS float) AS character_maximum_length, ",
-    "CAST(c.NUMERIC_PRECISION AS float) AS numeric_precision, ",
-    "CAST(c.NUMERIC_SCALE AS float) AS numeric_scale, ",
-    "CAST(c.DATETIME_PRECISION AS float) AS datetime_precision, ",
-    "c.COLLATION_NAME AS collation_name ",
-    "FROM INFORMATION_SCHEMA.COLUMNS AS c ",
-    "INNER JOIN INFORMATION_SCHEMA.TABLES AS t ",
-    "ON t.TABLE_CATALOG = c.TABLE_CATALOG ",
-    "AND t.TABLE_SCHEMA = c.TABLE_SCHEMA ",
-    "AND t.TABLE_NAME = c.TABLE_NAME ",
-    "WHERE t.TABLE_TYPE = '",
-    object_type,
-    "'",
-    if (is.null(schema)) "" else " AND t.TABLE_SCHEMA = ?",
-    " ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.ORDINAL_POSITION"
+    " ORDER BY t.TABLE_SCHEMA, t.TABLE_NAME",
+    if (isTRUE(detail)) ", c.ORDINAL_POSITION" else ""
   )
 }
 
