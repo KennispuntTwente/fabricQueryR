@@ -236,6 +236,63 @@ test_that("the getting-started workflow executes against its documented API", {
   expect_identical(tutorial$rows$name, c("Ada", "Grace"))
 })
 
+test_that("documented large-table reads consume batches and release streams", {
+  skip_if_not_installed("arrow")
+  paths <- test_path(
+    "..",
+    "..",
+    c(
+      "vignettes/reading-data.Rmd",
+      "vignettes/onelake-and-lakehouse.Rmd",
+      "man/fabric_lakehouse_read_table.Rd",
+      "man/fabric_onelake_read_delta_table.Rd"
+    )
+  )
+  if (!all(file.exists(paths))) {
+    skip("Package documentation source is not available")
+  }
+
+  for (path in paths) {
+    if (endsWith(path, ".Rmd")) {
+      code <- unlist(lapply(vignette_r_chunks(path), `[[`, "body"))
+    } else {
+      example <- withr::local_tempfile(fileext = ".R")
+      tools::Rd2ex(tools::parse_Rd(path), out = example, commentDontrun = FALSE)
+      code <- readLines(example, warn = FALSE)
+    }
+    expressions <- parse(text = code)
+    selected <- vapply(
+      expressions,
+      function(expr) {
+        "read_next_batch" %in% all.names(expr)
+      },
+      logical(1)
+    )
+    expect_equal(sum(selected), 1L, info = basename(path))
+
+    released <- FALSE
+    batches <- lapply(list(1:2, 3:5), function(id) {
+      nanoarrow::as_nanoarrow_array(data.frame(id = id))
+    })
+    stream <- nanoarrow::basic_array_stream(batches)
+    stream <- nanoarrow::array_stream_set_finalizer(stream, function() {
+      released <<- TRUE
+    })
+    withr::defer(nanoarrow::nanoarrow_pointer_release(stream))
+    tutorial <- new.env(parent = baseenv())
+    tutorial$lakehouse <- list(read_table = function(...) stream)
+    tutorial$table <- "orders"
+    tutorial$fabric_lakehouse_read_table <- function(...) stream
+
+    expect_equal(
+      eval(expressions[selected], tutorial),
+      5,
+      info = basename(path)
+    )
+    expect_identical(released, TRUE, info = basename(path))
+  }
+})
+
 test_that("authentication vignette executes discovery with one identity", {
   path <- test_path("..", "..", "vignettes", "authentication.Rmd")
   if (!file.exists(path)) {

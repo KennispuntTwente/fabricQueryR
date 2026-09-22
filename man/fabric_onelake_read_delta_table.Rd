@@ -141,7 +141,14 @@ engine instead. See the
 and \href{https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake}{OneLake tenant settings}
 
 This function uses the Python
-\href{https://pypi.org/project/deltalake/}{deltalake} reader through 'reticulate'
+\href{https://pypi.org/project/deltalake/}{deltalake} reader through 'reticulate'.
+Python 3.10 or newer and compatible Python 'deltalake' and 'nanoarrow'
+packages are required. Inspect the exact requirements with
+\code{\link[=fabric_delta_config]{fabric_delta_config()}}, or call \code{fabric_delta_config(initialize = TRUE)}
+to initialize the runtime. 'reticulate' can download a managed environment
+on first use; an already initialized custom environment must provide the
+required packages itself.
+
 Some newer Delta features, including Type Widening, V2 Checkpoints, and
 shredded Fabric Variant, are not supported by that reader. The reader can
 query an unshredded Variant table only when \code{columns} explicitly excludes
@@ -169,13 +176,22 @@ rows <- fabric_lakehouse_read_table(
 )
 
 # Stream the same table when it may not fit in R memory
-stream <- fabric_lakehouse_read_table(
-  lakehouse = lakehouse,
-  table = table,
-  result = "arrow_stream"
-)
-reader <- arrow::as_record_batch_reader(stream)
-rows <- reader$read_table()
-reader$Close()
+row_count <- local({
+  stream <- fabric_lakehouse_read_table(
+    lakehouse = lakehouse,
+    table = table,
+    result = "arrow_stream"
+  )
+  on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+  reader <- arrow::as_record_batch_reader(stream)
+  on.exit(reader$Close(), add = TRUE, after = FALSE)
+  count <- 0
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) break
+    count <- count + batch$num_rows
+  }
+  count
+})
 }
 }

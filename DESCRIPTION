@@ -58,4 +58,4 @@ URL: https://github.com/kennispunttwente/fabricQueryR, https://kennispunttwente.
 BugReports: https://github.com/kennispunttwente/fabricQueryR/issues
 Depends: 
     R (>= 4.1.0)
-Config/roxygen2/version: 8.0.0
+Config/roxygen2/version: 8.1.0

@@ -113,11 +113,12 @@ This handles quoting safely. Use `$sql_connect()` (`fabric_sql_connect()`) and
 normal 'DBI' functions when several queries should share one connection:
 
 ```{r, eval = FALSE}
-con <- warehouse$sql_connect()
-on.exit(DBI::dbDisconnect(con), add = TRUE)
-
-DBI::dbListTables(con)
-orders <- DBI::dbGetQuery(con, "SELECT TOP 100 * FROM dbo.orders")
+orders <- local({
+  con <- warehouse$sql_connect()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbListTables(con)
+  DBI::dbGetQuery(con, "SELECT TOP 100 * FROM dbo.orders")
+})
 ```
 
 Direct 'DBI' reads use the driver's numeric conversion.
@@ -155,6 +156,14 @@ above, or use the ADBC backend for exact conversion.
 
 Use `lakehouse$tables()` (`fabric_lakehouse_tables()`) when you are unsure which
 Lakehouse tables or schemas are available.
+
+Direct Lakehouse reads use Python's 'deltalake' and 'nanoarrow' through
+'reticulate'. The first read may download a managed Python environment and its
+dependencies. Inspect the requirements with `fabric_delta_config()` or prepare
+the runtime with `fabric_delta_config(initialize = TRUE)`. If Python is already
+initialized in a custom environment, its packages must satisfy those
+requirements. See `?fabric_onelake_read_delta_table` for supported table features,
+OneLake permissions, and exact numeric conversions.
 
 ## Read Eventhouse data
 
@@ -262,15 +271,29 @@ Several readers accept `result = "arrow_stream"`. This can be used with the
 `fabric_lakehouse_read_table()`:
 
 ```{r, eval = FALSE}
-stream <- lakehouse$read_table(
-  table = "large_orders",
-  result = "arrow_stream"
-)
-
-reader <- arrow::as_record_batch_reader(stream)
-orders <- reader$read_table()
-reader$Close()
+row_count <- local({
+  stream <- lakehouse$read_table(
+    table = "large_orders",
+    result = "arrow_stream"
+  )
+  on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+  reader <- arrow::as_record_batch_reader(stream)
+  on.exit(reader$Close(), add = TRUE, after = FALSE)
+  count <- 0
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) break
+    # Process or write this batch before reading the next one.
+    count <- count + batch$num_rows
+  }
+  count
+})
 ```
+
+`reader$read_table()` collects every remaining batch into one Arrow Table;
+use it only when the full selected result fits in memory. Direct Delta reads
+stage the selected data to a temporary file before returning the stream, so
+allow enough local disk space even when processing batches.
 
 Close an Arrow reader after use. For disk-backed OneLake Delta streams, this
 also deletes the staged temporary file; when consuming one directly through

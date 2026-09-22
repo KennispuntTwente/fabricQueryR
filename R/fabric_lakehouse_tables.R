@@ -230,6 +230,10 @@ NULL
 #' authenticated OneLake Delta reader. Use `result = "arrow_stream"` to keep a
 #' larger result out of R memory.
 #'
+#' Direct reads use the Python runtime described in [fabric_delta_config()].
+#' See [fabric_onelake_read_delta_table()] for runtime setup, supported Delta
+#' features, OneLake permissions, and column-type conversion rules.
+#'
 #' @param lakehouse Lakehouse GUID, exact display name, or one Lakehouse object
 #'   returned by [fabric_lakehouses()]. A discovered object is recommended
 #'   because it carries its workspace ID and default schema.
@@ -273,15 +277,24 @@ NULL
 #' # Read the discovered table into a tibble
 #' rows <- fabric_lakehouse_read_table(lakehouse, table)
 #'
-#' # Stream selected columns when the full table may not fit in R memory
-#' stream <- fabric_lakehouse_read_table(
-#'   lakehouse,
-#'   table,
-#'   result = "arrow_stream"
-#' )
-#' reader <- arrow::as_record_batch_reader(stream)
-#' rows <- reader$read_table()
-#' reader$Close()
+#' # Count rows in batches when the full table may not fit in R memory
+#' row_count <- local({
+#'   stream <- fabric_lakehouse_read_table(
+#'     lakehouse,
+#'     table,
+#'     result = "arrow_stream"
+#'   )
+#'   on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+#'   reader <- arrow::as_record_batch_reader(stream)
+#'   on.exit(reader$Close(), add = TRUE, after = FALSE)
+#'   count <- 0
+#'   repeat {
+#'     batch <- reader$read_next_batch()
+#'     if (is.null(batch)) break
+#'     count <- count + batch$num_rows
+#'   }
+#'   count
+#' })
 #' }
 fabric_lakehouse_read_table <- function(
   lakehouse,
