@@ -163,12 +163,17 @@ jobs:
             "$apply_log"; then
             exit "$apply_status"
           fi
+          if ! grep -Fq "with fabric_mirrored_database.test," "$apply_log"; then
+            exit "$apply_status"
+          fi
           if ! terraform "-chdir=$TF_DIR" state show -no-color \
             fabric_mirrored_database.test >/dev/null 2>&1; then
             exit "$apply_status"
           fi
-          echo "::warning::Fabric provider timed out after saving mirrored database state; retrying apply"
-          "${terraform_apply[@]}"
+          # This workflow has just created the workspace; no fixtures are seeded yet.
+          # A normal refresh waits on the same stuck SQL endpoint before replacement.
+          echo "::warning::Replacing the unseeded mirrored database after its provisioning timeout"
+          "${terraform_apply[@]}" -refresh=false -replace=fabric_mirrored_database.test
 
       - name: Export Terraform outputs
         run: |
@@ -610,7 +615,8 @@ jobs:
 
       - name: Destroy Fabric sandbox
         if: hashFiles('infra/fabric/terraform/terraform.tfstate') != ''
-        run: terraform -chdir="$TF_DIR" destroy -auto-approve -input=false
+        # Delete the resources recorded by this run even if SQL readiness is stuck.
+        run: terraform -chdir="$TF_DIR" destroy -auto-approve -input=false -refresh=false
 
   teardown_preview:
     name: Destroy ${{ matrix.lane }} runtime sandbox

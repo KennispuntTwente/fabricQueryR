@@ -177,6 +177,13 @@ retained as a one-day workflow artifact and
 consumed by a final teardown job after every matrix leg succeeds, fails, or is
 skipped.
 
+If initial provisioning times out on the open mirrored database's SQL endpoint,
+the workflows replace that unseeded database once using its saved Terraform state.
+The recovery skips refresh because the provider otherwise waits on the same
+endpoint before it can replace the resource. Other errors and a failed replacement
+still stop provisioning. CI teardown also uses saved state without refreshing
+item readiness, so an unavailable SQL endpoint cannot block resource deletion.
+
 A repository-wide concurrency group ensures only one sandbox consumes the test
 capacity at a time. The workflow runs weekly and can also be dispatched
 manually. CI enables required integration mode, so missing core manifests,
