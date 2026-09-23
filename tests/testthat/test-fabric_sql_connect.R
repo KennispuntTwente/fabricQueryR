@@ -2083,8 +2083,8 @@ test_that("ODBC defaults return driver values and warn once across SQL workflows
     credential = fabric_credential(token = "sql-token")
   )
 
-  expect_silent(
-    explicit <- warehouse$sql_query(
+  explicit <- expect_silent(
+    warehouse$sql_query(
       "SELECT id, amount FROM dbo.orders",
       numeric_policy = "driver",
       verbose = FALSE
@@ -2183,7 +2183,7 @@ test_that("ADBC exact tibbles release their native stream and result", {
       events <<- c(events, "clear")
     }
   )
-  expect_silent(result <- .fabric_sql_db_get_query(con, "SELECT v FROM t"))
+  result <- expect_silent(.fabric_sql_db_get_query(con, "SELECT v FROM t"))
   expect_identical(result$value, "-9223372036854775808")
   expect_identical(result$amount, "12345678901234567890.1234")
   expect_identical(events, c("release", "clear"))

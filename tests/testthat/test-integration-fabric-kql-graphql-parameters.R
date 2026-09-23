@@ -7,7 +7,7 @@ test_that("explicit dynamic timestamp and special-number strings retain values",
     fabric_test_manifest_item(manifest, "TestKQLDatabase")$id,
     token = token
   )
-  stamp <- as.POSIXct("2026-09-19 12:13:14", tz = "Europe/Amsterdam") + .123456
+  stamp <- as.POSIXct("2026-09-19 12:13:14", tz = "Europe/Amsterdam") + 0.123456
   result <- fabric_kql_query(
     database,
     paste(

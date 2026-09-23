@@ -421,8 +421,12 @@ test_that("Warehouse writer never uploads or cleans up an unreserved directory",
   removals <- 0L
   local_mocked_bindings(
     onelake_create_parents = function(...) invisible(TRUE),
-    onelake_upload_target = function(...) uploads <<- uploads + 1L,
-    .fabric_warehouse_remove_staging = function(...) removals <<- removals + 1L
+    onelake_upload_target = function(...) {
+      uploads <<- uploads + 1L
+    },
+    .fabric_warehouse_remove_staging = function(...) {
+      removals <<- removals + 1L
+    }
   )
   httr2::local_mocked_responses(function(req) {
     expect_identical(req$method, "PUT")

@@ -1,5 +1,5 @@
 test_that("dynamic parameters reject implicit temporal and nonfinite conversions", {
-  stamp <- as.POSIXct("2026-09-19 12:13:14", tz = "Europe/Amsterdam") + .123456
+  stamp <- as.POSIXct("2026-09-19 12:13:14", tz = "Europe/Amsterdam") + 0.123456
   values <- list(
     stamp,
     as.POSIXlt(stamp),

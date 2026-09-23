@@ -45,7 +45,7 @@ test_that("malformed SQL table lists fail before querying", {
     list(name = ""),
     list(name = list("orders")),
     list(name = "orders", schema = c("one", "two")),
-    list(name = "orders", name = "other")
+    stats::setNames(list("orders", "other"), c("name", "name"))
   )) {
     expect_error(
       fabric_sql_read_table("warehouse.example", record, token = "token"),

@@ -67,8 +67,8 @@ test_that("SQL defaults work on Fabric with one ODBC precision warning", {
 
   if ("odbc" %in% backends) {
     rlang::reset_warning_verbosity(warning_id)
-    expect_silent(
-      accepted <- warehouse$sql_query(
+    accepted <- expect_silent(
+      warehouse$sql_query(
         sql,
         numeric_policy = "driver",
         verbose = FALSE

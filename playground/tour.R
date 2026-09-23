@@ -55,6 +55,7 @@ fabric_sql_read_table(
 # ODBC defaults to driver conversion and warns once per R session about precision.
 # "driver" explicitly accepts that conversion; "exact" rejects unsafe ODBC types.
 # Optional ADBC preserves decimals as strings and large integers exactly.
+# jarl-ignore unreachable_code: optional ADBC example is run manually
 if (FALSE) {
   precise <- warehouse$sql_query(
     paste(
@@ -174,6 +175,7 @@ sandbox$targets$arrow_semantic_model$dax_query(
 
 # Optional: catalog search (preview API, requires Catalog.Read.All).
 # Search visibility and indexing can differ from direct workspace discovery.
+# jarl-ignore unreachable_code: preview catalog example is run manually
 if (FALSE) {
   catalog <- fabric_catalog_search(
     search = "TestLakehouse",
@@ -185,6 +187,7 @@ if (FALSE) {
 
 # 8. Writes: temporary objects with automatic cleanup ----
 # Run individual calls deliberately. These upload data or create objects.
+# jarl-ignore unreachable_code: writes require deliberately running this example
 if (FALSE) {
   demo_onelake_write(sandbox)$rows
   demo_onelake_shortcut(sandbox)$inspected
@@ -192,6 +195,7 @@ if (FALSE) {
 }
 
 # A dedicated Lakehouse table is retained after this call (no table-delete API).
+# jarl-ignore unreachable_code: retained table creation is run manually
 if (FALSE) {
   written <- write_playground_lakehouse_table(sandbox)
   written$rows
@@ -199,6 +203,7 @@ if (FALSE) {
 
 # KQL ingestion leaves a dedicated table too. Keep the ingestion key stable
 # when retrying this same batch; use a new key for a different batch of data.
+# jarl-ignore unreachable_code: ingestion into a retained table is run manually
 if (FALSE) {
   ingested <- kql$write_table(
     table = "fabricqueryr_playground_events",
@@ -214,6 +219,7 @@ if (FALSE) {
 
 # Export runs in Fabric and writes Parquet files to OneLake. A unique directory
 # is removed on exit after reading the exported data back into R.
+# jarl-ignore unreachable_code: export starts compute and is run manually
 if (FALSE) {
   exported_rows <- local({
     path <- paste0("Files/playground/", basename(tempfile("kql-export-")))
@@ -242,12 +248,14 @@ if (FALSE) {
 
 # 9. Jobs, refreshes, and Spark ----
 # Inspect history without starting compute.
+# jarl-ignore unreachable_code: optional job inspection is run manually
 if (FALSE) {
   demo_job_history(sandbox)
   fabric_job_schedules(sandbox$targets$pipeline, token = sandbox$token)
 }
 
 # These start work and may take several minutes. Run one at a time.
+# jarl-ignore unreachable_code: compute examples are started manually
 if (FALSE) {
   # Uses the Import model; the JSON demo's Push model cannot be refreshed.
   refresh <- demo_power_bi_refresh(sandbox)
