@@ -4,9 +4,6 @@
 
 ### Breaking changes
 
-- Arrow-backed features now require ‘arrow’ 17.0.0 or later for CSV
-  support and reliable file cleanup on Windows.
-
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
   now uses the optional Python ‘deltalake’ reader through ‘reticulate’.
   The `dest_dir` argument has been removed. Remove this argument from

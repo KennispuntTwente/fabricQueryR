@@ -37,8 +37,8 @@
 <h2 class="pkg-version" data-toc-text="1.0.0" id="fabricqueryr-100">fabricQueryR 1.0.0<a class="anchor" aria-label="anchor" href="#fabricqueryr-100"></a></h2>
 <div class="section level3">
 <h3 id="breaking-changes-1-0-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-0-0"></a></h3>
-<ul><li><p>Arrow-backed features now require ‘arrow’ 17.0.0 or later for CSV support and reliable file cleanup on Windows.</p></li>
-<li><p><code><a href="../reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> now uses the optional Python ‘deltalake’ reader through ‘reticulate’. The <code>dest_dir</code> argument has been removed. Remove this argument from existing calls; use <code>columns</code> and <code>limit</code> to restrict a read, or <code>result = "arrow_stream"</code> to consume batches. Tables using unsupported Delta features should be read through SQL or Spark instead.</p></li>
+<ul><li>
+<code><a href="../reference/fabric_onelake_read_delta_table.html">fabric_onelake_read_delta_table()</a></code> now uses the optional Python ‘deltalake’ reader through ‘reticulate’. The <code>dest_dir</code> argument has been removed. Remove this argument from existing calls; use <code>columns</code> and <code>limit</code> to restrict a read, or <code>result = "arrow_stream"</code> to consume batches. Tables using unsupported Delta features should be read through SQL or Spark instead.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="new-1-0-0">New<a class="anchor" aria-label="anchor" href="#new-1-0-0"></a></h3>
