@@ -19,7 +19,7 @@ License: MIT + file LICENSE
 Suggests: 
     adbcdrivermanager,
     adbi,
-    arrow (>= 9.0.0),
+    arrow (>= 17.0.0),
     DBI (>= 1.2.0),
     dplyr,
     knitr,

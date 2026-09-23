@@ -233,7 +233,7 @@ test_that("playground SQL skips absent targets and forwards precision choices", 
 })
 
 test_that("playground batch demo processes and releases a real Arrow stream", {
-  skip_if_not_installed("arrow", "9.0.0")
+  skip_if_not_installed("arrow", "17.0.0")
   skip_if_not_installed("nanoarrow", "0.6.0")
   environment <- new.env(parent = globalenv())
   sys.source(.playground_test_path("playground.R"), envir = environment)

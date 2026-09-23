@@ -15,7 +15,7 @@ env:
 jobs:
   minimum-arrow:
     runs-on: windows-latest
-    name: Parquet staging (Arrow 9.0.0)
+    name: Full offline suite (Arrow 17.0.0)
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-r@v2
@@ -23,26 +23,25 @@ jobs:
           r-version: '4.5'
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          dependencies: '"hard"'
-          extra-packages: any::devtools, any::testthat, any::withr, any::assertthat, any::purrr
+          needs: check, ci
+          extra-packages: any::devtools, any::assertthat
           install-pandoc: false
           install-quarto: false
-      - name: Exercise both writers with the minimum Arrow version
+      - name: Test the package with the minimum Arrow version
         shell: Rscript {0}
         run: |
-          lib <- tempfile("arrow9-library-")
+          lib <- tempfile("minimum-arrow-library-")
           dir.create(lib)
+          # Arrow 17 fixes dataset-reader file release on Windows.
           install.packages(
-            "https://packagemanager.posit.co/cran/2022-09-01/bin/windows/contrib/4.2/arrow_9.0.0.zip",
+            "https://packagemanager.posit.co/cran/2024-08-20/bin/windows/contrib/4.4/arrow_17.0.0.zip",
             repos = NULL, type = "win.binary", lib = lib
           )
           .libPaths(c(lib, .libPaths()))
-          stopifnot(packageVersion("arrow") == "9.0.0")
+          stopifnot(packageVersion("arrow") == "17.0.0")
           stopifnot(requireNamespace("arrow", quietly = TRUE))
-          devtools::test(
-            filter = "^fabric_(arrow_staging|pbi_dax_query|warehouse_tables)$",
-            stop_on_failure = TRUE
-          )
+          options(testthat.snapshot.update = FALSE)
+          devtools::test(stop_on_failure = TRUE)
 
   windows-restrictive-locale:
     runs-on: windows-latest
