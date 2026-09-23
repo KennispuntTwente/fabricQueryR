@@ -168,12 +168,52 @@ Use `lakehouse$tables()`
 when you are unsure which Lakehouse tables or schemas are available.
 
 Direct Lakehouse reads use Python’s ‘deltalake’ and ‘nanoarrow’ through
-‘reticulate’. The first read may download a managed Python environment
-and its dependencies. Inspect the requirements with
+‘reticulate’. **To enable automatic installation, restart R first**,
+then explicitly select a managed environment before loading the package:
+
+``` r
+
+Sys.setenv(RETICULATE_PYTHON = "managed")
+library(fabricQueryR)
+fabric_delta_config(initialize = TRUE)
+```
+
+`"managed"` tells ‘reticulate’ to create or reuse an environment that
+satisfies the package’s requirements. Loading ‘fabricQueryR’ declares
+them with
+[`reticulate::py_require()`](https://rstudio.github.io/reticulate/reference/py_require.html),
+and initialization uses ‘uv’ to download Python and the dependencies if
+needed. ‘reticulate’ also downloads ‘uv’ if needed. No separate
+`py_install()` call is necessary. Both entries in `available` should
+then be `TRUE`, with installed package versions in `versions`.
+
+Without `RETICULATE_PYTHON = "managed"`, an existing Python selected
+through RStudio, environment variables, `use_python()`, or a project
+virtualenv can take precedence. Declaring requirements does not install
+them into that interpreter or upgrade it; Python 3.9, for example,
+cannot satisfy this backend’s minimum of Python 3.10. Once Python
+starts, restart R before changing its selection.
+[`reticulate::py_config()`](https://rstudio.github.io/reticulate/reference/py_config.html)
+reports which interpreter was chosen and why.
+
+To enable managed setup for future sessions in this project, add
+`RETICULATE_PYTHON=managed` to the project’s `.Renviron` file and
+restart R. Use
 [`fabric_delta_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
-or prepare the runtime with `fabric_delta_config(initialize = TRUE)`. If
-Python is already initialized in a custom environment, its packages must
-satisfy those requirements. See
+to inspect requirements without starting Python.
+
+For a reusable environment that you manage yourself, create it with
+[`reticulate::virtualenv_create()`](https://rstudio.github.io/reticulate/reference/virtualenv-tools.html)
+from a compatible installed Python, or with
+`uv venv --python 3.11 --seed` at a chosen path. Then install the
+dependencies with
+`reticulate::py_install(..., envname = ..., method = "virtualenv")` and
+select that environment before Python starts. `py_install()` uses ‘pip’
+in a virtualenv; it does not upgrade an environment’s Python version.
+
+See
+[`?fabric_delta_config`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_delta_config.md)
+for complete examples of both setup routes, and
 [`?fabric_onelake_read_delta_table`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)
 for supported table features, OneLake permissions, and exact numeric
 conversions.

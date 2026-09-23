@@ -261,13 +261,45 @@ without a warning.</p>
 (<code><a href="../reference/fabric_lakehouse_tables.html">fabric_lakehouse_tables()</a></code>) when you are unsure which
 Lakehouse tables or schemas are available.</p>
 <p>Direct Lakehouse reads use Python’s ‘deltalake’ and ‘nanoarrow’
-through ‘reticulate’. The first read may download a managed Python
-environment and its dependencies. Inspect the requirements with
-<code><a href="../reference/fabric_delta_config.html">fabric_delta_config()</a></code> or prepare the runtime with
-<code>fabric_delta_config(initialize = TRUE)</code>. If Python is
-already initialized in a custom environment, its packages must satisfy
-those requirements. See <code><a href="../reference/fabric_onelake_read_delta_table.html">?fabric_onelake_read_delta_table</a></code>
-for supported table features, OneLake permissions, and exact numeric
+through ‘reticulate’. <strong>To enable automatic installation, restart
+R first</strong>, then explicitly select a managed environment before
+loading the package:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>RETICULATE_PYTHON <span class="op">=</span> <span class="st">"managed"</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kennispunttwente/fabricQueryR" class="external-link">fabricQueryR</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/fabric_delta_config.html">fabric_delta_config</a></span><span class="op">(</span>initialize <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p><code>"managed"</code> tells ‘reticulate’ to create or reuse an
+environment that satisfies the package’s requirements. Loading
+‘fabricQueryR’ declares them with <code><a href="https://rstudio.github.io/reticulate/reference/py_require.html" class="external-link">reticulate::py_require()</a></code>,
+and initialization uses ‘uv’ to download Python and the dependencies if
+needed. ‘reticulate’ also downloads ‘uv’ if needed. No separate
+<code>py_install()</code> call is necessary. Both entries in
+<code>available</code> should then be <code>TRUE</code>, with installed
+package versions in <code>versions</code>.</p>
+<p>Without <code>RETICULATE_PYTHON = "managed"</code>, an existing
+Python selected through RStudio, environment variables,
+<code>use_python()</code>, or a project virtualenv can take precedence.
+Declaring requirements does not install them into that interpreter or
+upgrade it; Python 3.9, for example, cannot satisfy this backend’s
+minimum of Python 3.10. Once Python starts, restart R before changing
+its selection. <code><a href="https://rstudio.github.io/reticulate/reference/py_config.html" class="external-link">reticulate::py_config()</a></code> reports which
+interpreter was chosen and why.</p>
+<p>To enable managed setup for future sessions in this project, add
+<code>RETICULATE_PYTHON=managed</code> to the project’s
+<code>.Renviron</code> file and restart R. Use
+<code><a href="../reference/fabric_delta_config.html">fabric_delta_config()</a></code> to inspect requirements without
+starting Python.</p>
+<p>For a reusable environment that you manage yourself, create it with
+<code><a href="https://rstudio.github.io/reticulate/reference/virtualenv-tools.html" class="external-link">reticulate::virtualenv_create()</a></code> from a compatible installed
+Python, or with <code>uv venv --python 3.11 --seed</code> at a chosen
+path. Then install the dependencies with
+<code>reticulate::py_install(..., envname = ..., method = "virtualenv")</code>
+and select that environment before Python starts.
+<code>py_install()</code> uses ‘pip’ in a virtualenv; it does not
+upgrade an environment’s Python version.</p>
+<p>See <code><a href="../reference/fabric_delta_config.html">?fabric_delta_config</a></code> for complete examples of both
+setup routes, and <code><a href="../reference/fabric_onelake_read_delta_table.html">?fabric_onelake_read_delta_table</a></code> for
+supported table features, OneLake permissions, and exact numeric
 conversions.</p>
 </div>
 <div class="section level2">
@@ -276,14 +308,14 @@ conversions.</p>
 <p>An Eventhouse is optimized for event, log, and time-series data. Its
 query language is KQL. Read a whole table by name with
 <code>$read_table()</code> (<code><a href="../reference/fabric_kql_read_table.html">fabric_kql_read_table()</a></code>):</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">events</span> <span class="op">&lt;-</span> <span class="va">kql_database</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
 <span>  table <span class="op">=</span> <span class="st">"Events"</span>,</span>
 <span>  limit <span class="op">=</span> <span class="fl">100L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Use <code>$query()</code> (<code><a href="../reference/fabric_kql_query.html">fabric_kql_query()</a></code>) when
 Fabric should filter or summarize the events first:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">daily_events</span> <span class="op">&lt;-</span> <span class="va">kql_database</span><span class="op">$</span><span class="fu">query</span><span class="op">(</span></span>
 <span>  query <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
 <span>    <span class="st">"Events"</span>,</span>
@@ -300,7 +332,7 @@ Fabric should filter or summarize the events first:</p>
 Power BI. Query it with <code>$dax_query()</code>
 (<code><a href="../reference/fabric_pbi_dax_query.html">fabric_pbi_dax_query()</a></code>) and DAX (Data Analysis
 Expressions):</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sales_by_region</span> <span class="op">&lt;-</span> <span class="va">model</span><span class="op">$</span><span class="fu">dax_query</span><span class="op">(</span></span>
 <span>  dax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
 <span>    <span class="st">"EVALUATE"</span>,</span>
@@ -321,7 +353,7 @@ refreshing their data.</p>
 in a Lakehouse usually begin with <code>Files/</code>. The
 <code>$onelake_read_file()</code> method calls
 <code><a href="../reference/fabric_onelake_object_files.html">fabric_onelake_read_file()</a></code>:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">orders_file</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">onelake_read_file</span><span class="op">(</span></span>
 <span>  path <span class="op">=</span> <span class="st">"Files/exports/orders.parquet"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -335,7 +367,7 @@ Lakehouse table reader, not a file reader, for managed data below
 </h2>
 <p>GraphQL is useful when a Fabric API item exposes a purpose-built
 selection of fields:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">api</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">graphql_apis</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">response</span> <span class="op">&lt;-</span> <span class="va">api</span><span class="op">$</span><span class="fu">query</span><span class="op">(</span></span>
@@ -347,7 +379,7 @@ for schema inspection and pagination. <code>$graphql_apis()</code> is
 the workspace method for <code><a href="../reference/fabric_typed_items.html">fabric_graphql_apis()</a></code>.</p>
 <p>Spark is the later choice for distributed transformations, Spark-only
 data formats, or logic already written for Spark:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sql"</span>,</span>
 <span>  code <span class="op">=</span> <span class="st">"SELECT category, count(*) AS n FROM orders GROUP BY category"</span></span>
@@ -365,7 +397,7 @@ process it as a stream instead of collecting it all at once.</p>
 be used with the ‘arrow’ R package to read the data in batches. Here
 <code>$read_table()</code> calls
 <code><a href="../reference/fabric_lakehouse_read_table.html">fabric_lakehouse_read_table()</a></code>:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">row_count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>  <span class="va">stream</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">read_table</span><span class="op">(</span></span>
 <span>    table <span class="op">=</span> <span class="st">"large_orders"</span>,</span>

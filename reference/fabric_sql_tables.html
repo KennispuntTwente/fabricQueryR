@@ -3,11 +3,15 @@
 Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse snapshot,
 and SQL Database objects, or the same direct server inputs as
 fabric_sql_query(). Discovery uses SQL catalog metadata views and is
-limited by the caller's SQL metadata permissions."><meta property="og:description" content="These helpers provide a target-independent metadata and table-read layer for
+limited by the caller's SQL metadata permissions. Each discovery call uses
+one query, including column metadata when detail = TRUE, on one connection
+per attempt. The connection closes before the result is returned."><meta property="og:description" content="These helpers provide a target-independent metadata and table-read layer for
 Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse snapshot,
 and SQL Database objects, or the same direct server inputs as
 fabric_sql_query(). Discovery uses SQL catalog metadata views and is
-limited by the caller's SQL metadata permissions."></head><body>
+limited by the caller's SQL metadata permissions. Each discovery call uses
+one query, including column metadata when detail = TRUE, on one connection
+per attempt. The connection closes before the result is returned."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -47,7 +51,9 @@ limited by the caller's SQL metadata permissions."></head><body>
 Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse snapshot,
 and SQL Database objects, or the same direct server inputs as
 <code><a href="fabric_sql_query.html">fabric_sql_query()</a></code>. Discovery uses SQL catalog metadata views and is
-limited by the caller's SQL metadata permissions.</p>
+limited by the caller's SQL metadata permissions. Each discovery call uses
+one query, including column metadata when <code>detail = TRUE</code>, on one connection
+per attempt. The connection closes before the result is returned.</p>
     </div>
 
     <div class="section level2">
