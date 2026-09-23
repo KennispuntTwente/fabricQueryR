@@ -2,6 +2,11 @@
 
 0 errors | 0 warnings | 0 notes
 
+## Spelling
+
+"workspaces" is the Microsoft Fabric term for containers of related items and
+is spelled correctly.
+
 ## Optional dependency
 
 The optional ADBC backend uses `adbi`, which is currently archived on CRAN.
