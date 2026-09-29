@@ -40,3 +40,50 @@ shiny_test_connection <- function() {
     class = "OAuthConnection"
   )
 }
+
+shiny_test_config <- function(services = "fabric") {
+  fabric_shiny_config(
+    "11111111-1111-1111-1111-111111111111",
+    "app",
+    "synthetic-secret",
+    "http://localhost:8100/",
+    services = services
+  )
+}
+
+shiny_test_token <- function(
+  access = "synthetic-user-token",
+  scopes = c("Workspace.Read.All", "Item.Read.All")
+) {
+  claims <- jsonlite::toJSON(
+    list(
+      iss = "https://login.microsoftonline.com/11111111-1111-1111-1111-111111111111/v2.0",
+      sub = "synthetic-user",
+      name = "Test User"
+    ),
+    auto_unbox = TRUE
+  )
+  payload <- chartr(
+    "+/",
+    "-_",
+    gsub("[=\r\n]", "", jsonlite::base64_enc(charToRaw(claims)))
+  )
+  shinyOAuth::OAuthToken(
+    access_token = access,
+    refresh_token = "synthetic-refresh",
+    token_type = "Bearer",
+    expires_at = as.numeric(Sys.time()) + 3600,
+    granted_scopes = c(
+      "openid",
+      "profile",
+      paste0("https://api.fabric.microsoft.com/", scopes)
+    ),
+    granted_scopes_verified = TRUE,
+    id_token_validated = TRUE,
+    id_token = paste0(
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.",
+      payload,
+      ".c3ludGhldGlj"
+    )
+  )
+}

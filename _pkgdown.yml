@@ -26,6 +26,8 @@ reference:
   - title: Shiny applications
     contents:
       - fabric_shiny_config
+      - fabric_shiny_ui
+      - fabric_shiny_server
       - fabric_shiny_token_provider
 
   - title: Discovery

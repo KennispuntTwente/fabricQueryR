@@ -3,6 +3,10 @@
 * `fabric_shiny_config()` configures explicit delegated Fabric, SQL and GraphQL
 permissions using shinyOAuth token targets, with Shiny dependencies optional.
 
+* `fabric_shiny_server()` and `fabric_shiny_ui()` provide session-scoped sign-in,
+resource preparation and existing R6 discovery objects. Token refresh preserves
+authorization identity; logout and account replacement invalidate old objects.
+
 * `fabric_shiny_token_provider()` adapts an existing shinyOAuth connection for
 Fabric functions, with synchronous refresh, declared audience routing and
 endpoint restrictions retained through HTTP, SQL and Delta transports.
