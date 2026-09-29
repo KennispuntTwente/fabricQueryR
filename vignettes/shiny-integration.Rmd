@@ -11,12 +11,11 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-A Shiny app can make Fabric data available to colleagues through a dashboard,
-report or interactive analysis. Often, each person should see only the data
-their Microsoft account is allowed to access. fabricQueryR lets visitors sign
-in with that account and then uses their access when querying Fabric.
+fabricQueryR lets Shiny apps query Microsoft Fabric using each signed-in user's
+permissions. Visitors sign in with a Microsoft account, and requests to Fabric
+use that account's access to the data.
 
-You can keep using familiar Shiny tools such as `reactive()` and `renderTable()`,
+You can use Shiny functions such as `reactive()` and `renderTable()`,
 together with fabricQueryR's SQL and GraphQL functions. The shinyOAuth package
 handles the Microsoft sign-in process. You add a small amount of configuration
 and connect it to your app's UI and server.
@@ -37,7 +36,7 @@ devtools::install("../shinyoauth")
 devtools::install(".")
 ```
 
-For the SQL example, you also need **shiny**, **DBI**, **odbc**, and Microsoft
+For the SQL example, you also need shiny, DBI, odbc, and Microsoft
 ODBC Driver 18 for SQL Server. The driver is installed separately from the R
 packages, on the computer that runs the app.
 
@@ -47,19 +46,19 @@ Your app needs an application registration in Microsoft Entra, the service that
 manages your organization's Microsoft sign-in. Your Fabric or Microsoft 365
 administrator can help set this up.
 
-For the SQL example, ask for a **Web** application registration with the Azure
+For the SQL example, ask for a Web application registration with the Azure
 SQL Database delegated permission `user_impersonation`. A delegated permission
 allows the app to make requests using the signed-in person's access. Users still
 need their own permission to connect to the database and read its data.
 
-The registration needs a **redirect URI**: the address where Microsoft sends
+The registration needs a redirect URI: the address where Microsoft sends
 the visitor after sign-in. For local development, use `http://localhost:8100/`.
 The address in the registration and the app must match. A deployed app uses its
 public HTTPS address instead.
 
-You will need three values from the registration: the **tenant ID**, which
-identifies your organization's directory; the **client ID**, which identifies
-your app; and a **client secret**, which the app uses during sign-in. Complete
+You will need three values from the registration: the tenant ID, which
+identifies your organization's directory; the client ID, which identifies
+your app; and a client secret, which the app uses during sign-in. Complete
 any administrator consent your organization requires before testing the app.
 
 ### Save the connection settings
@@ -90,7 +89,7 @@ example_dir <- system.file("examples", "shiny-fabric", package = "fabricQueryR")
 shiny::runApp(example_dir, host = "127.0.0.1", port = 8100)
 ```
 
-Open `http://localhost:8100/`, sign in, and click **Show tables**. The app lists
+Open `http://localhost:8100/`, sign in, and click Show tables. The app lists
 tables visible to your account; an empty result can be valid if the account
 cannot see any tables. It does not create or change data.
 
@@ -141,7 +140,7 @@ The Sign in button calls `fabric$login()`. Inside `renderTable()`,
 sign-in. Fabric still checks whether that person can access the requested data.
 
 To adapt this example, replace the SQL with your own read query and add the
-inputs and outputs your dashboard needs. Use `params` for values supplied by
+inputs and outputs your app needs. Use `params` for values supplied by
 inputs, as in the Warehouse example below.
 
 ## Discover a Warehouse and reuse its methods
@@ -339,19 +338,3 @@ Standard Microsoft service hosts are allowed. A trusted gateway needs its exact
 hostname in `endpoint_hosts`, configured by the app author. HTTP redirects are
 rejected, and later request destinations are checked too. These checks protect
 normal package use; they do not isolate untrusted R code.
-
-### Current scope and validation
-
-This first integration supports Fabric discovery, SQL and GraphQL in one fixed
-tenant, with one authorization per Shiny session and synchronous calls. It needs
-shinyOAuth's `token_targets`, module `auth$connection()` and
-`connection$access_token(target = ...)` APIs. Static `.default` consent,
-automatic incremental consent, retained sessions, multiple-worker storage and
-background credential renewal remain follow-up work.
-
-Local tests cover the integration, including session separation and token
-renewal with synthetic responses. Browser acceptance with restricted Fabric
-users is still pending. Before deployment, check sign-in, logout, consent and
-actual data access with users who have different permissions. The full record,
-including pending reader/writer and GraphQL source-access checks, is in
-`tools/design/shiny-fabric-acceptance.md` in the source repository.
