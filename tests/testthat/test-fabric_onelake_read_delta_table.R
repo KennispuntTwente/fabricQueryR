@@ -773,7 +773,13 @@ test_that("the production Delta adapter configures and owns its query", {
     QueryBuilder = function() builder
   )
 
-  local_mocked_bindings(.delta_python = delta_python)
+  local_mocked_bindings(
+    .delta_python = delta_python,
+    fabric_delta_config = function(initialize) {
+      expect_identical(initialize, TRUE)
+      list()
+    }
+  )
   local_mocked_bindings(
     dict = function(..., convert = TRUE) {
       expect_false(convert)
@@ -1051,7 +1057,7 @@ test_that("Delta configuration avoids interpreter discovery when uninitialized",
   expect_identical(config_calls, 0L)
 })
 
-test_that("Delta runtime configuration initializes and reports missing modules", {
+test_that("Delta runtime inspection reports missing modules without failing", {
   local_mocked_bindings(
     py_require = function(...) {
       list(
@@ -1070,7 +1076,7 @@ test_that("Delta runtime configuration initializes and reports missing modules",
     .package = "reticulate"
   )
 
-  config <- fabric_delta_config(initialize = TRUE)
+  config <- fabric_delta_config(initialize = FALSE)
 
   expect_true(config$initialized)
   expect_identical(config$python, "C:/python/python.exe")
@@ -1081,6 +1087,104 @@ test_that("Delta runtime configuration initializes and reports missing modules",
   )
   expect_null(config$versions)
 })
+
+test_that("Delta setup explains how to replace an unsupported Python", {
+  local_mocked_bindings(
+    py_available = function(initialize = FALSE) TRUE,
+    py_config = function(...) {
+      list(python = "C:/Python39/python.exe", version = numeric_version("3.9"))
+    },
+    py_module_available = function(module) FALSE,
+    .package = "reticulate"
+  )
+
+  expect_snapshot(error = TRUE, fabric_delta_config(initialize = TRUE))
+})
+
+test_that("Delta setup gives an installation command for a supported Python", {
+  local_mocked_bindings(
+    py_available = function(initialize = FALSE) TRUE,
+    py_config = function(...) {
+      list(
+        python = "C:/Custom Python/python.exe",
+        version = numeric_version("3.12.7")
+      )
+    },
+    py_module_available = function(module) identical(module, "deltalake"),
+    .package = "reticulate"
+  )
+
+  expect_snapshot(error = TRUE, fabric_delta_config(initialize = TRUE))
+})
+
+test_that("Delta setup accepts the minimum Python with importable modules", {
+  local_mocked_bindings(
+    py_available = function(initialize = FALSE) TRUE,
+    py_config = function(...) {
+      list(
+        python = "C:/Python310/python.exe",
+        version = numeric_version("3.10")
+      )
+    },
+    py_module_available = function(module) TRUE,
+    py_to_r = identity,
+    .package = "reticulate"
+  )
+  local_mocked_bindings(
+    .delta_python = list(
+      deltalake = list(`__version__` = "1.6.2"),
+      nanoarrow = list(`__version__` = "0.8.0")
+    )
+  )
+
+  config <- fabric_delta_config(initialize = TRUE)
+
+  expect_identical(config$python_version, "3.10")
+  expect_identical(config$available, c(deltalake = TRUE, nanoarrow = TRUE))
+  expect_identical(
+    config$versions,
+    list(deltalake = "1.6.2", nanoarrow = "0.8.0")
+  )
+})
+
+test_that("Python initialization failures include setup guidance", {
+  local_mocked_bindings(
+    py_available = function(initialize = FALSE) FALSE,
+    py_config = function(...) stop("Python installation not found."),
+    .package = "reticulate"
+  )
+
+  expect_snapshot(error = TRUE, fabric_delta_config(initialize = TRUE))
+})
+
+test_that("Delta reads reject missing modules before calling Python APIs", {
+  local_mocked_bindings(
+    py_available = function(initialize = FALSE) TRUE,
+    py_config = function(...) {
+      list(python = "/custom/python", version = numeric_version("3.12"))
+    },
+    py_module_available = function(module) identical(module, "nanoarrow"),
+    dict = function(...) {
+      stop("must not call Python APIs before checking setup")
+    },
+    .package = "reticulate"
+  )
+
+  error <- rlang::catch_cnd(
+    fabric_onelake_read_delta_table(
+      table_path = "table",
+      workspace_name = "workspace",
+      lakehouse_name = "lakehouse",
+      token = "token",
+      verbose = FALSE
+    ),
+    classes = "error"
+  )
+  expect_s3_class(error, "fabric_delta_environment_error")
+  expect_s3_class(error, "fabric_delta_error")
+  expect_snapshot(rlang::cnd_signal(error), error = TRUE)
+})
+
 test_that("Delta normalization preserves ordinary large buffer types", {
   skip_if_not_installed("arrow")
   for (type in list(arrow::large_utf8(), arrow::large_binary())) {

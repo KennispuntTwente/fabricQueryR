@@ -142,11 +142,18 @@ test_that("OneLake object reader returns tibbles and lazy streams", {
     withr::defer(unlink(local_path, force = TRUE))
     expect_s3_class(stream, "nanoarrow_array_stream")
     expect_true(file.exists(local_path))
+    if (identical(format, "arrow")) {
+      input <- attr(stream, "fabric_onelake_file_owner")$input
+      # Exported buffers must not pin a Windows file mapping after close.
+      expect_identical(input$supports_zero_copy(), FALSE)
+    }
     reader <- arrow::as_record_batch_reader(stream)
-    streamed <- as.data.frame(reader$read_table())
+    table <- reader$read_table()
+    streamed <- as.data.frame(table)
     expect_equal(streamed, data)
     reader$Close()
     expect_false(file.exists(local_path))
+    expect_equal(as.data.frame(table), data)
   }
 })
 

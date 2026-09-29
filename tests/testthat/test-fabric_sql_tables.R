@@ -4,27 +4,21 @@ test_that("SQL table discovery normalizes objects and detailed columns", {
     fabric_sql_query = function(...) {
       call <- list(...)
       calls[[length(calls) + 1L]] <<- call
-      if (grepl("INFORMATION_SCHEMA.COLUMNS", call$sql, fixed = TRUE)) {
-        return(tibble::tibble(
-          SCHEMA_NAME = c("sales", "sales", "sales"),
-          OBJECT_NAME = c("customers", "orders", "orders"),
-          COLUMN_NAME = c("id", "id", "amount"),
-          ORDINAL_POSITION = c(1L, 1L, 2L),
-          COLUMN_DEFAULT = c(NA_character_, NA_character_, "((0))"),
-          IS_NULLABLE = c("NO", "NO", "YES"),
-          DATA_TYPE = c("bigint", "int", "decimal"),
-          CHARACTER_MAXIMUM_LENGTH = c(NA, NA, NA),
-          NUMERIC_PRECISION = c(19, 10, 18),
-          NUMERIC_SCALE = c(0, 0, 2),
-          DATETIME_PRECISION = c(NA, NA, NA),
-          COLLATION_NAME = c(NA_character_, NA_character_, NA_character_)
-        ))
-      }
       tibble::tibble(
-        SCHEMA_NAME = c("sales", "sales"),
-        OBJECT_NAME = c("customers", "orders"),
-        OBJECT_TYPE = c("BASE TABLE", "BASE TABLE"),
-        future_metadata = c("kept-customers", "kept-orders")
+        SCHEMA_NAME = c("sales", "sales", "sales"),
+        OBJECT_NAME = c("customers", "orders", "orders"),
+        OBJECT_TYPE = "BASE TABLE",
+        future_metadata = c("kept-customers", "kept-orders", "kept-orders"),
+        COLUMN_NAME = c("id", "id", "amount"),
+        ORDINAL_POSITION = c(1L, 1L, 2L),
+        COLUMN_DEFAULT = c(NA_character_, NA_character_, "((0))"),
+        IS_NULLABLE = c("NO", "NO", "YES"),
+        DATA_TYPE = c("bigint", "int", "decimal"),
+        CHARACTER_MAXIMUM_LENGTH = c(NA, NA, NA),
+        NUMERIC_PRECISION = c(19, 10, 18),
+        NUMERIC_SCALE = c(0, 0, 2),
+        DATETIME_PRECISION = c(NA, NA, NA),
+        COLLATION_NAME = c(NA_character_, NA_character_, NA_character_)
       )
     }
   )
@@ -60,29 +54,38 @@ test_that("SQL table discovery normalizes objects and detailed columns", {
   expect_true(tables$columns[[2L]][[2L]]$nullable)
   expect_equal(tables$columns[[2L]][[2L]]$numeric_scale, 2)
   expect_equal(tables$raw[[2L]]$future_metadata, "kept-orders")
-  expect_length(calls, 2L)
-  expect_true(all(vapply(calls, function(call) call$read_only, logical(1))))
-  expect_true(all(vapply(calls, function(call) call$idempotent, logical(1))))
-  expect_true(all(vapply(
-    calls,
-    function(call) identical(call$params, list("sales")),
-    logical(1)
-  )))
-  expect_true(all(vapply(
-    calls,
-    function(call) identical(call$backend, "adbc"),
-    logical(1)
-  )))
-  expect_true(all(grepl(
-    "TABLE_TYPE = 'BASE TABLE'",
-    vapply(
-      calls,
-      `[[`,
-      character(1),
-      "sql"
-    ),
+  expect_named(
+    tables$raw[[2L]],
+    c("schema_name", "object_name", "object_type", "future_metadata")
+  )
+  expect_named(
+    tables$columns[[2L]][[2L]]$raw,
+    c(
+      "schema_name",
+      "object_name",
+      "column_name",
+      "ordinal_position",
+      "column_default",
+      "is_nullable",
+      "data_type",
+      "character_maximum_length",
+      "numeric_precision",
+      "numeric_scale",
+      "datetime_precision",
+      "collation_name"
+    )
+  )
+  expect_length(calls, 1L)
+  expect_true(calls[[1L]]$read_only)
+  expect_true(calls[[1L]]$idempotent)
+  expect_identical(calls[[1L]]$params, list("sales"))
+  expect_identical(calls[[1L]]$backend, "adbc")
+  expect_match(calls[[1L]]$sql, "TABLE_TYPE = 'BASE TABLE'", fixed = TRUE)
+  expect_match(
+    calls[[1L]]$sql,
+    "LEFT JOIN INFORMATION_SCHEMA.COLUMNS",
     fixed = TRUE
-  )))
+  )
 })
 
 test_that("SQL view discovery includes definitions without detail", {
@@ -127,7 +130,131 @@ test_that("SQL view discovery includes definitions without detail", {
   expect_match(calls[[1L]]$sql, "sys.sql_modules", fixed = TRUE)
   expect_match(calls[[1L]]$sql, "m.definition", fixed = TRUE)
   expect_false(grepl("v.VIEW_DEFINITION", calls[[1L]]$sql, fixed = TRUE))
+  expect_false(grepl(
+    "INFORMATION_SCHEMA.COLUMNS",
+    calls[[1L]]$sql,
+    fixed = TRUE
+  ))
   expect_null(calls[[1L]]$params)
+})
+
+test_that("detailed SQL views retain definitions and separate schemas", {
+  long_definition <- paste0(
+    "CREATE VIEW sales.orders AS SELECT '",
+    paste(rep("x", 5000L), collapse = ""),
+    "' AS payload, 1 AS id"
+  )
+  local_mocked_bindings(
+    fabric_sql_query = function(...) {
+      tibble::tibble(
+        schema_name = c("archive", "sales", "sales", "sales"),
+        object_name = c("orders", "orders", "orders", "restricted"),
+        object_type = "VIEW",
+        view_definition = c(NA, long_definition, long_definition, NA),
+        check_option = "NONE",
+        is_updatable = "NO",
+        column_name = c("archived_id", "payload", "id", NA),
+        ordinal_position = c(1, 1, 2, NA),
+        column_default = NA_character_,
+        is_nullable = c("NO", "NO", "NO", NA),
+        data_type = c("int", "varchar", "int", NA),
+        character_maximum_length = c(NA, 5000, NA, NA),
+        numeric_precision = c(10, NA, 10, NA),
+        numeric_scale = c(0, NA, 0, NA),
+        datetime_precision = NA_real_,
+        collation_name = NA_character_
+      )
+    }
+  )
+
+  views <- fabric_sql_views(
+    "warehouse.datawarehouse.fabric.microsoft.com",
+    database = "Analytics",
+    token = "sql-token",
+    verbose = FALSE
+  )
+
+  expect_equal(
+    views$full_name,
+    c("archive.orders", "sales.orders", "sales.restricted")
+  )
+  expect_identical(
+    views$definition,
+    c(NA_character_, long_definition, NA_character_)
+  )
+  expect_equal(lengths(views$columns), c(1L, 2L, 0L))
+  expect_equal(views$columns[[1L]][[1L]]$name, "archived_id")
+  expect_equal(
+    vapply(views$columns[[2L]], `[[`, character(1), "name"),
+    c("payload", "id")
+  )
+  expect_identical(views$raw[[2L]]$view_definition, long_definition)
+  expect_equal(views$raw[[3L]]$object_name, "restricted")
+})
+
+test_that("detailed SQL discovery uses and closes one connection per attempt", {
+  events <- character()
+  failure <- NULL
+  local_mocked_bindings(
+    fabric_sql_require_backend = function(...) invisible(TRUE),
+    fabric_sql_connect = function(...) {
+      events <<- c(events, "connect")
+      structure(list(), class = "OdbcConnection")
+    },
+    .fabric_sql_db_get_query = function(...) {
+      events <<- c(events, "query")
+      if (!is.null(failure)) {
+        message <- failure
+        failure <<- NULL
+        rlang::abort(message)
+      }
+      tibble::tibble(
+        schema_name = "dbo",
+        object_name = "orders",
+        object_type = "BASE TABLE",
+        column_name = "id",
+        ordinal_position = 1,
+        column_default = NA_character_,
+        is_nullable = "NO",
+        data_type = "int",
+        character_maximum_length = NA_real_,
+        numeric_precision = 10,
+        numeric_scale = 0,
+        datetime_precision = NA_real_,
+        collation_name = NA_character_
+      )
+    },
+    .fabric_sql_db_disconnect = function(...) {
+      events <<- c(events, "disconnect")
+      invisible(TRUE)
+    },
+    .fabric_sql_sleep = function(...) invisible(NULL)
+  )
+  discover <- function() {
+    fabric_sql_tables(
+      "warehouse.datawarehouse.fabric.microsoft.com",
+      database = "Analytics",
+      schema = "dbo",
+      token = "sql-token",
+      verbose = FALSE,
+      retry_delay = 0,
+      max_tries = 2L
+    )
+  }
+
+  tables <- discover()
+  expect_equal(tables$columns[[1L]][[1L]]$name, "id")
+  expect_identical(events, c("connect", "query", "disconnect"))
+
+  events <- character()
+  failure <- "SQLSTATE 08S01: Communication link failure"
+  expect_equal(discover(), tables)
+  expect_identical(events, rep(c("connect", "query", "disconnect"), 2L))
+
+  events <- character()
+  failure <- "Permission denied"
+  expect_snapshot(error = TRUE, discover())
+  expect_identical(events, c("connect", "query", "disconnect"))
 })
 
 test_that("SQL discovery preserves a stable empty result", {

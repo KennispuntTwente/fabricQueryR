@@ -1,4 +1,6 @@
 test_that("OneLake downloads preserve stored gzip bytes through real HTTP", {
+  # Starts a local HTTP server in a subprocess.
+  skip_on_cran()
   skip_if_not_installed("webfakes")
   app <- webfakes::new_app()
   app$get("/workspace/item/Files/content.gz", function(req, res) {

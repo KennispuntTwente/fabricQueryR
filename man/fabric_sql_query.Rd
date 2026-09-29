@@ -29,7 +29,7 @@ fabric_sql_query(
   max_tries = 3L,
   retry_delay = 5,
   idempotent = FALSE,
-  numeric_policy = c("exact", "driver"),
+  numeric_policy = c("auto", "exact", "driver"),
   ...
 )
 }
@@ -122,8 +122,14 @@ a second time has no unwanted effect (usually a plain \code{SELECT}). This
 permits a retry when it is unclear whether Fabric executed the first
 attempt}
 
-\item{numeric_policy}{\code{"exact"} (default) preserves ADBC decimals as
-character and BIGINT as \code{bit64::integer64}, using character for columns
+\item{numeric_policy}{\code{"auto"} (default) uses \code{"driver"} for ODBC and
+\code{"exact"} for ADBC. Automatic ODBC conversion warns once per R session
+about possible numeric precision loss. Set \code{"driver"} explicitly to
+accept the driver's conversions without this warning, or use \code{"exact"}
+to reject unsafe ODBC results before fetching
+
+\code{"exact"} preserves ADBC decimals as character and BIGINT as
+\code{bit64::integer64}, using character for columns
 containing the minimum BIGINT. INT columns containing \code{-2147483648} use
 exact doubles. Nested lists retain character decimals and 64-bit integers,
 and double 32-bit integers. Null struct parents require
@@ -135,7 +141,7 @@ or turn valid integer boundaries into missing values. Cast these columns
 to \code{varchar} in SQL or use ADBC. \code{"driver"} explicitly accepts the backend's
 conversions, including possible rounding and missing values, for either
 output format. This policy applies to this query helper; direct DBI calls
-on \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} use the selected driver's conversion settings.}
+on \code{\link[=fabric_sql_connect]{fabric_sql_connect()}} use the selected driver's conversion settings}
 
 \item{...}{Additional arguments forwarded to \code{\link[DBI:dbConnect]{DBI::dbConnect()}}. The former
 named \code{access_token} argument is consumed here as a deprecated alias for
@@ -155,8 +161,8 @@ supply character parameters with explicit SQL \code{bigint} casts.}
 }
 \value{
 With \code{result = "tibble"}, a tibble containing the returned rows and
-driver-converted column types. With \code{result = "arrow_stream"}, a single-use
-\code{nanoarrow_array_stream} that can be consumed by Arrow-compatible tools
+column types determined by \code{numeric_policy}. With \code{result = "arrow_stream"},
+a single-use \code{nanoarrow_array_stream} for Arrow-compatible tools
 }
 \description{
 Runs one SQL query and returns its rows, opening and closing the connection

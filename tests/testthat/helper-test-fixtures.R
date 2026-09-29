@@ -1671,6 +1671,7 @@ fabric_test_sql_item <- function(name, backend) {
   expect_equal(bound_rows$name, c("beta", "gamma"), info = context)
 
   from_manifest <- fabric_sql_query(
+    numeric_policy = "exact",
     provisioned$connection_string,
     "SELECT CAST(? AS nvarchar(100)) AS bound_value",
     params = list("safe ' value; --"),
@@ -1694,6 +1695,7 @@ fabric_test_sql_item <- function(name, backend) {
     fabric_sql_connection_info(provisioned$connection_string)$server
   }
   from_server_and_database <- fabric_sql_query(
+    numeric_policy = "exact",
     bare_server,
     "SELECT DB_NAME() AS database_name",
     database = provisioned$database_name,

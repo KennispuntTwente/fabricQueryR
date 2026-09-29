@@ -12,14 +12,137 @@ fabric_delta_config(initialize = FALSE)
 \value{
 A list describing initialization state, requirements, the selected
 interpreter, module availability, and installed package versions when
-initialized
+initialized. \code{initialized} only indicates whether Python has started;
+it does not mean the Delta dependencies are available
 }
 \description{
 Shows whether the optional Python tools used for direct Delta reads are ready
 By default this does not start Python. Set \code{initialize = TRUE} to prepare the
-environment and report installed versions; packages may be downloaded the
-first time
+environment, check the minimum Python version and required module imports,
+and report installed versions. An unusable runtime raises an error with
+setup instructions. Use \code{initialize = FALSE} to inspect it without this check
 }
+\section{Use a managed environment (recommended)}{
+
+For automatic installation, explicitly select a 'reticulate'-managed
+environment. First restart R (in RStudio: Session > Restart R), then run:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{Sys.setenv(RETICULATE_PYTHON = "managed")
+library(fabricQueryR)
+fabric_delta_config(initialize = TRUE)
+}\if{html}{\out{</div>}}
+
+\code{"managed"} is a special setting, not an environment name or a Python path.
+The first line tells 'reticulate' to create or reuse a suitable environment.
+Loading 'fabricQueryR' declares the required Python version and packages
+through \code{\link[reticulate:py_require]{reticulate::py_require()}}. The final line starts Python, triggering
+'uv' to download the runtime and dependencies if needed, and checks setup.
+'reticulate' also downloads 'uv' if needed; no separate \code{py_install()} call
+is necessary
+
+The restart is required if Python has already started: setting
+\code{RETICULATE_PYTHON} cannot switch the interpreter in a running Python session.
+
+To keep this selection for future sessions in this project, add the line
+\code{RETICULATE_PYTHON=managed} to the project's \code{.Renviron} file, then restart R.
+Otherwise, repeat the \code{Sys.setenv()} line at the start of each R session
+
+Without this explicit selection, a Python chosen through RStudio,
+environment variables, \code{reticulate::use_python()}, or a project virtualenv
+can take precedence over the managed environment. \code{py_require()} declares
+requirements but does not install them into that existing Python, and
+\code{initialize = TRUE} does not change that choice. For example, selecting
+Python 3.9 leaves the Delta requirements unmet even though Python has started.
+\code{reticulate::py_config()} reports the selected interpreter and why it was
+chosen. After the setup above succeeds, both entries in \code{available} should
+be \code{TRUE} and \code{versions} should report the installed Delta packages
+}
+
+\section{Create a reusable environment with reticulate}{
+
+For an environment you manage yourself, restart R and create a virtualenv
+from an installed Python 3.11. Then install the required packages into that
+named environment and select its interpreter before initializing Python:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{reticulate::virtualenv_create("fabricQueryR", version = "3.11")
+reticulate::py_install(
+  c("deltalake==1.6.2", "nanoarrow==0.8.0"),
+  envname = "fabricQueryR",
+  method = "virtualenv"
+)
+Sys.setenv(
+  RETICULATE_PYTHON = reticulate::virtualenv_python("fabricQueryR")
+)
+library(fabricQueryR)
+fabric_delta_config(initialize = TRUE)
+}\if{html}{\out{</div>}}
+
+\code{virtualenv_create()} needs a compatible installed Python and reuses an
+existing environment of that name without upgrading its Python. If needed,
+install Python first with \code{reticulate::install_python("3.11:latest")} or use
+the 'uv' alternative below. \code{install_python()} uses 'pyenv' / 'pyenv-win';
+it is separate from the automatic 'uv' setup described above
+
+\code{py_install()} installs into the named virtualenv using 'pip'. Always pass
+\code{envname} to make the destination explicit. For an existing Conda environment,
+use \verb{method = "conda", pip = TRUE} with that environment's name instead
+
+In later R sessions, repeat the \code{Sys.setenv()} selection before using Python;
+installation is needed only when creating or updating the environment.
+\code{\link[reticulate:use_virtualenv]{reticulate::use_virtualenv()}} is another way to select it, but an existing
+\code{RETICULATE_PYTHON} setting takes precedence over that selection
+}
+
+\section{Create a reusable environment with uv}{
+
+If the 'uv' command-line tool is already installed and available on \code{PATH},
+it can create a new project environment and download Python if necessary.
+From the project directory, run in a terminal:
+
+\if{html}{\out{<div class="sourceCode sh">}}\preformatted{uv venv --python 3.11 --seed .venv-fabricQueryR
+}\if{html}{\out{</div>}}
+
+\code{--seed} installs 'pip' so that \code{reticulate::py_install()} can install into
+the environment. In a fresh R session in the same project directory:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{reticulate::py_install(
+  c("numpy", "deltalake==1.6.2", "nanoarrow==0.8.0"),
+  envname = "./.venv-fabricQueryR",
+  method = "virtualenv"
+)
+Sys.setenv(
+  RETICULATE_PYTHON = reticulate::virtualenv_python("./.venv-fabricQueryR")
+)
+library(fabricQueryR)
+fabric_delta_config(initialize = TRUE)
+}\if{html}{\out{</div>}}
+
+The \verb{./} makes this a project path rather than a named environment under
+the virtualenv directory used by 'reticulate'. 'numpy' is included because
+'uv' does not install it automatically
+
+This environment is managed by you; 'reticulate' does not resolve
+\code{py_require()} declarations into it. Use \code{py_install()} with that explicit
+\code{envname}, or \verb{uv pip install --python .venv-fabricQueryR ...}, to update it.
+See the \href{https://docs.astral.sh/uv/pip/environments/}{uv environment guide}
+for details
+}
+
+\section{Install into an existing standalone Python}{
+
+Select Python 3.10 or newer before initialization. Install the Python
+dependencies into that exact interpreter, for example from R:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{system2("/path/to/python", c(
+  "-m", "pip", "install", "deltalake==1.6.2", "nanoarrow==0.8.0"
+))
+}\if{html}{\out{</div>}}
+
+On Windows, use the full path to \code{python.exe} with forward slashes.
+Restart R, select that interpreter with \code{reticulate::use_python()}, then run
+\code{fabric_delta_config(initialize = TRUE)} to verify setup
+}
+
 \examples{
 # Inspect requirements without starting Python or downloading anything
 config <- fabric_delta_config()

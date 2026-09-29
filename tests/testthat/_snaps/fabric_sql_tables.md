@@ -1,3 +1,13 @@
+# detailed SQL discovery uses and closes one connection per attempt
+
+    Code
+      discover()
+    Condition
+      Error:
+      ! Fabric SQL query execution failed
+      Caused by error in `.fabric_sql_db_get_query()`:
+      ! Permission denied
+
 # SQL table helpers validate before executing queries
 
     Code

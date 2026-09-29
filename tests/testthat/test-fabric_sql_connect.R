@@ -598,6 +598,9 @@ test_that("SQL timeouts are not constrained by the TCP port range", {
 })
 
 test_that("SQL connections configure the ADBC MSSQL driver with a safe URI", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   captured <- NULL
   connection <- structure(list(), class = "test_connection")
   token <- "token+/with=?&reserved"
@@ -641,6 +644,8 @@ test_that("SQL connections configure the ADBC MSSQL driver with a safe URI", {
 })
 
 test_that("ADBC version metadata streams are released on success and failure", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
   skip_if_not_installed("adbi")
   skip_if_not_installed("adbcdrivermanager")
   connection <- methods::new("AdbiConnection")
@@ -666,6 +671,9 @@ test_that("ADBC version metadata streams are released on success and failure", {
 })
 
 test_that("missing ADBC drivers fail before authentication with install guidance", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   acquired <- FALSE
   missing_driver <- "fabricqueryr_missing_mssql_driver"
 
@@ -760,6 +768,9 @@ test_that("SQL connections retry transient Fabric failures with fresh tokens", {
 })
 
 test_that("ADBC connection retries rebuild the URI with a fresh token", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   attempts <- 0L
   tokens <- character()
   connection <- structure(list(), class = "test_connection")
@@ -999,6 +1010,9 @@ test_that("ADBC parameter translation ignores SQL literals and comments", {
 })
 
 test_that("fabric_sql_query uses ADBC parameters and returns Arrow streams", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   connection <- structure(list(), class = "test_connection")
   fake_stream <- nanoarrow::basic_array_stream(list(data.frame(id = 1L)))
   query_result <- structure(list(), class = "test_result")
@@ -1289,6 +1303,8 @@ test_that("integer64 bind translation validates parameter counts before sending"
 })
 
 test_that("SQL connection adapters construct ODBC and ADBC connections", {
+  # Requires adbi, which is not on CRAN.
+  skip_on_cran()
   skip_if_not_installed("odbc")
   skip_if_not_installed("adbi")
   skip_if_not_installed("adbcdrivermanager")
@@ -1882,6 +1898,9 @@ test_that("SQL retry controls reject invalid values", {
 })
 
 test_that("SQL failures have actionable condition classes", {
+  # Requires adbi and exercises real retry backoff.
+  skip_on_cran()
+  skip_if_not_installed("adbi")
   local_mocked_bindings(
     .fabric_sql_db_connect = function(...) {
       rlang::abort("Login failed for user; error 18456")
@@ -2023,6 +2042,94 @@ test_that("conflicting SQL credentials are redacted in condition metadata", {
     )
   }
 })
+test_that("ODBC defaults return driver values and warn once across SQL workflows", {
+  withr::local_envvar(c(
+    FABRICQUERYR_TENANT_ID = NA_character_,
+    FABRICQUERYR_CLIENT_ID = NA_character_,
+    FABRICQUERYR_CLIENT_SECRET = NA_character_
+  ))
+  withr::local_options(rlib_warning_verbosity = "default")
+  warning_id <- "fabricQueryR.sql.odbc_precision"
+  rlang::reset_warning_verbosity(warning_id)
+  withr::defer(rlang::reset_warning_verbosity(warning_id))
+  connection <- structure(list(), class = "OdbcConnection")
+  rows <- data.frame(id = 1L, amount = 1.25)
+  cleared <- 0L
+  disconnected <- 0L
+  local_mocked_bindings(
+    fabric_sql_require_backend = function(...) invisible(TRUE),
+    fabric_sql_connect = function(...) connection,
+    .fabric_sql_db_send_query = function(...) list(),
+    .fabric_sql_db_fetch = function(...) {
+      nanoarrow::basic_array_stream(list(rows))
+    },
+    .fabric_sql_db_clear_result = function(...) {
+      cleared <<- cleared + 1L
+    },
+    .fabric_sql_db_disconnect = function(...) {
+      disconnected <<- disconnected + 1L
+    },
+    .fabric_sql_validate_odbc_numeric = function(...) {
+      stop("Default ODBC reads must not reject numeric columns")
+    }
+  )
+  local_mocked_bindings(
+    dbGetQuery = function(...) rows,
+    .package = "DBI"
+  )
+  warehouse <- fabric_r6_record(
+    warehouse_write_test_warehouse(),
+    legacy_class = c("fabric_item", "list"),
+    credential = fabric_credential(token = "sql-token")
+  )
+
+  explicit <- expect_silent(
+    warehouse$sql_query(
+      "SELECT id, amount FROM dbo.orders",
+      numeric_policy = "driver",
+      verbose = FALSE
+    )
+  )
+  expect_identical(explicit, tibble::as_tibble(rows))
+
+  warnings <- list()
+  withCallingHandlers(
+    {
+      ordinary <- fabric_sql_query(
+        warehouse,
+        "SELECT id, amount FROM dbo.orders",
+        token = "sql-token",
+        verbose = FALSE
+      )
+      expect_identical(ordinary, tibble::as_tibble(rows))
+      expect_identical(
+        warehouse$read_table("orders", verbose = FALSE),
+        ordinary
+      )
+      stream <- warehouse$sql_query(
+        "SELECT id, amount FROM dbo.orders",
+        result = "arrow_stream",
+        verbose = FALSE
+      )
+      expect_identical(
+        attr(stream, "fabric_sql_stream_source"),
+        "odbc_converted"
+      )
+      expect_equal(as.data.frame(stream), rows)
+      nanoarrow::nanoarrow_pointer_release(stream)
+    },
+    fabric_sql_precision_warning = function(cnd) {
+      warnings[[length(warnings) + 1L]] <<- cnd
+      rlang::cnd_muffle(cnd)
+    }
+  )
+  expect_length(warnings, 1L)
+  expect_s3_class(warnings[[1L]], "fabric_sql_precision_warning")
+  expect_identical(cleared, 1L)
+  expect_identical(disconnected, 4L)
+  expect_snapshot(cat(conditionMessage(warnings[[1L]]), "\n", sep = ""))
+})
+
 test_that("ODBC exact queries reject unsafe types before fetching and clear results", {
   connection <- structure(list(), class = "OdbcConnection")
   result <- structure(list(), class = "test_result")
@@ -2041,7 +2148,12 @@ test_that("ODBC exact queries reject unsafe types before fetching and clear resu
   for (type in c(2L, 3L, 4L, -5L)) {
     for (shape in c("tibble", "arrow_stream")) {
       expect_error(
-        .fabric_sql_db_get_query(connection, "SELECT v FROM t", result = shape),
+        .fabric_sql_db_get_query(
+          connection,
+          "SELECT v FROM t",
+          result = shape,
+          numeric_policy = "exact"
+        ),
         "Cast these columns to varchar",
         class = "fabric_sql_precision_error"
       )
@@ -2054,7 +2166,10 @@ test_that("ADBC exact tibbles release their native stream and result", {
   skip_if_not_installed("arrow")
   con <- structure(list(), class = "AdbiConnection")
   table <- arrow::Table$create(
-    value = arrow::Array$create("-9223372036854775808")$cast(arrow::int64())
+    value = arrow::Array$create("-9223372036854775808")$cast(arrow::int64()),
+    amount = arrow::Array$create("12345678901234567890.1234")$cast(
+      arrow::decimal128(24, 4)
+    )
   )
   stream <- nanoarrow::as_nanoarrow_array_stream(table)
   events <- character()
@@ -2068,9 +2183,8 @@ test_that("ADBC exact tibbles release their native stream and result", {
       events <<- c(events, "clear")
     }
   )
-  expect_identical(
-    .fabric_sql_db_get_query(con, "SELECT v FROM t")$value,
-    "-9223372036854775808"
-  )
+  result <- expect_silent(.fabric_sql_db_get_query(con, "SELECT v FROM t"))
+  expect_identical(result$value, "-9223372036854775808")
+  expect_identical(result$amount, "12345678901234567890.1234")
   expect_identical(events, c("release", "clear"))
 })

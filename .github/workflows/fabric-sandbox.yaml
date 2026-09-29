@@ -132,12 +132,17 @@ jobs:
             "$apply_log"; then
             exit "$apply_status"
           fi
+          if ! grep -Fq "with fabric_mirrored_database.test," "$apply_log"; then
+            exit "$apply_status"
+          fi
           if ! terraform "-chdir=$TF_DIR" state show -no-color \
             fabric_mirrored_database.test >/dev/null 2>&1; then
             exit "$apply_status"
           fi
-          echo "::warning::Fabric provider timed out after saving mirrored database state; retrying apply"
-          "${terraform_apply[@]}"
+          # Rebuild removed the old workspace; this replacement precedes seeding.
+          # A normal refresh waits on the same stuck SQL endpoint before replacement.
+          echo "::warning::Replacing the unseeded mirrored database after its provisioning timeout"
+          "${terraform_apply[@]}" -refresh=false -replace=fabric_mirrored_database.test
 
       - name: Export Terraform outputs
         if: inputs.action == 'rebuild'

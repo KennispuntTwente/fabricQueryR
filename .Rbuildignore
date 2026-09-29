@@ -4,6 +4,11 @@
 ^cran-comments\.md$
 ^\.github$
 ^\.codex$
+^\.claude$
+^\.cursor$
+^\.ok$
+^\.opencode$
+^\.pi$
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
@@ -23,3 +28,4 @@ playground/*
 ^check-final$
 ^check-install-lib$
 ^check-review$
+^RELEASE-CHECKLIST\.md$

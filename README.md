@@ -101,18 +101,18 @@ DBI::dbListTables(con)
 DBI::dbDisconnect(con)
 
 customers <- lakehouse$sql_query(
-  "SELECT * FROM dbo.Customers WHERE region = 'West'",
-  numeric_policy = "driver"
+  "SELECT * FROM dbo.Customers WHERE region = 'West'"
 )
 ```
 
 `$sql_connect()` (`fabric_sql_connect()`) supports both ODBC and ADBC. The
 default ODBC backend requires
 [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server).
-The query explicitly accepts ODBC's numeric conversion, which can lose
-precision. The default `numeric_policy = "exact"` rejects ODBC results with
-INT, BIGINT, DECIMAL, or NUMERIC columns. Use `backend = "adbc"` with the
-default exact policy when numeric precision must be preserved.
+The default `numeric_policy = "auto"` uses ODBC's numeric conversion and warns
+once per session that precision may be lost. Use `backend = "adbc"` for exact
+conversion, or `numeric_policy = "exact"` to reject potentially lossy ODBC
+results. Explicit `numeric_policy = "driver"` accepts conversion without the
+warning.
 
 ### 3. Query a semantic model with DAX
 
@@ -215,7 +215,7 @@ temporary OneLake staging for Fabric's `COPY INTO`. `$warehouses()` and
 ``` r
 warehouse <- workspace$warehouses()[[1L]]
 lakehouse <- workspace$lakehouses()[[1L]]
-orders <- warehouse$read_table("orders", numeric_policy = "driver")
+orders <- warehouse$read_table("orders")
 
 warehouse$write_table(
   table = "orders_copy",
@@ -225,10 +225,10 @@ warehouse$write_table(
 )
 ```
 
-The default `numeric_policy = "exact"` prevents the ODBC backend from fetching
-`INT`, `BIGINT`, `DECIMAL`, or `NUMERIC` columns because the driver may convert
-them lossily. Use `numeric_policy = "driver"` when ordinary driver conversion
-is acceptable, as above, or use the ADBC backend for exact conversion.
+Warehouse reads use the same numeric policy as SQL queries: driver conversion
+with a once-per-session warning for ODBC, or exact conversion for ADBC.
+Set `numeric_policy = "exact"` to reject unsafe ODBC conversions, or
+`numeric_policy = "driver"` to explicitly accept conversion without a warning.
 
 See
 [Working with Fabric Warehouses](https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.html)
@@ -279,10 +279,11 @@ result$data$customers$items
 [Working with GraphQL](https://kennispunttwente.github.io/fabricQueryR/articles/graphql-schema-and-rows.html)
 covers schema inspection, cursor pagination, and row collection.
 
-### 10. Invoke a User Data Function
+### 10. Invoke a User Data Function (experimental)
 
 Call published Fabric business logic through its public function URL and
-inspect the structured result.
+inspect the structured result. This API is experimental; its service shapes
+may change. See the vignette for the current validation limits.
 
 ``` r
 result <- fabric_function_invoke(
@@ -314,8 +315,7 @@ completed$state
 
 See
 [Working with Semantic Models (DAX queries)](https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html)
-for DAX queries, enhanced refresh, cancellation, capacity limits, and Direct
-Lake behavior.
+for DAX queries, enhanced refresh, permissions, and refresh diagnostics.
 
 ### 12. Run and monitor Fabric jobs
 

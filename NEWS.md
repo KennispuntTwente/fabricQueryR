@@ -1,4 +1,17 @@
-# 'fabricQueryR' (development version)
+# fabricQueryR 1.0.1
+
+* Fix a GraphQL numeric round-trip test on R builds without long-double support
+(CRAN's `noLD` check). Package behavior is unchanged.
+
+# fabricQueryR 1.0.0
+
+## Breaking changes
+
+* `fabric_onelake_read_delta_table()` now uses the optional Python 'deltalake'
+reader through 'reticulate'. The `dest_dir` argument has been removed. Remove
+this argument from existing calls; use `columns` and `limit` to restrict a
+read, or `result = "arrow_stream"` to consume batches. Tables using unsupported
+Delta features should be read through SQL or Spark instead.
 
 ## New
 
@@ -52,7 +65,7 @@ objects.
 * `fabric_kql_ingest()`, `fabric_kql_write_table()`, and `fabric_kql_export()`
 load existing files or R and Arrow data into Eventhouse, monitor the load, and
 export large query results to OneLake or other supported storage. A
-destination table can be created when needed. 
+destination table can be created when needed.
 
 * `fabric_graphql_*()` functions query a Fabric API for GraphQL, inspect its
 schema, work through paginated results, and collect the result into tidy R
@@ -67,6 +80,14 @@ to data stored elsewhere.
 * `fabric_pbi_refresh_*()` functions start, monitor, wait for, cancel, and
 inspect the history of semantic-model refreshes.
 
+* `fabric_sql_connect()` and `fabric_sql_query()` support ODBC and ADBC
+connections, discovered SQL items, bound query parameters, and Arrow streams
+for larger results. SQL queries and Warehouse reads default to the driver's
+numeric conversion for ODBC, with a once-per-session precision warning, and
+exact conversion for ADBC. Set `numeric_policy = "driver"` to explicitly
+accept driver conversion without the warning, or `numeric_policy = "exact"`
+to reject potentially lossy ODBC results.
+
 * `fabric_job_*()` functions run, monitor, wait for, and cancel Fabric
 Notebooks, data pipelines, Spark job definitions, and other supported item
 jobs. They also inspect run history and manage recurring schedules.
@@ -75,6 +96,10 @@ jobs. They also inspect run history and manage recurring schedules.
 longer-running Fabric tasks such as Lakehouse loads.
 
 ## Changed
+
+* Arrow streams from `fabric_onelake_read_file()` and
+`fabric_pbi_dax_query()` release their temporary IPC files on Windows even
+when returned Arrow tables remain in use.
 
 * Authenticated functions now consistently accept an 'AzureAuth' token, a bearer
 token, or a function that supplies refreshed tokens through `token`;
@@ -92,8 +117,6 @@ Number columns preserve both signed 64-bit extrema exactly.
 and compatible Warehouse tables through an optional Python Delta reader. It
 supports selected columns, row limits, and Arrow streams for large or nested
 results, including through discovered workspace-private OneLake endpoints.
-The `dest_dir` argument has been removed. Tables using unsupported
-Delta features should be read through SQL or Spark instead.
 
 * `fabric_livy_query()` table results now follow the declared Spark schema and
 preserve large whole numbers and decimals exactly.

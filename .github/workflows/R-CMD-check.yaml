@@ -9,10 +9,13 @@ name: R-CMD-check.yaml
 
 permissions: read-all
 
+env:
+  NOT_CRAN: "true"
+
 jobs:
   minimum-arrow:
     runs-on: windows-latest
-    name: Parquet staging (Arrow 9.0.0)
+    name: Full offline suite (Arrow 17.0.0)
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-r@v2
@@ -20,26 +23,25 @@ jobs:
           r-version: '4.5'
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          dependencies: '"hard"'
-          extra-packages: any::devtools, any::testthat, any::withr, any::assertthat, any::purrr
+          needs: check, ci
+          extra-packages: any::devtools, any::assertthat
           install-pandoc: false
           install-quarto: false
-      - name: Exercise both writers with the minimum Arrow version
+      - name: Test the package with the minimum Arrow version
         shell: Rscript {0}
         run: |
-          lib <- tempfile("arrow9-library-")
+          lib <- tempfile("minimum-arrow-library-")
           dir.create(lib)
+          # Arrow 17 fixes dataset-reader file release on Windows.
           install.packages(
-            "https://packagemanager.posit.co/cran/2022-09-01/bin/windows/contrib/4.2/arrow_9.0.0.zip",
+            "https://packagemanager.posit.co/cran/2024-08-20/bin/windows/contrib/4.4/arrow_17.0.0.zip",
             repos = NULL, type = "win.binary", lib = lib
           )
           .libPaths(c(lib, .libPaths()))
-          stopifnot(packageVersion("arrow") == "9.0.0")
+          stopifnot(packageVersion("arrow") == "17.0.0")
           stopifnot(requireNamespace("arrow", quietly = TRUE))
-          devtools::test(
-            filter = "^fabric_(arrow_staging|pbi_dax_query|warehouse_tables)$",
-            stop_on_failure = TRUE
-          )
+          options(testthat.snapshot.update = FALSE)
+          devtools::test(stop_on_failure = TRUE)
 
   windows-restrictive-locale:
     runs-on: windows-latest
@@ -74,8 +76,12 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {os: macos-latest,   r: 'release'}
+          - os: macos-latest
+            r: 'release'
+            cran: 'https://packagemanager.posit.co/cran/latest'
           - {os: windows-latest, r: 'release'}
+          # Match win-builder's Windows Server version for file-lock checks.
+          - {os: windows-2022, r: 'devel'}
           - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
           - {os: ubuntu-latest,   r: 'release'}
           - {os: ubuntu-latest,   r: 'oldrel-1'}
@@ -93,7 +99,15 @@ jobs:
         with:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
-          use-public-rspm: true
+          # Use PPM for the CRAN fallback too, including source-only packages.
+          cran: ${{ matrix.config.cran }}
+          # Include macOS: CRAN's zstd binaries are not supported by pak yet.
+          # https://github.com/r-lib/pak/issues/915
+          use-public-rspm: always
+
+      - name: Install unixODBC for macOS source builds
+        if: runner.os == 'macOS'
+        run: brew install unixodbc
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
@@ -114,6 +128,31 @@ jobs:
           Rscript -e
           'options(testthat.snapshot.update = FALSE);
           devtools::test(shuffle = TRUE, stop_on_failure = TRUE)'
+
+      - name: Test the CRAN subset without adbi
+        if: matrix.config.os == 'ubuntu-latest' && matrix.config.r == 'release'
+        env:
+          NOT_CRAN: "false"
+        shell: Rscript {0}
+        run: |
+          # Isolate the test library without changing the full-suite dependencies.
+          lib <- tempfile("cran-test-library-")
+          dir.create(lib)
+          packages <- installed.packages()
+          packages <- packages[
+            !duplicated(packages[, "Package"]) & packages[, "Package"] != "adbi",
+            , drop = FALSE
+          ]
+          stopifnot(all(file.symlink(
+            file.path(packages[, "LibPath"], packages[, "Package"]),
+            file.path(lib, packages[, "Package"])
+          )))
+          .libPaths(c(lib, .Library), include.site = FALSE)
+          stopifnot(!requireNamespace("adbi", quietly = TRUE))
+          stopifnot(!rlang::is_installed("adbi"))
+          pkgload::load_all(quiet = TRUE)
+          withr::with_dir("tests", source("testthat.R"))
+          stopifnot(!"adbi" %in% loadedNamespaces())
 
       - name: Set up uv for delta-rs runtime tests
         if: matrix.config.r == 'release'

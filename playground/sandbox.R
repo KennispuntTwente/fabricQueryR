@@ -106,7 +106,8 @@ playground_resolve_targets <- function(
           "Expected one {.val {unname(target_types)[[index]]}} named ",
           "{.val {unname(target_names)[[index]]}} but found {count}"
         ),
-        "i" = "Rebuild the sandbox from the current branch if it is incomplete"
+        "i" = "Wait for the persistent sandbox workflow to finish, then reconnect",
+        "i" = "Check the workflow's deploy and seed results if an item is still missing"
       ))
     }
     targets[[index]] <- items[[which(matches)]]
@@ -229,8 +230,8 @@ connect_playground_sandbox <- function(
         "{length(matches)}"
       ),
       "i" = paste0(
-        "Run the {.strong Manage persistent Fabric sandbox} workflow with ",
-        "{.code action = rebuild}"
+        "Wait for the {.strong Manage persistent Fabric sandbox} workflow ",
+        "to finish before connecting; its rebuild replaces the workspace"
       )
     ))
   }

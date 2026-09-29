@@ -1,6 +1,6 @@
 Package: fabricQueryR
-Title: Access and Manage 'Microsoft Fabric' from R
-Version: 0.2.1.9000
+Title: Access and Manage 'Microsoft Fabric'
+Version: 1.0.1
 Authors@R: 
     c(person(given = "Luka",
              family = "Koning",
@@ -19,7 +19,7 @@ License: MIT + file LICENSE
 Suggests: 
     adbcdrivermanager,
     adbi,
-    arrow (>= 9.0.0),
+    arrow (>= 17.0.0),
     DBI (>= 1.2.0),
     dplyr,
     knitr,
@@ -33,6 +33,7 @@ Suggests:
     webfakes,
     withr
 VignetteBuilder: knitr
+Additional_repositories: https://r-dbi.r-universe.dev
 Config/testthat/edition: 3
 Config/Needs/ci:
     adbcdrivermanager=url::https://cloud.r-project.org/src/contrib/Archive/adbcdrivermanager/adbcdrivermanager_0.23.0-2.tar.gz,
@@ -57,4 +58,4 @@ URL: https://github.com/kennispunttwente/fabricQueryR, https://kennispunttwente.
 BugReports: https://github.com/kennispunttwente/fabricQueryR/issues
 Depends: 
     R (>= 4.1.0)
-Config/roxygen2/version: 8.0.0
+Config/roxygen2/version: 8.1.0

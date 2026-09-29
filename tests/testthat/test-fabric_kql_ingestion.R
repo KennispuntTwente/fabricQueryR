@@ -656,15 +656,21 @@ test_that("ingestion status redacts every storage credential suffix", {
   expect_true(all(grepl("<redacted>", status$details$url, fixed = TRUE)))
   expect_equal(status$request_id, "status-request-id")
   expect_equal(audiences, "https://api.kusto.windows.net/.default")
-  expect_match(captured$url, "operation%3B123", fixed = TRUE)
-  expect_match(captured$url, "details=true", fixed = TRUE)
+  # libcurl versions differ in whether semicolons in paths stay escaped.
+  parsed_url <- httr2::url_parse(captured$url)
+  expect_equal(
+    parsed_url$path,
+    "/v1/rest/ingestion/queued/Telemetry/Raw/operation;123"
+  )
+  expect_equal(parsed_url$query$details, "true")
 })
 
 test_that("raw operation status can be polled and resumed after serialization", {
   calls <- 0L
+  urls <- character()
   httr2::local_mocked_responses(function(req) {
     calls <<- calls + 1L
-    expect_match(req$url, "/Telemetry/Raw/operation%3Bresume", fixed = TRUE)
+    urls <<- c(urls, req$url)
     kusto_ingestion_test_response(
       if (calls <= 3L) {
         kusto_ingestion_test_status(in_progress = 1L)
@@ -693,6 +699,15 @@ test_that("raw operation status can be polled and resumed after serialization", 
   expect_identical(result$state, "Succeeded")
   expect_identical(result$expected, NA_integer_)
   expect_identical(calls, 4L)
+  expect_equal(
+    vapply(
+      urls,
+      \(url) httr2::url_parse(url)$path,
+      character(1),
+      USE.NAMES = FALSE
+    ),
+    rep("/v1/rest/ingestion/queued/Telemetry/Raw/operation;resume", 4L)
+  )
 })
 
 test_that("ingestion status permits a missing last-updated timestamp", {

@@ -76,7 +76,14 @@
 #' and [OneLake tenant settings](https://learn.microsoft.com/en-us/fabric/admin/service-admin-portal-onelake)
 #'
 #' This function uses the Python
-#' [deltalake](https://pypi.org/project/deltalake/) reader through 'reticulate'
+#' [deltalake](https://pypi.org/project/deltalake/) reader through 'reticulate'.
+#' Python 3.10 or newer and compatible Python 'deltalake' and 'nanoarrow'
+#' packages are required. Inspect the exact requirements with
+#' [fabric_delta_config()], or call `fabric_delta_config(initialize = TRUE)`
+#' to initialize the runtime. 'reticulate' can download a managed environment
+#' on first use; an already initialized custom environment must provide the
+#' required packages itself.
+#'
 #' Some newer Delta features, including Type Widening, V2 Checkpoints, and
 #' shredded Fabric Variant, are not supported by that reader. The reader can
 #' query an unshredded Variant table only when `columns` explicitly excludes
@@ -136,14 +143,23 @@
 #' )
 #'
 #' # Stream the same table when it may not fit in R memory
-#' stream <- fabric_lakehouse_read_table(
-#'   lakehouse = lakehouse,
-#'   table = table,
-#'   result = "arrow_stream"
-#' )
-#' reader <- arrow::as_record_batch_reader(stream)
-#' rows <- reader$read_table()
-#' reader$Close()
+#' row_count <- local({
+#'   stream <- fabric_lakehouse_read_table(
+#'     lakehouse = lakehouse,
+#'     table = table,
+#'     result = "arrow_stream"
+#'   )
+#'   on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+#'   reader <- arrow::as_record_batch_reader(stream)
+#'   on.exit(reader$Close(), add = TRUE, after = FALSE)
+#'   count <- 0
+#'   repeat {
+#'     batch <- reader$read_next_batch()
+#'     if (is.null(batch)) break
+#'     count <- count + batch$num_rows
+#'   }
+#'   count
+#' })
 #' }
 fabric_onelake_read_delta_table <- function(
   table_path,
@@ -286,13 +302,123 @@ fabric_onelake_read_delta_table <- function(
 #'
 #' Shows whether the optional Python tools used for direct Delta reads are ready
 #' By default this does not start Python. Set `initialize = TRUE` to prepare the
-#' environment and report installed versions; packages may be downloaded the
-#' first time
+#' environment, check the minimum Python version and required module imports,
+#' and report installed versions. An unusable runtime raises an error with
+#' setup instructions. Use `initialize = FALSE` to inspect it without this check
+#'
+#' @section Use a managed environment (recommended):
+#' For automatic installation, explicitly select a 'reticulate'-managed
+#' environment. First restart R (in RStudio: Session > Restart R), then run:
+#' ```r
+#' Sys.setenv(RETICULATE_PYTHON = "managed")
+#' library(fabricQueryR)
+#' fabric_delta_config(initialize = TRUE)
+#' ```
+#' `"managed"` is a special setting, not an environment name or a Python path.
+#' The first line tells 'reticulate' to create or reuse a suitable environment.
+#' Loading 'fabricQueryR' declares the required Python version and packages
+#' through [reticulate::py_require()]. The final line starts Python, triggering
+#' 'uv' to download the runtime and dependencies if needed, and checks setup.
+#' 'reticulate' also downloads 'uv' if needed; no separate `py_install()` call
+#' is necessary
+#'
+#' The restart is required if Python has already started: setting
+#' `RETICULATE_PYTHON` cannot switch the interpreter in a running Python session.
+#'
+#' To keep this selection for future sessions in this project, add the line
+#' `RETICULATE_PYTHON=managed` to the project's `.Renviron` file, then restart R.
+#' Otherwise, repeat the `Sys.setenv()` line at the start of each R session
+#'
+#' Without this explicit selection, a Python chosen through RStudio,
+#' environment variables, `reticulate::use_python()`, or a project virtualenv
+#' can take precedence over the managed environment. `py_require()` declares
+#' requirements but does not install them into that existing Python, and
+#' `initialize = TRUE` does not change that choice. For example, selecting
+#' Python 3.9 leaves the Delta requirements unmet even though Python has started.
+#' `reticulate::py_config()` reports the selected interpreter and why it was
+#' chosen. After the setup above succeeds, both entries in `available` should
+#' be `TRUE` and `versions` should report the installed Delta packages
+#'
+#' @section Create a reusable environment with reticulate:
+#' For an environment you manage yourself, restart R and create a virtualenv
+#' from an installed Python 3.11. Then install the required packages into that
+#' named environment and select its interpreter before initializing Python:
+#' ```r
+#' reticulate::virtualenv_create("fabricQueryR", version = "3.11")
+#' reticulate::py_install(
+#'   c("deltalake==1.6.2", "nanoarrow==0.8.0"),
+#'   envname = "fabricQueryR",
+#'   method = "virtualenv"
+#' )
+#' Sys.setenv(
+#'   RETICULATE_PYTHON = reticulate::virtualenv_python("fabricQueryR")
+#' )
+#' library(fabricQueryR)
+#' fabric_delta_config(initialize = TRUE)
+#' ```
+#' `virtualenv_create()` needs a compatible installed Python and reuses an
+#' existing environment of that name without upgrading its Python. If needed,
+#' install Python first with `reticulate::install_python("3.11:latest")` or use
+#' the 'uv' alternative below. `install_python()` uses 'pyenv' / 'pyenv-win';
+#' it is separate from the automatic 'uv' setup described above
+#'
+#' `py_install()` installs into the named virtualenv using 'pip'. Always pass
+#' `envname` to make the destination explicit. For an existing Conda environment,
+#' use `method = "conda", pip = TRUE` with that environment's name instead
+#'
+#' In later R sessions, repeat the `Sys.setenv()` selection before using Python;
+#' installation is needed only when creating or updating the environment.
+#' [reticulate::use_virtualenv()] is another way to select it, but an existing
+#' `RETICULATE_PYTHON` setting takes precedence over that selection
+#'
+#' @section Create a reusable environment with uv:
+#' If the 'uv' command-line tool is already installed and available on `PATH`,
+#' it can create a new project environment and download Python if necessary.
+#' From the project directory, run in a terminal:
+#' ```sh
+#' uv venv --python 3.11 --seed .venv-fabricQueryR
+#' ```
+#' `--seed` installs 'pip' so that `reticulate::py_install()` can install into
+#' the environment. In a fresh R session in the same project directory:
+#' ```r
+#' reticulate::py_install(
+#'   c("numpy", "deltalake==1.6.2", "nanoarrow==0.8.0"),
+#'   envname = "./.venv-fabricQueryR",
+#'   method = "virtualenv"
+#' )
+#' Sys.setenv(
+#'   RETICULATE_PYTHON = reticulate::virtualenv_python("./.venv-fabricQueryR")
+#' )
+#' library(fabricQueryR)
+#' fabric_delta_config(initialize = TRUE)
+#' ```
+#' The `./` makes this a project path rather than a named environment under
+#' the virtualenv directory used by 'reticulate'. 'numpy' is included because
+#' 'uv' does not install it automatically
+#'
+#' This environment is managed by you; 'reticulate' does not resolve
+#' `py_require()` declarations into it. Use `py_install()` with that explicit
+#' `envname`, or `uv pip install --python .venv-fabricQueryR ...`, to update it.
+#' See the [uv environment guide](https://docs.astral.sh/uv/pip/environments/)
+#' for details
+#'
+#' @section Install into an existing standalone Python:
+#' Select Python 3.10 or newer before initialization. Install the Python
+#' dependencies into that exact interpreter, for example from R:
+#' ```r
+#' system2("/path/to/python", c(
+#'   "-m", "pip", "install", "deltalake==1.6.2", "nanoarrow==0.8.0"
+#' ))
+#' ```
+#' On Windows, use the full path to `python.exe` with forward slashes.
+#' Restart R, select that interpreter with `reticulate::use_python()`, then run
+#' `fabric_delta_config(initialize = TRUE)` to verify setup
 #'
 #' @param initialize Whether to initialize Python
 #' @return A list describing initialization state, requirements, the selected
 #'   interpreter, module availability, and installed package versions when
-#'   initialized
+#'   initialized. `initialized` only indicates whether Python has started;
+#'   it does not mean the Delta dependencies are available
 #' @examples
 #' # Inspect requirements without starting Python or downloading anything
 #' config <- fabric_delta_config()
@@ -323,7 +449,7 @@ fabric_delta_config <- function(initialize = FALSE) {
   }
 
   if (inherits(discovered, "error")) {
-    fabric_delta_abort_python(discovered)
+    fabric_delta_abort_python(discovered, initializing = TRUE)
   }
   initialized <- reticulate::py_available(initialize = FALSE)
 
@@ -355,7 +481,7 @@ fabric_delta_config <- function(initialize = FALSE) {
 
   # Return runtime configuration in the stable form expected by the caller
 
-  list(
+  config <- list(
     initialized = initialized,
     python = if (is.null(discovered)) NULL else discovered$python,
     python_version = if (is.null(discovered)) {
@@ -370,6 +496,89 @@ fabric_delta_config <- function(initialize = FALSE) {
     available = available,
     versions = versions
   )
+  if (isTRUE(initialize)) {
+    fabric_delta_check_runtime(config)
+  }
+  config
+}
+
+# Check a selected interpreter before any Delta calls; inspection stays usable
+# even when the selected environment cannot run the reader
+fabric_delta_check_runtime <- function(config) {
+  problems <- character()
+  if (numeric_version(config$python_version) < .fabric_delta_min_python) {
+    problems <- c(
+      problems,
+      "x" = paste0(
+        "Python ",
+        .fabric_delta_min_python,
+        " or newer is required."
+      )
+    )
+  }
+  missing <- names(config$available)[!config$available]
+  if (length(missing)) {
+    problems <- c(
+      problems,
+      "x" = paste0(
+        "Cannot import required Python modules: ",
+        paste(missing, collapse = ", "),
+        "."
+      )
+    )
+  }
+  if (!length(problems)) {
+    return(invisible(NULL))
+  }
+  .fabric_abort(
+    c(
+      "The Python Delta runtime is not ready.",
+      "i" = paste0(
+        "Selected Python ",
+        config$python_version,
+        ": ",
+        config$python
+      ),
+      problems,
+      fabric_delta_setup_guidance(config)
+    ),
+    class = c(
+      "fabric_delta_environment_error",
+      "fabric_delta_python_error",
+      "fabric_delta_error"
+    ),
+    call = rlang::caller_env()
+  )
+}
+
+# Return runnable setup guidance, with pip targeting the selected interpreter
+# only when its Python version is supported
+fabric_delta_setup_guidance <- function(config = NULL) {
+  bullets <- c(
+    "i" = "Automatic installation requires a reticulate-managed environment; existing Python environments must provide the dependencies themselves.",
+    "i" = 'Restart R, then run Sys.setenv(RETICULATE_PYTHON = "managed") before any Python code, followed by fabric_delta_config(initialize = TRUE).'
+  )
+  if (
+    !is.null(config) &&
+      numeric_version(config$python_version) >= .fabric_delta_min_python
+  ) {
+    install <- paste0(
+      "system2(",
+      encodeString(config$python, quote = '"'),
+      ', c("-m", "pip", "install", ',
+      paste(
+        encodeString(.fabric_delta_python_packages, quote = '"'),
+        collapse = ", "
+      ),
+      "))"
+    )
+    bullets <- c(
+      bullets,
+      "i" = paste0("To keep this Python instead, run in R: ", install),
+      "i" = "Then restart R and run fabric_delta_config(initialize = TRUE) again."
+    )
+  }
+  c(bullets, "i" = "See ?fabric_delta_config for setup instructions.")
 }
 
 #' Resolve and validate the public Fabric table arguments
@@ -733,6 +942,7 @@ fabric_delta_python_reader <- function(
   columns = NULL,
   limit = NULL
 ) {
+  fabric_delta_config(initialize = TRUE)
   storage_options <- NULL
   if (!is.null(bearer_token) || !is.null(storage_endpoint)) {
     option_values <- list(use_fabric_endpoint = "true")
@@ -1244,7 +1454,11 @@ fabric_delta_unsupported_features <- function(message) {
 #' @keywords internal
 #' @noRd
 # Uses `error` and optional token; raises a redacted, typed public condition
-fabric_delta_abort_python <- function(error, bearer_token = NULL) {
+fabric_delta_abort_python <- function(
+  error,
+  bearer_token = NULL,
+  initializing = FALSE
+) {
   # 1 Redact and classify the runtime error --------------------------------------------------------
 
   # Tokens may appear in lower-level Python messages, so redact explicit and
@@ -1268,12 +1482,13 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
   message <- .httr2_redact(message)
 
   # Classify the message so callers can handle common failure families
-  environment_error <- grepl(
-    "No module named ['\"](?:deltalake|nanoarrow)['\"]|ModuleNotFoundError",
-    message,
-    ignore.case = TRUE,
-    perl = TRUE
-  )
+  environment_error <- initializing ||
+    grepl(
+      "No module named ['\"](?:deltalake|nanoarrow)['\"]|ModuleNotFoundError",
+      message,
+      ignore.case = TRUE,
+      perl = TRUE
+    )
   unsupported_error <- grepl(
     "DeltaProtocolError|not supported|unsupported",
     paste(c(class(error), message), collapse = " "),
@@ -1324,20 +1539,17 @@ fabric_delta_abort_python <- function(error, bearer_token = NULL) {
   # Build actionable guidance from the validated values required by the next step
 
   bullets <- c(
-    "Unable to read the Delta table through Python delta-rs.",
+    if (initializing) {
+      "Unable to initialize the Python Delta runtime."
+    } else {
+      "Unable to read the Delta table through Python delta-rs."
+    },
     "x" = message
   )
 
   # Each known failure family gets guidance that the caller can act on
   if (environment_error) {
-    bullets <- c(
-      bullets,
-      "i" = paste0(
-        "Install deltalake==1.6.2 and nanoarrow==0.8.0 in the Python ",
-        "selected by reticulate, or unset RETICULATE_PYTHON to use a ",
-        "managed environment."
-      )
-    )
+    bullets <- c(bullets, fabric_delta_setup_guidance())
   }
 
   if (authentication_error) {

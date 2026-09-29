@@ -1,4 +1,4 @@
-test_that("Parquet staging writes batches and bounded files with Arrow 9 APIs", {
+test_that("Parquet staging writes batches and bounded files", {
   skip_if_not_installed("arrow")
   table <- arrow::Table$create(value = 1:5)
   path <- withr::local_tempfile(fileext = ".parquet")

@@ -40,7 +40,7 @@ for (route in c(
       } else {
         NULL
       }
-      start <- Sys.time() + 86400
+      start <- trunc(Sys.time(), "secs") + 86400
       daily <- fabric_job_schedule_config(
         "Daily",
         start,

@@ -1099,6 +1099,7 @@ test_that("SQL exact reads preserve numeric boundaries or reject unsafe ODBC con
           sql,
           backend = backend,
           result = shape,
+          numeric_policy = "exact",
           token = token,
           verbose = FALSE
         ),
@@ -1127,6 +1128,7 @@ test_that("SQL exact reads preserve numeric boundaries or reject unsafe ODBC con
       warehouse,
       "SELECT CAST(CAST('-9223372036854775808' AS bigint) AS varchar(20)) AS v",
       backend = backend,
+      numeric_policy = "exact",
       token = token,
       verbose = FALSE
     )
@@ -1164,6 +1166,7 @@ test_that("SQL integer64 parameters preserve values, nulls and bigint operations
         params = list(value = values),
         backend = backend,
         result = shape,
+        numeric_policy = "exact",
         token = token,
         verbose = FALSE
       )
@@ -1182,6 +1185,7 @@ test_that("SQL integer64 parameters preserve values, nulls and bigint operations
         "CAST(CASE WHEN ? = CAST('9007199254740993' AS bigint) ",
         "THEN 'equal' ELSE 'different' END AS varchar(10)) AS compared"
       ),
+      numeric_policy = "exact",
       params = list(
         bit64::as.integer64("9223372036854775806"),
         bit64::as.integer64("3"),

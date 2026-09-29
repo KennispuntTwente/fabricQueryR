@@ -1404,8 +1404,11 @@ test_that("Arrow DAX stream remains file-backed without collecting its table", {
   expect_s3_class(stream, "nanoarrow_array_stream")
   expect_true(file.exists(resource$path))
   expect_s3_class(resource$readers[[1L]], "RecordBatchReader")
+  # Retained Arrow values must not keep the staged file memory-mapped.
+  expect_identical(resource$buffers[[1L]]$supports_zero_copy(), FALSE)
   reader <- arrow::as_record_batch_reader(stream)
-  expect_equal(nrow(reader$read_table()), 1000L)
+  table <- reader$read_table()
+  expect_equal(nrow(table), 1000L)
   if (is.function(reader$Close)) {
     reader$Close()
   } else {
@@ -1413,6 +1416,7 @@ test_that("Arrow DAX stream remains file-backed without collecting its table", {
     gc()
   }
   expect_false(file.exists(resource$path))
+  expect_equal(as.data.frame(table)$value, seq_len(1000L))
 })
 
 test_that("Arrow DAX rowsets share file ownership until the last release", {
@@ -1434,7 +1438,8 @@ test_that("Arrow DAX rowsets share file ownership until the last release", {
   nanoarrow::nanoarrow_pointer_release(streams[[1L]])
   expect_true(file.exists(path))
   reader <- arrow::as_record_batch_reader(streams[[2L]])
-  expect_equal(as.data.frame(reader$read_table())$value, 2L)
+  table <- reader$read_table()
+  expect_equal(as.data.frame(table)$value, 2L)
   if (is.function(reader$Close)) {
     reader$Close()
   } else {
@@ -1443,6 +1448,7 @@ test_that("Arrow DAX rowsets share file ownership until the last release", {
   }
   expect_false(file.exists(path))
   expect_identical(resource$released, c(TRUE, TRUE))
+  expect_equal(as.data.frame(table)$value, 2L)
 })
 
 test_that("Arrow DAX parser rejects error rowsets", {

@@ -92,7 +92,9 @@ These helpers provide a target-independent metadata and table-read layer for
 Fabric SQL endpoints. They accept Lakehouse, Warehouse, Warehouse snapshot,
 and SQL Database objects, or the same direct server inputs as
 \code{\link[=fabric_sql_query]{fabric_sql_query()}}. Discovery uses SQL catalog metadata views and is
-limited by the caller's SQL metadata permissions.
+limited by the caller's SQL metadata permissions. Each discovery call uses
+one query, including column metadata when \code{detail = TRUE}, on one connection
+per attempt. The connection closes before the result is returned.
 }
 \examples{
 \dontrun{

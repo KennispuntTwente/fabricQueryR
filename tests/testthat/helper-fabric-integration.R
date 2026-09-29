@@ -461,6 +461,9 @@ fabric_test_runtime_lane <- function(expected) {
 }
 
 fabric_test_require_package <- function(package) {
+  if (identical(package, "adbi")) {
+    testthat::skip_on_cran()
+  }
   fabric_test_skip_or_fail(
     !requireNamespace(package, quietly = TRUE),
     paste("Fabric integration package is not installed:", package)

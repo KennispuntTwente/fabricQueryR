@@ -25,7 +25,7 @@ ordinary files to managed tables and, finally, large or historical reads.
 
 ## Find and connect to a Lakehouse
 
-Start by finding the workspace and Lakehouse by name:
+Find the workspace by name, then select one of its Lakehouses:
 
 ```{r, eval = FALSE}
 library(fabricQueryR)
@@ -58,6 +58,12 @@ orders <- lakehouse$sql_query(
 )
 ```
 
+The default `numeric_policy = "auto"` uses ODBC's numeric conversion and warns
+once per session that precision may be lost. Use `numeric_policy = "driver"`
+to explicitly accept that conversion without a warning, or `"exact"` to reject
+unsafe ODBC results. Use `backend = "adbc"` for exact conversion; see the setup in
+[Bring Fabric data into R](reading-data.html).
+
 The method opens and closes the SQL connection for you. If you want to run
 several commands with 'DBI', use `$sql_connect()` (`fabric_sql_connect()`):
 
@@ -76,7 +82,12 @@ to keep a connection open for several 'DBI' calls.
 
 You can also read a Delta table directly through OneLake with `$read_table()`
 (`fabric_lakehouse_read_table()`). This is useful for an Arrow stream or an
-earlier table version. The `$onelake_*()` methods correspond to the
+earlier table version. Direct Delta reads use Python through 'reticulate'; see
+`?fabric_delta_config` for runtime requirements and setup diagnostics. They
+require OneLake data access and a supported Delta protocol. Use SQL or Spark
+for tables with unsupported features such as Type Widening or V2 Checkpoints.
+
+The `$onelake_*()` methods correspond to the
 `fabric_onelake_*()` functions and work with ordinary files under `Files/`,
 while `$write_table()` (`fabric_lakehouse_write_table()`) adds or replaces
 managed table data. These operations do not need a SQL connection. Never change

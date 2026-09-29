@@ -1205,6 +1205,8 @@ test_that("Spark job definition execution data uses its typed route", {
 })
 
 test_that("typed DataPipeline jobs reject undocumented request bodies", {
+  # Exercises scheduler recovery with real-time polling.
+  skip_on_cran()
   call <- NULL
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -1486,6 +1488,8 @@ test_that("status treats a completed response with failure details as failed", {
 })
 
 test_that("notebook completion without an exit reconciles scheduler failure", {
+  # Uses a short wall-clock deadline.
+  skip_on_cran()
   urls <- character()
   local_mocked_bindings(
     .fabric_job_request = function(
@@ -2002,6 +2006,8 @@ test_that("wait fails fast for statuses added by the service", {
 })
 
 test_that("failed, cancelled, and deduped jobs have distinct conditions", {
+  # Uses a short wall-clock deadline.
+  skip_on_cran()
   cases <- c(
     Failed = "fabric_job_failed",
     Cancelled = "fabric_job_cancelled",
@@ -2042,6 +2048,8 @@ test_that("failed, cancelled, and deduped jobs have distinct conditions", {
 })
 
 test_that("terminal errors can be returned for inspection", {
+  # Uses a short wall-clock deadline.
+  skip_on_cran()
   local_mocked_bindings(
     .fabric_job_request = function(...) {
       list(
@@ -2107,6 +2115,8 @@ test_that("timeout can request cancellation and retains last status", {
 })
 
 test_that("wait conditions retain remote cancellation failures", {
+  # Uses a short wall-clock deadline.
+  skip_on_cran()
   local_mocked_bindings(
     .fabric_job_cancel_context = function(...) {
       rlang::abort(

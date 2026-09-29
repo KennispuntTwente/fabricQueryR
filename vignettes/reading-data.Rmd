@@ -82,28 +82,44 @@ recent_orders <- warehouse$sql_query(
     "WHERE order_date >= ?",
     "ORDER BY order_date DESC"
   ),
-  params = list(as.Date("2026-01-01")),
-  numeric_policy = "driver"
+  params = list(as.Date("2026-01-01"))
 )
 
 head(recent_orders)
 ```
 
-This example explicitly accepts ODBC's numeric conversion, which can lose
-precision. The default `numeric_policy = "exact"` rejects ODBC results with
-INT, BIGINT, DECIMAL, or NUMERIC columns. Use `backend = "adbc"` with the
-default exact policy to preserve numeric precision.
+The default `numeric_policy = "auto"` uses ODBC's numeric conversion and warns
+once per R session that precision may be lost. Use `backend = "adbc"` for exact
+conversion, or `numeric_policy = "exact"` to reject ODBC results containing
+INT, BIGINT, DECIMAL, or NUMERIC columns before fetching. Casting these columns
+to `varchar` in SQL also preserves their values. Explicit
+`numeric_policy = "driver"` accepts driver conversion without the warning.
+
+The ADBC backend needs the optional 'adbi' and 'adbcdrivermanager' packages,
+plus the Microsoft SQL Server ADBC driver. 'adbi' is available from the R-DBI
+repository while it is archived on CRAN:
+
+```r
+install.packages(
+  c("adbi", "adbcdrivermanager"),
+  repos = c("https://r-dbi.r-universe.dev", "https://cloud.r-project.org")
+)
+```
+
+Install the SQL Server driver separately with `dbc install mssql`. See
+`?fabric_sql_connect` for driver selection and connection options.
 
 Put changing values in `params` rather than pasting them into the SQL text.
 This handles quoting safely. Use `$sql_connect()` (`fabric_sql_connect()`) and
 normal 'DBI' functions when several queries should share one connection:
 
 ```{r, eval = FALSE}
-con <- warehouse$sql_connect()
-on.exit(DBI::dbDisconnect(con), add = TRUE)
-
-DBI::dbListTables(con)
-orders <- DBI::dbGetQuery(con, "SELECT TOP 100 * FROM dbo.orders")
+orders <- local({
+  con <- warehouse$sql_connect()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbListTables(con)
+  DBI::dbGetQuery(con, "SELECT TOP 100 * FROM dbo.orders")
+})
 ```
 
 Direct 'DBI' reads use the driver's numeric conversion.
@@ -128,19 +144,58 @@ lakehouse_rows <- lakehouse$read_table(
 warehouse_rows <- warehouse$read_table(
   table = "orders",
   schema = "dbo",
-  limit = 100L,
-  numeric_policy = "driver"
+  limit = 100L
 )
 ```
 
-Warehouse reads default to `numeric_policy = "exact"`. With the ODBC backend,
-that policy rejects `INT`, `BIGINT`, `DECIMAL`, and `NUMERIC` columns before
-fetching because the driver may convert them lossily. Select
-`numeric_policy = "driver"` when ordinary driver conversion is acceptable, as
-above, or use the ADBC backend for exact conversion.
+Warehouse reads use the same `numeric_policy = "auto"` default as SQL queries:
+driver conversion for ODBC, or exact conversion for ADBC. The ODBC precision
+warning is shared by queries and table reads and appears only once per session.
+Use `numeric_policy = "exact"` to reject unsafe ODBC results, or
+`numeric_policy = "driver"` to explicitly accept conversion without a warning.
 
 Use `lakehouse$tables()` (`fabric_lakehouse_tables()`) when you are unsure which
 Lakehouse tables or schemas are available.
+
+Direct Lakehouse reads use Python's 'deltalake' and 'nanoarrow' through
+'reticulate'. **To enable automatic installation, restart R first**, then
+explicitly select a managed environment before loading the package:
+
+```{r, eval = FALSE}
+Sys.setenv(RETICULATE_PYTHON = "managed")
+library(fabricQueryR)
+fabric_delta_config(initialize = TRUE)
+```
+
+`"managed"` tells 'reticulate' to create or reuse an environment that satisfies
+the package's requirements. Loading 'fabricQueryR' declares them with
+`reticulate::py_require()`, and initialization uses 'uv' to download Python and
+the dependencies if needed. 'reticulate' also downloads 'uv' if needed. No
+separate `py_install()` call is necessary. Both entries in `available` should
+then be `TRUE`, with installed package versions in `versions`.
+
+Without `RETICULATE_PYTHON = "managed"`, an existing Python selected through
+RStudio, environment variables, `use_python()`, or a project virtualenv can
+take precedence. Declaring requirements does not install them into that
+interpreter or upgrade it; Python 3.9, for example, cannot satisfy this
+backend's minimum of Python 3.10. Once Python starts, restart R before changing
+its selection. `reticulate::py_config()` reports which interpreter was chosen
+and why.
+
+To enable managed setup for future sessions in this project, add
+`RETICULATE_PYTHON=managed` to the project's `.Renviron` file and restart R.
+Use `fabric_delta_config()` to inspect requirements without starting Python.
+
+For a reusable environment that you manage yourself, create it with
+`reticulate::virtualenv_create()` from a compatible installed Python, or with
+`uv venv --python 3.11 --seed` at a chosen path. Then install the dependencies
+with `reticulate::py_install(..., envname = ..., method = "virtualenv")` and
+select that environment before Python starts. `py_install()` uses 'pip' in a
+virtualenv; it does not upgrade an environment's Python version.
+
+See `?fabric_delta_config` for complete examples of both setup routes, and
+`?fabric_onelake_read_delta_table` for supported table features,
+OneLake permissions, and exact numeric conversions.
 
 ## Read Eventhouse data
 
@@ -248,15 +303,29 @@ Several readers accept `result = "arrow_stream"`. This can be used with the
 `fabric_lakehouse_read_table()`:
 
 ```{r, eval = FALSE}
-stream <- lakehouse$read_table(
-  table = "large_orders",
-  result = "arrow_stream"
-)
-
-reader <- arrow::as_record_batch_reader(stream)
-orders <- reader$read_table()
-reader$Close()
+row_count <- local({
+  stream <- lakehouse$read_table(
+    table = "large_orders",
+    result = "arrow_stream"
+  )
+  on.exit(nanoarrow::nanoarrow_pointer_release(stream), add = TRUE)
+  reader <- arrow::as_record_batch_reader(stream)
+  on.exit(reader$Close(), add = TRUE, after = FALSE)
+  count <- 0
+  repeat {
+    batch <- reader$read_next_batch()
+    if (is.null(batch)) break
+    # Process or write this batch before reading the next one.
+    count <- count + batch$num_rows
+  }
+  count
+})
 ```
+
+`reader$read_table()` collects every remaining batch into one Arrow Table;
+use it only when the full selected result fits in memory. Direct Delta reads
+stage the selected data to a temporary file before returning the stream, so
+allow enough local disk space even when processing batches.
 
 Close an Arrow reader after use. For disk-backed OneLake Delta streams, this
 also deletes the staged temporary file; when consuming one directly through

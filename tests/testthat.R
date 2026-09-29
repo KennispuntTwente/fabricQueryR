@@ -9,4 +9,20 @@
 library(testthat)
 library(fabricQueryR)
 
-test_check("fabricQueryR")
+if (identical(Sys.getenv("NOT_CRAN"), "true")) {
+  test_check("fabricQueryR")
+} else {
+  # Live services, Python fixtures, and repository tooling belong in CI.
+  # Keep the ordinary unit tests; individual costly tests use skip_on_cran().
+  test_check(
+    "fabricQueryR",
+    filter = paste(
+      "^integration-fabric-",
+      "^delta-rs-oracle$",
+      "^(ci-integration-summary|local-integration-runner|playground)$",
+      "^(readme|vignettes)$",
+      sep = "|"
+    ),
+    invert = TRUE
+  )
+}

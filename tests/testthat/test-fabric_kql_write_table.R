@@ -882,8 +882,11 @@ test_that("KQL decimal validation permits exact values in wide schemas", {
   decimal <- arrow::Array$create(values)$cast(arrow::decimal128(38, 15))
   expect_null(kusto_write_validate_decimal_array(decimal, "value"))
   expect_identical(
-    decimal$cast(arrow::utf8())$as_vector(),
-    c(values[1:3], "1E-15", "0E-15", NA_character_)
+    nanoarrow::convert_array(
+      nanoarrow::as_nanoarrow_array(decimal),
+      character()
+    ),
+    values
   )
 
   large <- arrow::Array$create(c(
