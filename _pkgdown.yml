@@ -23,6 +23,10 @@ articles:
       - user-data-functions
 
 reference:
+  - title: Shiny applications
+    contents:
+      - fabric_shiny_config
+
   - title: Discovery
     desc: Find Fabric workspaces, items, and workload-specific connection details
     contents:

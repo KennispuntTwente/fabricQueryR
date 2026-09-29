@@ -2,6 +2,21 @@
 
 Design draft, 20 September 2026. No implementation in this change.
 
+Implementation started 29 September 2026. The sibling shinyOAuth checkout now
+provides module-managed connections and named token targets. The initial
+fabricQueryR delivery follows four commits:
+
+1. Explicit delegated Fabric/SQL/GraphQL profiles and optional configuration.
+2. Session-bound token adapter and endpoint-policy propagation.
+3. UI/server integration reusing discovery and existing R6 objects.
+4. Runnable app, deployment guidance and local acceptance tests.
+
+The initial implementation uses a fixed tenant and session retention. Static
+`.default` consent, other workloads, retained/multiple-worker sessions and
+background workers remain follow-ups. Per the implementation request, browser
+acceptance with two restricted users is pending; local tests must not be cited
+as proof of Entra consent, delegated SQL grants or row-level security.
+
 The follow-up [generic shinyOAuth proposal](shinyoauth-generic-integration-proposal.md)
 refines the package boundary and staged changes described here. Prefer that
 document for the proposed shinyOAuth API and implementation scope.

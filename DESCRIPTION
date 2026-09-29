@@ -28,6 +28,8 @@ Suggests:
     processx,
     purrr,
     rmarkdown,
+    shiny,
+    shinyOAuth,
     testthat (>= 3.2.0),
     waldo,
     webfakes,
