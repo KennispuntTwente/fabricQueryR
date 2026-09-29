@@ -1066,6 +1066,68 @@ test_that("user-data-function vignette executes scalar and structured calls", {
   expect_true(calls[[4L]]$options$idempotent)
 })
 
+test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
+  skip_if_no_shiny_targets()
+  path <- test_path("..", "..", "vignettes", "shiny-integration.Rmd")
+  if (!file.exists(path)) {
+    skip("Package vignette source is not available in installed test runs")
+  }
+  calls <- new.env(parent = emptyenv())
+  bindings <- mget(
+    c(
+      "fluidPage",
+      "actionButton",
+      "tableOutput",
+      "observeEvent",
+      "renderTable",
+      "req",
+      "shinyApp"
+    ),
+    envir = asNamespace("shiny")
+  )
+  bindings$Sys.getenv <- function(name) {
+    switch(
+      name,
+      ENTRA_TENANT_ID = "11111111-1111-1111-1111-111111111111",
+      ENTRA_CLIENT_ID = "app",
+      ENTRA_CLIENT_SECRET = "synthetic-secret",
+      FABRIC_SQL_SERVER = "warehouse.datawarehouse.fabric.microsoft.com",
+      FABRIC_SQL_DATABASE = "orders"
+    )
+  }
+  bindings$fabric_shiny_config <- fabric_shiny_config
+  bindings$fabric_shiny_ui <- fabric_shiny_ui
+  bindings$fabric_shiny_server <- function(id, config) {
+    list(
+      ready = function(service) service == "sql",
+      login = function() TRUE,
+      token_provider = function() {
+        function(audience, force_refresh = FALSE) {
+          expect_identical(audience, .fabric_audience$sql)
+          "synthetic-user-token"
+        }
+      }
+    )
+  }
+  bindings$fabric_sql_query <- function(server, sql, database, token, ...) {
+    calls$server <- server
+    calls$token <- token(.fabric_audience$sql)
+    calls$database <- database
+    data.frame(TABLE_SCHEMA = "dbo", TABLE_NAME = "orders")
+  }
+  example <- vignette_evaluate_chunks(path, 4L, bindings = bindings)
+  shiny::testServer(example$server, {
+    session$flushReact()
+    expect_match(output$tables, "orders", fixed = TRUE)
+    expect_identical(
+      calls$server,
+      "warehouse.datawarehouse.fabric.microsoft.com"
+    )
+    expect_identical(calls$database, "orders")
+    expect_identical(calls$token, "synthetic-user-token")
+  })
+})
+
 test_that("every feature vignette has a semantic execution test", {
   vignette_dir <- test_path("..", "..", "vignettes")
   if (!dir.exists(vignette_dir)) {
@@ -1086,6 +1148,7 @@ test_that("every feature vignette has a semantic execution test", {
     "onelake-and-lakehouse.Rmd",
     "reading-data.Rmd",
     "semantic-model-refresh.Rmd",
+    "shiny-integration.Rmd",
     "spark-with-livy.Rmd",
     "user-data-functions.Rmd",
     "warehouse.Rmd"

@@ -53,12 +53,13 @@ shiny_test_config <- function(services = "fabric") {
 
 shiny_test_token <- function(
   access = "synthetic-user-token",
-  scopes = c("Workspace.Read.All", "Item.Read.All")
+  scopes = c("Workspace.Read.All", "Item.Read.All"),
+  subject = "synthetic-user"
 ) {
   claims <- jsonlite::toJSON(
     list(
       iss = "https://login.microsoftonline.com/11111111-1111-1111-1111-111111111111/v2.0",
-      sub = "synthetic-user",
+      sub = subject,
       name = "Test User"
     ),
     auto_unbox = TRUE

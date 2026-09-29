@@ -316,3 +316,66 @@ test_that("real Microsoft target acquisition supplies SQL and GraphQL separately
     }
   )
 })
+
+test_that("two simultaneous module sessions cannot use each other's providers", {
+  skip_if_no_shiny_targets()
+  withr::local_options(shinyOAuth.skip_browser_token = TRUE)
+  local_mocked_bindings(
+    revoke_token = function(...) NULL,
+    .package = "shinyOAuth"
+  )
+  config <- shiny_test_config()
+  first_session <- shiny::MockShinySession$new()
+  second_session <- shiny::MockShinySession$new()
+  withr::defer(first_session$close())
+  withr::defer(second_session$close())
+  authorize <- function(root, user) {
+    shiny::withReactiveDomain(
+      root,
+      shiny::isolate({
+        fabric <- fabric_shiny_server(
+          "fabric",
+          config,
+          refresh_proactively = FALSE
+        )
+        module <- root$env
+        operation <- module$.begin_auth_operation(
+          "login",
+          NULL,
+          new_epoch = TRUE
+        )
+        module$.accept_login_token(
+          shiny_test_token(paste0(user, "-token"), subject = user),
+          NULL
+        )
+        module$.finish_auth_operation(operation, "login")
+        root$flushReact()
+        fabric$token_provider()
+      })
+    )
+  }
+  first <- authorize(first_session, "user-a")
+  second <- authorize(second_session, "user-b")
+  shiny::withReactiveDomain(
+    first_session,
+    shiny::isolate({
+      expect_identical(first(.fabric_audience$fabric), "user-a-token")
+      error <- rlang::catch_cnd(
+        second(.fabric_audience$fabric),
+        classes = "error"
+      )
+      expect_s3_class(error, "shinyOAuth_access_error")
+      expect_identical(error$context$reason, "authorization_unavailable")
+    })
+  )
+  shiny::withReactiveDomain(
+    second_session,
+    shiny::isolate({
+      expect_identical(second(.fabric_audience$fabric), "user-b-token")
+      expect_s3_class(
+        rlang::catch_cnd(first(.fabric_audience$fabric), classes = "error"),
+        "shinyOAuth_access_error"
+      )
+    })
+  )
+})

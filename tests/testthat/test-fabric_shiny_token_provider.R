@@ -221,3 +221,25 @@ test_that("Delta cannot bypass the Shiny service policy", {
   expect_identical(error$reason, "unconfigured_service")
   expect_length(connection$state$calls, 0L)
 })
+
+test_that("permission denials do not refresh or retry a Shiny authorization", {
+  skip_if_no_shiny_targets()
+  connection <- shiny_test_connection()
+  provider <- fabric_shiny_token_provider(connection, services = "fabric")
+  requests <- 0L
+  httr2::local_mocked_responses(function(req) {
+    requests <<- requests + 1L
+    json_response(
+      status = 403L,
+      body = list(error = list(code = "Forbidden")),
+      url = req$url
+    )
+  })
+  error <- rlang::catch_cnd(
+    fabric_workspaces(token = provider),
+    classes = "error"
+  )
+  expect_s3_class(error, "fabric_http_error")
+  expect_identical(requests, 1L)
+  expect_identical(connection$state$calls[[1L]]$force_refresh, FALSE)
+})

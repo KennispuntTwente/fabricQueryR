@@ -17,6 +17,12 @@ background workers remain follow-ups. Per the implementation request, browser
 acceptance with two restricted users is pending; local tests must not be cited
 as proof of Entra consent, delegated SQL grants or row-level security.
 
+The first delivery is implemented. See the
+[acceptance record](shiny-fabric-acceptance.md) for execution evidence, pending
+delegated browser checks and the remaining service/performance phases. The
+working APIs and runnable app are documented in
+[the Shiny vignette](../../vignettes/shiny-integration.Rmd).
+
 The follow-up [generic shinyOAuth proposal](shinyoauth-generic-integration-proposal.md)
 refines the package boundary and staged changes described here. Prefer that
 document for the proposed shinyOAuth API and implementation scope.

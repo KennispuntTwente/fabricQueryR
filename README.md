@@ -48,6 +48,13 @@ The [authentication vignette](https://kennispunttwente.github.io/fabricQueryR/ar
 covers interactive sign-in, app registrations, service principals, and other
 authentication options.
 
+The development version also supports Shiny apps using each visitor's delegated
+Fabric, SQL or GraphQL access through shinyOAuth. See the
+[Shiny integration guide](vignettes/shiny-integration.Rmd) and the
+[runnable SQL example](inst/examples/shiny-fabric). This requires shinyOAuth's
+token-target APIs; delegated browser acceptance is tracked separately from the
+local tests.
+
 The examples below focus on the main use of each function group. See the
 [function reference](https://kennispunttwente.github.io/fabricQueryR/reference/index.html)
 and vignettes for configuration options and more involved workflows.

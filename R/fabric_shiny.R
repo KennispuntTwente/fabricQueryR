@@ -51,7 +51,10 @@ fabric_shiny_ui <- function(ui, id, config) {
 #' Each new authorization prefetches the configured resource tokens. One target's
 #' failure leaves other services available. `prepare()` can retry a transient
 #' acquisition failure; interaction/consent failures need explicit reauthorization
-#' or a registration change. Recovery does not replay queries or writes.
+#' or a registration change. `prepare()` and `reauthorize()` do not run or replay
+#' data operations. HTTP calls retain the package's retry policy: one 401 can
+#' trigger forced acquisition and a retry even when `idempotent = FALSE`.
+#' Retrying transient failures separately requires an idempotent request.
 #'
 #' Only synchronous data calls, one fixed tenant and session-only retention are
 #' supported here. OAuth and query execution run in the owning R process. Refresh

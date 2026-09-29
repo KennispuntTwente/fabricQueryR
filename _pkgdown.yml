@@ -7,6 +7,7 @@ articles:
     contents:
       - getting-started
       - authentication
+      - shiny-integration
   - title: Read and write data
     contents:
       - reading-data

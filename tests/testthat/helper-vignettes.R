@@ -109,6 +109,37 @@ documentation_r6_method_registry <- function() {
   for (class_name in names(generators)) {
     add_generator(generators[[class_name]], class_name)
   }
+  # The Shiny facade returns ordinary closures instead of an R6 generator.
+  # Read its signatures without loading optional Shiny dependencies.
+  expressions <- as.list(body(fabric_shiny_session))[-1L]
+  definitions <- list()
+  for (expression in expressions) {
+    if (
+      is.call(expression) &&
+        identical(expression[[1L]], quote(`<-`)) &&
+        is.symbol(expression[[2L]])
+    ) {
+      definitions[[as.character(expression[[2L]])]] <- expression[[3L]]
+    }
+  }
+  methods <- as.list(tail(expressions, 1L)[[1L]])[-1L]
+  for (name in names(methods)) {
+    method <- methods[[name]]
+    if (is.symbol(method)) {
+      method <- definitions[[as.character(method)]]
+    }
+    stopifnot(is.call(method), identical(method[[1L]], quote(`function`)))
+    parameters <- names(method[[2L]])
+    registry[[name]] <- c(
+      registry[[name]],
+      list(list(
+        class = "fabric_shiny_session",
+        parameters = parameters,
+        allow_dots = "..." %in% parameters,
+        targets = character()
+      ))
+    )
+  }
   registry
 }
 
@@ -129,7 +160,12 @@ documentation_r6_call_matches <- function(call, signatures) {
   ))
 }
 
-documentation_external_methods <- c("Close", "read_next_batch", "set")
+documentation_external_methods <- c(
+  "Close",
+  "read_next_batch",
+  "set",
+  "connection"
+)
 
 vignette_mock_r6 <- function(fields = list(), methods = list(), class = NULL) {
   object <- new.env(parent = emptyenv())
