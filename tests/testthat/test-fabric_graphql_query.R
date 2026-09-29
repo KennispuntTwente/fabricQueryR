@@ -1128,7 +1128,7 @@ test_that("GraphQL fractional text promotion is independent of row order", {
   backward <- graphql_rows_column(rev(values), "value")
 
   expect_identical(forward, rev(backward))
-  expect_identical(as.numeric(forward[2:3]), c(pi, 1.25))
+  expect_identical(numeric_test_decode(forward[2:3]), c(pi, 1.25))
   expect_identical(
     forward[c(1L, 4L, 5L)],
     c(
