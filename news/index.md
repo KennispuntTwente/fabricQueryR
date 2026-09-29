@@ -2,6 +2,8 @@
 
 ## fabricQueryR 1.0.0
 
+CRAN release: 2026-09-24
+
 ### Breaking changes
 
 - [`fabric_onelake_read_delta_table()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_onelake_read_delta_table.md)

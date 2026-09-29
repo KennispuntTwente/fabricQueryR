@@ -9,7 +9,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/kennispunttwente/fabricQueryR/blob/master/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/kennispunttwente/fabricQueryR/blob/v1.0.0/DESCRIPTION)
 
 Koning L (2026). *fabricQueryR: Access and Manage 'Microsoft Fabric'*. R
 package version 1.0.0,
