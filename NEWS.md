@@ -1,5 +1,8 @@
 # fabricQueryR (development version)
 
+* Fix a GraphQL numeric round-trip test on R builds without long-double support
+  (CRAN's `noLD` check). Package behavior is unchanged.
+
 # fabricQueryR 1.0.0
 
 ## Breaking changes
