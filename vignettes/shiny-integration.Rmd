@@ -11,72 +11,98 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-`fabric_shiny_config()`, `fabric_shiny_ui()` and `fabric_shiny_server()` connect
-an ordinary Shiny app to the visitor's delegated Microsoft Fabric access.
-shinyOAuth handles sign-in, validated identity, token targets and refresh.
-fabricQueryR supplies resource scopes, endpoint checks and its existing query
-and discovery interfaces.
+A Shiny app can make Fabric data available to colleagues through a dashboard,
+report or interactive analysis. Often, each person should see only the data
+their Microsoft account is allowed to access. fabricQueryR lets visitors sign
+in with that account and then uses their access when querying Fabric.
 
-The initial integration supports Fabric discovery, SQL and GraphQL in one fixed
-tenant, with one authorization per Shiny session and synchronous calls. Shiny and
-shinyOAuth are optional dependencies. Install a shinyOAuth build with
-`oauth_client(token_targets = ...)`, module `auth$connection()` and
-`connection$access_token(target = ...)`. For the development checkouts:
+You can keep using familiar Shiny tools such as `reactive()` and `renderTable()`,
+together with fabricQueryR's SQL and GraphQL functions. The shinyOAuth package
+handles the Microsoft sign-in process. You add a small amount of configuration
+and connect it to your app's UI and server.
+
+This vignette starts with an app that lists the tables a user can see in a
+Fabric SQL database. It then shows how to work with a Warehouse, load data on
+demand, and adapt an app that already uses shinyOAuth.
+
+## Setup
+
+### Install the packages
+
+This integration currently requires the development versions of fabricQueryR
+and shinyOAuth. If you have both source checkouts, install shinyOAuth first:
 
 ```{r, eval=FALSE}
 devtools::install("../shinyoauth")
 devtools::install(".")
 ```
 
-Local tests exercise the real module's ownership and target acquisition code
-with synthetic token responses. Browser sign-in and restricted-user Fabric
-acceptance remain pending. In particular, these tests do not establish your
-registration's consent, tenant policies, SQL grants, GraphQL SSO or row filtering.
+For the SQL example, you also need **shiny**, **DBI**, **odbc**, and Microsoft
+ODBC Driver 18 for SQL Server. The driver is installed separately from the R
+packages, on the computer that runs the app.
 
-## Register the application
+### Arrange Microsoft sign-in
 
-1. Create an Entra application for the fixed directory containing the Fabric
-   data. Register an exact **Web** redirect URI, for example
-   `http://localhost:8100/` during development and an HTTPS URL in deployment.
-2. Configure the delegated permissions for the services you use. Obtain tenant
-   administrator consent where required. The app requests OIDC `openid` and
-   `profile`, plus `offline_access` for refresh; it does not require Graph
-   UserInfo or `User.Read` just to display identity.
-3. Store the application ID, tenant ID and client secret in the server's secret
-   configuration. Never put a secret in app UI, a URL, a committed file or logs.
-4. Grant the users access to the intended Fabric items and underlying data.
-   App consent does not grant workspace, item or database access.
+Your app needs an application registration in Microsoft Entra, the service that
+manages your organization's Microsoft sign-in. Your Fabric or Microsoft 365
+administrator can help set this up.
 
-| Service | Delegated permission defaults | Additional authorization |
-| --- | --- | --- |
-| `fabric` | `Workspace.Read.All`, `Item.Read.All` | User access to workspaces/items |
-| `sql` | Azure SQL Database `user_impersonation` | SQL endpoint and data permissions |
-| `graphql` | Power BI service `GraphQLApi.Execute.All` | API execution and source permissions |
+For the SQL example, ask for a **Web** application registration with the Azure
+SQL Database delegated permission `user_impersonation`. A delegated permission
+allows the app to make requests using the signed-in person's access. Users still
+need their own permission to connect to the database and read its data.
 
-The package qualifies permissions using each resource, including
-`https://database.windows.net//user_impersonation` with SQL's required double
-slash. See Microsoft's [Fabric data-plane guidance](https://learn.microsoft.com/en-us/fabric/workload-development-kit/fabric-data-plane)
-and [Fabric REST scopes](https://learn.microsoft.com/en-us/rest/api/fabric/articles/scopes).
-The client secret authenticates the Web app at the token endpoint. The resulting
-data tokens represent the visitor, not a service principal or an OBO exchange.
-See [Microsoft's authorization code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+The registration needs a **redirect URI**: the address where Microsoft sends
+the visitor after sign-in. For local development, use `http://localhost:8100/`.
+The address in the registration and the app must match. A deployed app uses its
+public HTTPS address instead.
 
-## Start with a configured SQL endpoint
+You will need three values from the registration: the **tenant ID**, which
+identifies your organization's directory; the **client ID**, which identifies
+your app; and a **client secret**, which the app uses during sign-in. Complete
+any administrator consent your organization requires before testing the app.
 
-This route needs only the SQL target and avoids workspace discovery permissions.
-The complete app is installed under `examples/shiny-fabric`:
+### Save the connection settings
+
+The examples read settings with `Sys.getenv()`. For local development, you can
+put them in your user `.Renviron` file and restart R:
+
+```text
+ENTRA_TENANT_ID=your-directory-id
+ENTRA_CLIENT_ID=your-application-id
+ENTRA_CLIENT_SECRET=your-client-secret
+FABRIC_SQL_SERVER=your-sql-endpoint-hostname
+FABRIC_SQL_DATABASE=your-database-name
+```
+
+Copy the SQL server and database name from the connection details for your
+Fabric Warehouse, SQL Database or Lakehouse SQL analytics endpoint. Keep the
+client secret out of your app code and version control. For a deployed app,
+use the hosting service's environment-variable or secret settings.
+
+## Try the example app
+
+The package includes a complete app with sign-in, sign-out and a table-name
+filter. After setting the values above, run:
 
 ```{r, eval=FALSE}
 example_dir <- system.file("examples", "shiny-fabric", package = "fabricQueryR")
 shiny::runApp(example_dir, host = "127.0.0.1", port = 8100)
 ```
 
-Set `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`,
-`FABRIC_SQL_SERVER` and `FABRIC_SQL_DATABASE` first. The example uses DBI, odbc
-and Microsoft ODBC Driver 18; it reads visible SQL table metadata with a bound
-name-filter parameter. Its README describes the callback configuration.
+Open `http://localhost:8100/`, sign in, and click **Show tables**. The app lists
+tables visible to your account; an empty result can be valid if the account
+cannot see any tables. It does not create or change data.
 
-The essential application wiring is:
+## Build your own app
+
+Here is a smaller app showing the three pieces you add to a Shiny application:
+
+- `fabric_shiny_config()` holds the sign-in settings and selects the services
+  the app will use. Create it once, outside `server()`.
+- `fabric_shiny_ui()` wraps your usual UI so the app can complete sign-in.
+- `fabric_shiny_server()` creates helpers for the current visitor. Call it
+  inside `server()` so each visitor has their own connection.
 
 ```{r, eval=FALSE}
 library(shiny)
@@ -109,16 +135,25 @@ server <- function(input, output, session) {
 shinyApp(ui, server, uiPattern = ".*")
 ```
 
-Use `backend = "adbc"` with the corresponding driver installed when exact
-numeric or Arrow results are needed. Query calls open and close their own
-connections. Connections obtained from `fabric_sql_connect()` or `$sql_connect()`
-must be disconnected explicitly; logout does not close an already authenticated
-DBI connection. Avoid global per-user connection pools.
+The Sign in button calls `fabric$login()`. Inside `renderTable()`,
+`req(fabric$ready("sql"))` waits until SQL access is ready to try. Passing
+`token = fabric$token_provider()` tells the query to use the current visitor's
+sign-in. Fabric still checks whether that person can access the requested data.
+
+To adapt this example, replace the SQL with your own read query and add the
+inputs and outputs your dashboard needs. Use `params` for values supplied by
+inputs, as in the Warehouse example below.
 
 ## Discover a Warehouse and reuse its methods
 
-Configure `services = c("fabric", "sql")` to prepare both resource tokens from
-one authorization. Inside the same server:
+If you know a Warehouse's workspace ID and item ID, you can look it up and use
+its usual fabricQueryR methods. Change the configuration to
+`services = c("fabric", "sql")`: `"fabric"` lets the app look up the item, and
+`"sql"` lets it query the data.
+
+The example below assumes an existing `dbo.orders` table and a Shiny input named
+`region`. It uses the ADBC backend, which needs its corresponding driver
+installed. Add this code inside your server function:
 
 ```{r, eval=FALSE}
 warehouse <- reactive({
@@ -138,23 +173,20 @@ output$orders <- renderTable({
 })
 ```
 
-Supply an existing table and corresponding UI input for this example. GUIDs
-avoid listing every workspace. `fabric$workspaces()` is available for an
-application that wants discovery. Item methods retain the original credential.
-When using standalone functions, always pass `token = fabric$token_provider()`,
-including when an R6 item supplies the target. A missing `token` argument uses
-the general package's AzureAuth behavior.
+The returned Warehouse object remembers the visitor's connection, so its
+`$sql_query()` method does not need a separate `token` argument. You can also use
+`fabric$workspaces()` to list available workspaces. Looking up an item by its
+IDs avoids needing that list first.
 
-To avoid requiring unnecessary Fabric scopes, select the operations explicitly,
-for example `scopes = list(fabric = "Item.Read.All")` for known item IDs. Scope
-selection is fixed at registration/configuration time; `.default` consent,
-automatic incremental consent, other service profiles and multiple tenants are
-outside this first integration.
+When calling standalone functions such as `fabric_sql_query()`, always include
+`token = fabric$token_provider()`, even if you pass a Warehouse object as the
+target. Without it, the function uses the package's usual AzureAuth sign-in.
 
-## GraphQL and an existing shinyOAuth app
+## Use GraphQL
 
-A configured GraphQL URL can use only `services = "graphql"`. Call the existing
-API with the session provider:
+An existing Fabric API for GraphQL is another way to query data, without a SQL
+driver. Configure `services = "graphql"` and pass the visitor's connection to
+`fabric_graphql_query()` inside your server code:
 
 ```{r, eval=FALSE}
 result <- fabric_graphql_query(
@@ -165,62 +197,25 @@ result <- fabric_graphql_query(
 )
 ```
 
-When source permissions must follow the caller, configure the GraphQL source
-connection appropriately and validate its SSO behavior. Saved source credentials
-can establish a different authorization boundary. See Microsoft's
+Replace `configured_query_document` with a query for your API's schema. If the
+underlying data source should use each visitor's permissions, check that the
+API's source connection uses the appropriate single sign-on settings. A source
+connection using saved credentials can give different access. See Microsoft's
 [GraphQL connection guidance](https://learn.microsoft.com/en-us/fabric/data-engineering/connect-apps-api-graphql).
 
-Existing shinyOAuth applications can use the adapter without another login UI:
+## Sign out and load data on demand
 
-```{r, eval=FALSE}
-# The existing client already declares the SQL resource and scope as target db.
-provider <- reactive({
-  connection <- req(auth$connection())
-  fabric_shiny_token_provider(connection, services = "sql", targets = c(sql = "db"))
-})
-output$tables <- renderTable({
-  fabric_sql_query(
-    configured_server, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES",
-    database = configured_database, token = provider(), numeric_policy = "driver"
-  )
-})
-```
+The full example app includes buttons for `fabric$logout()` and
+`fabric$reauthorize()`, which starts sign-in again. A sign-out should also clear
+any data you have stored in the app for that visitor.
 
-For several managed authorizations use `auth$connection(selected_id)` and keep
-the manager's owner/activity requirements. The adapter captures that reference;
-it never silently follows a later login. A Graph-only client cannot acquire SQL
-merely by wrapping it. Configure the matching token targets before sign-in.
+This matters when a Load button runs a query: signing out does not click that
+button again, so its previous result can remain in a reactive value.
+`fabric$generation()` identifies the current sign-in. Store it with the result
+and check it before displaying data. It changes when the visitor signs out or
+signs in again, while routine credential renewal leaves it unchanged.
 
-## Results, errors and lifetime
-
-The server prefetches selected targets after login. `ready("sql")` checks
-recorded scope coverage; it does not prove current network access or SQL grants.
-Expired but refreshable tokens can recover on the next operation. Use
-`status()` for local target state, and `prepare("sql")` to retry acquisition.
-Tokens are not included in status. An optional target failure does not discard
-another service's usable authorization.
-
-| Outcome | Application action |
-| --- | --- |
-| Signed out | Show a button calling `login()` |
-| `interaction_required` | Offer `reauthorize()` explicitly |
-| `insufficient_scope` | Check declared permissions and consent; avoid refresh loops |
-| `refresh_pending` | Offer a retry; synchronous calls cannot wait on a promise |
-| Fabric/SQL permission denial | Explain data access is denied; repeated login is not a remedy |
-| Unavailable/ended reference | Discard the object and obtain a new session provider |
-
-Standalone calls preserve `shinyOAuth_access_error` and its `context$reason`.
-SQL can wrap acquisition failures in a `fabric_sql_authentication_error` parent
-chain. Do not show raw provider diagnostics or tokens in the browser. Successful
-silent refresh does not change `generation()` or rerun generation-dependent
-queries. Explicit status reads can update on refresh.
-
-HTTP calls retain fabricQueryR's retry behavior: one 401 can cause a forced
-token acquisition and request retry even with `idempotent = FALSE`. That is
-separate from transient network/service retries. `prepare()` and
-`reauthorize()` themselves do not replay data operations.
-
-Bind event-loaded results to their authorization before rendering:
+For example, with a Load button and the `warehouse()` reactive defined above:
 
 ```{r, eval=FALSE}
 rows <- reactiveVal(NULL)
@@ -241,39 +236,122 @@ output$rows <- renderTable({
 })
 ```
 
-Avoid `cancelOutput = TRUE`, which keeps old output visible. Keep cached data
-session-local, and include authorization generation plus query parameters in
-cache keys. Do not send providers or R6 items to futures or other processes.
-This release does not provide a nonblocking task/credential-transfer interface.
+Here, `configured_read_query` is your SQL read query. Keep `rows` and other
+user-specific data inside `server()`. Avoid `req(..., cancelOutput = TRUE)` for
+these checks, because it keeps the previous output visible.
 
-Small writes can use a short DBI connection with bound parameters and
-`on.exit(DBI::dbDisconnect(con))`, inside an explicit Save event. They require a
-writable endpoint and the user's write grants. Do not replay a write after
-reauthorization or an ambiguous timeout. Reader/writer acceptance is pending;
-the supplied runnable example performs reads only.
+## Advanced configuration
 
-## Hosting and remaining acceptance
+The following details are useful when adapting an existing authentication setup,
+troubleshooting access, or preparing an app for deployment.
 
-Use one R process, with the public HTTPS callback/base path registered exactly.
-Keep callback HTTP requests and the owning WebSocket session routed correctly.
-The UI wrapper reuses shinyOAuth's state/PKCE/nonce routing; `uiPattern = ".*"`
-allows callback subpaths to reach it. Configure reverse proxies and cookies
-according to the shinyOAuth deployment guidance for your chosen public URL.
-The wrapper does not install a proxy route. Test the deployed callback URL.
+### Choosing permissions
 
-The server defaults to an eight-hour local authorization age; set
-`reauth_after_seconds` for your app. Closing the Shiny session ends its references.
-Local logout does not promise global Microsoft sign-out. Cross-process storage,
-retained authorizations and asynchronous worker renewal require separate designs.
+`services` selects the kinds of Fabric connection your app needs. The SQL
+example uses only `"sql"`; adding `"fabric"` requests permissions to look up
+workspaces and items. Its defaults are `Workspace.Read.All` and `Item.Read.All`.
+You can request a narrower set with, for example,
+`scopes = list(fabric = "Item.Read.All")` when using known item IDs. GraphQL
+uses the Power BI service permission `GraphQLApi.Execute.All`.
 
-Standard Microsoft hosts are allowed per service. For a trusted gateway, declare
-its exact hostname through `endpoint_hosts`. Never accept that list from a user.
-The provider's policy survives R6 credentials and SQL retries. HTTP redirects
-are rejected; continuation/operation endpoints are checked before acquisition.
-These helpers are not an isolation mechanism for untrusted R code.
+The package fills in the full scope URLs, including SQL's
+`https://database.windows.net//user_impersonation`. You normally do not need to
+construct these yourself. See [Fabric data-plane authentication](https://learn.microsoft.com/en-us/fabric/workload-development-kit/fabric-data-plane)
+and [Fabric REST scopes](https://learn.microsoft.com/en-us/rest/api/fabric/articles/scopes)
+when choosing permissions for a registration.
 
-Before treating a deployment as accepted, perform the delegated browser checks
-recorded in `tools/design/shiny-fabric-acceptance.md` in the source repository:
-two users with different data permissions, logout/account replacement, token
-refresh, reader/writer separation, denied consent, callback subpaths and GraphQL
-source authorization. None of those live checks is implied by an offline pass.
+Sign-in also requests `openid`, `profile` and `offline_access` to identify the
+visitor and renew credentials. Identity comes from a validated ID token; Graph
+UserInfo and `User.Read` are not needed just to display the visitor's name.
+The client secret authenticates the app during sign-in, while data requests use
+the visitor's delegated access. This follows Microsoft's
+[authorization code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+
+### Using an existing shinyOAuth app
+
+If your app already handles sign-in with shinyOAuth, use
+`fabric_shiny_token_provider()` with its existing connection. You do not need a
+second login UI. The shinyOAuth client must already declare a token target for
+the service you want to use. In this example, its SQL target is named `db`:
+
+```{r, eval=FALSE}
+provider <- reactive({
+  connection <- req(auth$connection())
+  fabric_shiny_token_provider(connection, services = "sql", targets = c(sql = "db"))
+})
+output$tables <- renderTable({
+  fabric_sql_query(
+    configured_server, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES",
+    database = configured_database, token = provider(), numeric_policy = "driver"
+  )
+})
+```
+
+For several managed authorizations, select one with
+`auth$connection(selected_id)` and follow shinyOAuth's ownership and activity
+requirements. The provider stays tied to that connection. Configure the needed
+targets before sign-in; wrapping a Graph-only connection does not add SQL access.
+
+### Diagnosing connection problems
+
+`fabric$ready("sql")` checks the permissions recorded for the connection. The
+query itself can still fail because of network problems or database permissions.
+Use `fabric$status()` to inspect connection state and
+`fabric$prepare("sql")` to retry preparing SQL access. A problem with one
+service can leave the others available.
+
+For application error handling, `shinyOAuth_access_error` provides a
+`context$reason` field. `interaction_required` calls for an explicit sign-in
+again; `insufficient_scope` calls for checking permissions and consent.
+`refresh_pending` means a synchronous call cannot yet get the renewed
+credential. SQL may wrap these errors in the parent of a
+`fabric_sql_authentication_error`. Show users a useful message without exposing
+raw credentials or provider diagnostics.
+
+Routine token refresh does not change `generation()` or rerun queries that
+depend on it. HTTP calls retain fabricQueryR's retry behavior: one 401 response
+can trigger token renewal and a request retry even with `idempotent = FALSE`.
+This is separate from transient network/service retries. `prepare()` and
+`reauthorize()` themselves do not replay data operations.
+
+### Connections, caching and deployment
+
+`fabric_sql_query()` opens and closes its own connection. If you use
+`fabric_sql_connect()` or `$sql_connect()` directly, close it with
+`DBI::dbDisconnect()`, usually through `on.exit()` in a helper function. Signing
+out does not close an already open DBI connection. Use `backend = "adbc"` with
+its driver when exact numeric or Arrow results are needed.
+
+Keep caches local to each Shiny session and include the sign-in generation and
+query parameters in cache keys. Do not share user connections globally or send
+providers and authenticated R6 objects to futures or other R processes.
+Small writes belong in an explicit Save event, using bound parameters and a
+writable endpoint. Do not replay a write after sign-in or an uncertain timeout.
+
+For deployment, use one R process and an exact registered HTTPS callback URL.
+The `uiPattern = ".*"` setting lets callback subpaths reach the app. Check your
+hosting service's routing, reverse-proxy and cookie settings using shinyOAuth's
+deployment guidance. The default local sign-in lifetime is eight hours; adjust
+`reauth_after_seconds` for your app. App logout does not sign the visitor out of
+Microsoft everywhere.
+
+Standard Microsoft service hosts are allowed. A trusted gateway needs its exact
+hostname in `endpoint_hosts`, configured by the app author. HTTP redirects are
+rejected, and later request destinations are checked too. These checks protect
+normal package use; they do not isolate untrusted R code.
+
+### Current scope and validation
+
+This first integration supports Fabric discovery, SQL and GraphQL in one fixed
+tenant, with one authorization per Shiny session and synchronous calls. It needs
+shinyOAuth's `token_targets`, module `auth$connection()` and
+`connection$access_token(target = ...)` APIs. Static `.default` consent,
+automatic incremental consent, retained sessions, multiple-worker storage and
+background credential renewal remain follow-up work.
+
+Local tests cover the integration, including session separation and token
+renewal with synthetic responses. Browser acceptance with restricted Fabric
+users is still pending. Before deployment, check sign-in, logout, consent and
+actual data access with users who have different permissions. The full record,
+including pending reader/writer and GraphQL source-access checks, is in
+`tools/design/shiny-fabric-acceptance.md` in the source repository.
