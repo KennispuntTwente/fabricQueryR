@@ -118,7 +118,8 @@ fabric_credential <- function(
             )
           },
           refreshable = TRUE,
-          type = "callback"
+          type = "callback",
+          endpoint_policy = attr(token, "fabric_endpoint_policy", exact = TRUE)
         ),
         class = "fabric_credential"
       ))
@@ -269,6 +270,16 @@ fabric_require_trusted_credential_endpoint <- function(
   audience,
   argument = "request endpoint"
 ) {
+  if (
+    inherits(credential, "fabric_credential") &&
+      !is.null(credential$endpoint_policy)
+  ) {
+    return(fabric_check_endpoint_policy(
+      endpoint,
+      credential$endpoint_policy,
+      audience
+    ))
+  }
   if (
     is.null(credential) ||
       !inherits(credential, "fabric_credential") ||

@@ -126,8 +126,8 @@ fabric_shiny_require <- function() {
   }
   if (
     !"token_targets" %in% names(formals(shinyOAuth::oauth_client)) ||
-    !"userinfo_required" %in%
-      names(formals(shinyOAuth::oauth_provider_microsoft))
+      !"userinfo_required" %in%
+        names(formals(shinyOAuth::oauth_provider_microsoft))
   ) {
     fabric_shiny_error(
       "Install a shinyOAuth version with token_targets and OAuthConnection$access_token(target = ...)."
@@ -174,13 +174,7 @@ fabric_shiny_profiles <- function(
       target = "sql",
       scopes = "user_impersonation",
       audience = .fabric_audience$sql,
-      hosts = c(
-        "database.windows.net",
-        "database.fabric.microsoft.com",
-        "datawarehouse.fabric.microsoft.com",
-        "datawarehouse.pbidedicated.windows.net",
-        "datawarehouse.pbidedicated.microsoft.com"
-      )
+      hosts = .fabric_audience_hosts$sql
     ),
     graphql = list(
       resource = "https://analysis.windows.net/powerbi/api",

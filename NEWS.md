@@ -3,6 +3,10 @@
 * `fabric_shiny_config()` configures explicit delegated Fabric, SQL and GraphQL
 permissions using shinyOAuth token targets, with Shiny dependencies optional.
 
+* `fabric_shiny_token_provider()` adapts an existing shinyOAuth connection for
+Fabric functions, with synchronous refresh, declared audience routing and
+endpoint restrictions retained through HTTP, SQL and Delta transports.
+
 # fabricQueryR 1.0.1
 
 * Fix a GraphQL numeric round-trip test on R builds without long-double support

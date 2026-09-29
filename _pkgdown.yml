@@ -26,6 +26,7 @@ reference:
   - title: Shiny applications
     contents:
       - fabric_shiny_config
+      - fabric_shiny_token_provider
 
   - title: Discovery
     desc: Find Fabric workspaces, items, and workload-specific connection details
