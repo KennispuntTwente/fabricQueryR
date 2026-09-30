@@ -7,6 +7,16 @@ so examples do not need copied item IDs, SQL endpoints, or connection strings.
 
 ## Start a session
 
+For a Shiny interface to the same fixtures, run:
+
+```r
+shiny::runApp("playground/shiny", port = 8100)
+```
+
+The [Shiny playground](shiny/README.md) includes SQL, a DAX chart, KQL, OneLake,
+mirrored tables, GraphQL and discovery. It supports the existing sandbox
+connection and delegated user sign-in, with background query workers.
+
 Wait until the workflow finishes **seeding and discovery**, then start R from
 the repository root. A rebuild replaces the workspace: reconnect after it
 finishes, because objects from an earlier R session contain the old item IDs.

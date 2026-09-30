@@ -7,8 +7,8 @@ using Shiny `ExtendedTask` and `promises::future_promise()`.
 The same day's service expansion adds DAX, KQL and OneLake, with a complete
 example app covering each data service.
 
-The user requested local implementation/testing and explicitly deferred browser
-acceptance. Do not describe an offline test or a service-principal sandbox pass
+The user requested local implementation/testing and explicitly deferred delegated
+browser acceptance. Do not describe an offline test or a service-principal sandbox pass
 as delegated-user evidence. No registration, consent or test-user grants were
 changed during this implementation.
 
@@ -158,6 +158,49 @@ selects Warehouse; its mirai preference and query behavior are unchanged.
 `devtools::test(filter = "^(fabric_shiny_config|shiny-example|vignettes)$",
 stop_on_failure = TRUE, reporter = "summary")` passes, including both real
 worker backends. Vignette rendering and `pkgdown::check_pkgdown()` also pass.
+
+## Persistent sandbox playground (30 September)
+
+`playground/shiny` now launches with the existing sandbox credentials or a
+separately configured delegated Web registration. It discovers fixture addresses,
+uses the current checkout in its workers, and provides SQL (ODBC/ADBC), JSON and
+Arrow DAX, KQL, CSV, Delta, mirrored Delta, paginated GraphQL and item discovery.
+The existing fixture definitions already supply these sources; no new fixture
+definitions are needed. Missing targets are labelled and omitted from the batch
+query so the remaining sources can still be used.
+
+Validation during this change:
+
+- `devtools::test(filter = "^playground", stop_on_failure = TRUE)` passes,
+  including real mirai worker responsiveness, logout/account replacement,
+  stale-filter suppression, SQL parameters and GraphQL pagination envelopes.
+- The full offline suite passes without test failures or warnings; 181
+  optional/live tests are skipped. The final additional GraphQL regression
+  test also passes in the focused playground run.
+- A headless Chrome run with `shinytest2::AppDriver` launched the actual app
+  against the persistent sandbox. Shared-identity JSON DAX returned categories
+  A = 10.5 and B = 20, drew the chart, and returned only B = 20 after filtering.
+  The responsiveness counter worked, and the batch results retained successful
+  queries alongside a failed Arrow query.
+- The actual future dispatcher also ran the live category-B DAX query through
+  `ExtendedTask` in a separate process. It returned B = 20. The installed future
+  package emits its existing R patch-version build warning in that process.
+- Live item discovery currently returns only the two semantic models. Arrow
+  DAX returns HTTP 401 with `PowerBINotLicensedException`. SQL, KQL, OneLake,
+  mirrored tables and GraphQL could not be tested live because their fixtures
+  are absent from the workspace's API inventory.
+
+The CI-configured capacity is absent from the Fabric and Power BI capacity lists
+using both the sandbox application and the cached Azure CLI user. The user-level
+Power BI admin capacity list also contains only the suspended paid F2 and the
+reserved PPU capacity. The user explicitly prohibited starting the paid capacity;
+no capacity, workspace assignment or fixture was changed. Restoration and the
+remaining live checks are pending identification/access to an active trial
+capacity. This does not establish why the previous trial is absent.
+
+Launch and delegated-mode instructions are in
+[`playground/shiny/README.md`](../../playground/shiny/README.md). Shared-identity
+browser checks above do not satisfy the delegated two-user gate below.
 
 ## Pending delegated/browser gate
 

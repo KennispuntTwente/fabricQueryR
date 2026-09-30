@@ -1,5 +1,8 @@
 # fabricQueryR (development version)
 
+* The repository's `playground/shiny` app queries the persistent Fabric sandbox
+with background workers, SQL and DAX controls, and shared or delegated access.
+
 * `fabric_shiny_config()` configures explicit delegated Fabric, SQL, DAX, KQL,
 OneLake and GraphQL permissions using shinyOAuth token targets, with Shiny
 dependencies optional. DAX and GraphQL share a Power BI target when both are used.
