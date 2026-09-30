@@ -11,18 +11,21 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-fabricQueryR lets Shiny apps query Microsoft Fabric using each signed-in user's
-permissions. Visitors sign in with a Microsoft account, and requests to Fabric
-use that account's access to the data.
+fabricQueryR lets you build Shiny apps around data in Microsoft Fabric.
+Visitors sign in with a Microsoft account, and the app uses that account's
+access when it queries Fabric. You can work with semantic models using DAX,
+Warehouse and Lakehouse tables using SQL, Eventhouse data using KQL, files and
+Delta tables in OneLake, or an API for GraphQL.
 
-The example below runs queries in the background using Shiny's `ExtendedTask`,
-so the app stays responsive while Fabric returns data. You can display the
-results with Shiny functions such as `renderTable()`. The shinyOAuth package
-handles the Microsoft sign-in process.
+A semantic model is a useful starting point for a Shiny dashboard. You can
+query the same measures and relationships used by Power BI, then build the
+filters, charts and interactions in R. The example below uses a model's sales
+measure to draw a chart for a selected year. It also includes the other data
+sources, so you can see how each fits into the same app.
 
-This vignette starts with an app that lists the tables a user can see in a
-Fabric SQL database. It then shows how to work with a Warehouse, load data on
-demand, and adapt an app that already uses shinyOAuth.
+Queries run in background R processes using Shiny's `ExtendedTask`, keeping
+the app responsive while data loads. The shinyOAuth package handles Microsoft
+sign-in.
 
 ## Setup
 
@@ -34,57 +37,64 @@ and shinyOAuth. If you have both source checkouts, install shinyOAuth first:
 ```{r, eval=FALSE}
 devtools::install("../shinyoauth")
 devtools::install(".")
+install.packages(c("shiny", "bslib", "future", "promises"))
 ```
 
-For the SQL example, you also need shiny (1.8.1 or later), bslib (0.7.0 or
-later), future, promises, DBI, odbc, and Microsoft ODBC Driver 18 for SQL Server.
-The driver is installed separately from the R packages, on the computer that
-runs the app and its background workers.
+Use shiny 1.8.1 or later and bslib 0.7.0 or later. DAX, KQL and GraphQL use
+HTTP APIs, so they do not need a database driver. SQL and OneLake have
+additional dependencies, described under Other data sources below.
 
 ### Arrange Microsoft sign-in
 
-Your app needs an application registration in Microsoft Entra, the service that
-manages your organization's Microsoft sign-in. Your Fabric or Microsoft 365
-administrator can help set this up.
+Your app needs a Web application registration in Microsoft Entra, the service
+that manages your organization's Microsoft sign-in. Your Fabric or Microsoft
+365 administrator can help set this up.
 
-For the SQL example, ask for a Web application registration with the Azure
-SQL Database delegated permission `user_impersonation`. A delegated permission
-allows the app to make requests using the signed-in person's access. Users still
-need their own permission to connect to the database and read its data.
+To start with DAX, add the Power BI Service delegated permission
+`Dataset.Read.All`. A delegated permission allows the app to make requests
+using the signed-in person's access. Each user also needs Read and Build
+permission on the semantic model, and the tenant must allow the Dataset
+Execute Queries REST API. See Microsoft's
+[DAX query requirements](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries).
 
 The registration needs a redirect URI: the address where Microsoft sends
 the visitor after sign-in. For local development, use `http://localhost:8100/`.
-The address in the registration and the app must match. A deployed app uses its
-public HTTPS address instead.
+The address in the registration and the app must match. A deployed app uses
+its public HTTPS address instead.
 
-You will need three values from the registration: the tenant ID, which
-identifies your organization's directory; the client ID, which identifies
-your app; and a client secret, which the app uses during sign-in. Complete
-any administrator consent your organization requires before testing the app.
+You will need the tenant ID, which identifies your organization's directory;
+the client ID, which identifies your app; and a client secret, which the app
+uses during sign-in. Complete any administrator consent your organization
+requires before running the app.
 
 ### Save the connection settings
 
-The examples read settings with `Sys.getenv()`. For local development, you can
-put them in your user `.Renviron` file and restart R:
+The app reads settings with `Sys.getenv()`. For local development, put these
+in your user `.Renviron` file and restart R:
 
 ```text
 ENTRA_TENANT_ID=your-directory-id
 ENTRA_CLIENT_ID=your-application-id
 ENTRA_CLIENT_SECRET=your-client-secret
-FABRIC_SQL_SERVER=your-sql-endpoint-hostname
-FABRIC_SQL_DATABASE=your-database-name
+FABRIC_WORKSPACE_ID=your-workspace-id
+FABRIC_SEMANTIC_MODEL_ID=your-semantic-model-id
 ```
 
-Copy the SQL server and database name from the connection details for your
-Fabric Warehouse, SQL Database or Lakehouse SQL analytics endpoint. Keep the
-client secret out of your app code and version control. For a deployed app,
-use the hosting service's environment-variable or secret settings.
+Use the semantic model's ID, rather than a report's ID. Keep the client secret
+out of app code and version control; deployed apps can use the hosting
+service's environment-variable or secret settings.
 
 ## A complete example app
 
-After saving the settings above, save the following code as `app.R` in a new
-directory. This is the complete app: it signs visitors in, loads their table
-list in the background, and lets them sign out.
+Save the following code as `app.R` in a new directory. Keep the entries you
+want in `sources`; for a DAX-only app, keep just
+`"Semantic model (DAX)" = "dax"`. The sign-in configuration automatically
+selects the services needed by those entries. If you keep other sources, add
+their settings and registration permissions as described below.
+
+The DAX query assumes a model with `'Product'[Category]`, `'Date'[Year]` and a
+`[Total Sales]` measure. Replace these with names from your model. The other
+queries likewise use example table and field names to replace with your own.
 
 ```{r fabric-app, eval=FALSE}
 library(shiny)
@@ -92,22 +102,118 @@ library(fabricQueryR)
 
 future::plan(future::multisession, workers = 2)
 
+# Keep the sources your app needs.
+sources <- c(
+  "Semantic model (DAX)" = "dax",
+  "Warehouse (SQL)" = "warehouse",
+  "Lakehouse (SQL)" = "lakehouse",
+  "Eventhouse (KQL)" = "kql",
+  "OneLake file" = "files",
+  "OneLake Delta table" = "delta",
+  "GraphQL API" = "graphql"
+)
+service_for <- c(
+  dax = "dax",
+  warehouse = "sql",
+  lakehouse = "sql",
+  kql = "kql",
+  files = "onelake",
+  delta = "onelake",
+  graphql = "graphql"
+)
 config <- fabric_shiny_config(
   tenant_id = Sys.getenv("ENTRA_TENANT_ID"),
   client_id = Sys.getenv("ENTRA_CLIENT_ID"),
   client_secret = Sys.getenv("ENTRA_CLIENT_SECRET"),
   redirect_uri = Sys.getenv("ENTRA_REDIRECT_URI", "http://localhost:8100/"),
-  services = "sql"
+  services = unique(unname(service_for[sources]))
 )
-sql_server <- Sys.getenv("FABRIC_SQL_SERVER")
-sql_database <- Sys.getenv("FABRIC_SQL_DATABASE")
+
+# Replace the example table, column and measure names with your own.
+read_data <- function(source, token, year) {
+  switch(
+    source,
+    dax = {
+      data <- fabric_pbi_dax_query(
+        workspace_id = Sys.getenv("FABRIC_WORKSPACE_ID"),
+        dataset_id = Sys.getenv("FABRIC_SEMANTIC_MODEL_ID"),
+        dax = sprintf(
+          r"(
+          EVALUATE SUMMARIZECOLUMNS(
+            'Product'[Category], TREATAS({%d}, 'Date'[Year]),
+            "Sales", [Total Sales]
+          )
+        )",
+          as.integer(year)
+        ),
+        token = token
+      )
+      if (ncol(data) == 2L) {
+        names(data) <- c("Category", "Sales")
+      }
+      data
+    },
+    warehouse = fabric_sql_query(
+      server = Sys.getenv("FABRIC_WAREHOUSE_SQL_SERVER"),
+      database = Sys.getenv("FABRIC_WAREHOUSE_SQL_DATABASE"),
+      sql = "SELECT TOP (100) * FROM dbo.Sales",
+      token = token,
+      numeric_policy = "driver",
+      verbose = FALSE
+    ),
+    lakehouse = fabric_sql_query(
+      server = Sys.getenv("FABRIC_LAKEHOUSE_SQL_SERVER"),
+      database = Sys.getenv("FABRIC_LAKEHOUSE_SQL_DATABASE"),
+      sql = "SELECT TOP (100) * FROM dbo.Sales",
+      token = token,
+      numeric_policy = "driver",
+      verbose = FALSE
+    ),
+    kql = fabric_kql_query(
+      cluster = Sys.getenv("FABRIC_KQL_ENDPOINT"),
+      database = Sys.getenv("FABRIC_KQL_DATABASE"),
+      query = "Sales | take 100",
+      token = token
+    ),
+    files = fabric_onelake_read_file(
+      workspace = Sys.getenv("FABRIC_WORKSPACE_ID"),
+      item = Sys.getenv("FABRIC_LAKEHOUSE_ID"),
+      path = Sys.getenv("FABRIC_ONELAKE_FILE", "Files/sales.parquet"),
+      token = token
+    ),
+    delta = fabric_onelake_read_delta_table(
+      table_path = Sys.getenv("FABRIC_DELTA_TABLE", "Sales"),
+      schema = Sys.getenv("FABRIC_DELTA_SCHEMA", "dbo"),
+      workspace_name = Sys.getenv("FABRIC_WORKSPACE_ID"),
+      lakehouse_name = Sys.getenv("FABRIC_LAKEHOUSE_ID"),
+      limit = 100,
+      token = token,
+      verbose = FALSE
+    ),
+    graphql = {
+      result <- fabric_graphql_query(
+        api = Sys.getenv("FABRIC_GRAPHQL_ENDPOINT"),
+        query = "query { sales(first: 100) { items { Category Amount } } }",
+        error_policy = "error",
+        token = token
+      )
+      do.call(rbind, lapply(result$data$sales$items, as.data.frame))
+    }
+  )
+}
 
 ui <- fabric_shiny_ui(
   fluidPage(
+    titlePanel("Explore Fabric data"),
     actionButton("login", "Sign in"),
     actionButton("logout", "Sign out"),
-    textInput("table_name", "Table name contains", ""),
-    bslib::input_task_button("load", "Show tables"),
+    selectInput("source", "Data source", sources),
+    conditionalPanel(
+      "input.source === 'dax'",
+      numericInput("year", "Year", 2026, min = 1900, max = 2100, step = 1)
+    ),
+    bslib::input_task_button("load", "Load data"),
+    conditionalPanel("input.source === 'dax'", plotOutput("sales")),
     tableOutput("tables")
   ),
   "fabric",
@@ -116,23 +222,11 @@ ui <- fabric_shiny_ui(
 
 server <- function(input, output, session) {
   fabric <- fabric_shiny_server("fabric", config)
-  query <- ExtendedTask$new(function(token, generation, table_name) {
+  query <- ExtendedTask$new(function(token, generation, source, year) {
     promises::then(token, function(token) {
       promises::future_promise({
-        data <- fabric_sql_query(
-          sql_server,
-          paste(
-            "SELECT TOP (100) TABLE_SCHEMA, TABLE_NAME",
-            "FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE ?",
-            "ORDER BY TABLE_SCHEMA, TABLE_NAME"
-          ),
-          database = sql_database,
-          params = list(paste0("%", table_name, "%")),
-          token = token,
-          numeric_policy = "driver",
-          verbose = FALSE
-        )
-        list(generation = generation, data = data)
+        data <- read_data(source, token, year)
+        list(generation = generation, source = source, year = year, data = data)
       })
     })
   }) |>
@@ -143,21 +237,34 @@ server <- function(input, output, session) {
   observeEvent(
     input$load,
     {
-      req(fabric$ready("sql"))
+      service <- service_for[[req(input$source)]]
+      req(fabric$ready(service))
       query$invoke(
-        fabric$access_token("sql", async = TRUE),
+        fabric$access_token(service, async = TRUE),
         fabric$generation(),
-        input$table_name
+        input$source,
+        input$year
       )
     },
     ignoreInit = TRUE
   )
 
-  output$tables <- renderTable({
-    req(fabric$ready("sql"))
-    result <- query$result()
-    req(identical(result$generation, fabric$generation()))
-    result$data
+  result <- reactive({
+    req(fabric$ready(service_for[[req(input$source)]]))
+    value <- query$result()
+    req(identical(value$generation, fabric$generation()))
+    req(identical(value$source, input$source))
+    if (input$source == "dax") {
+      req(identical(value$year, input$year))
+    }
+    value$data
+  })
+  output$tables <- renderTable(head(result(), 100))
+  output$sales <- renderPlot({
+    req(input$source == "dax")
+    data <- result()
+    req(nrow(data) > 0)
+    barplot(as.numeric(data$Sales), names.arg = data$Category, ylab = "Sales")
   })
 }
 
@@ -170,224 +277,259 @@ shinyApp(
 ```
 
 Run the directory with `shiny::runApp("path/to/your/app")`, then open
-`http://localhost:8100/` and click Sign in, then Show tables. You can enter part
-of a table name to filter the result. While the query runs, the button shows its
-progress and the rest of the app stays responsive. An empty result can be valid
-if the account cannot see any matching tables. Click Sign out to end the app's
-sign-in and clear the table display.
+`http://localhost:8100/`. Click Sign in, choose a source, and click Load data.
+For DAX, select a year that exists in your model. The app displays the returned
+rows and a sales chart. Change the year and click Load data to update it.
 
-The app uses three fabricQueryR functions:
+### Using a semantic model for a Shiny dashboard
 
-- `fabric_shiny_config()` holds the sign-in settings and selects the services
-  the app will use. Create it once, outside `server()`.
+`fabric_pbi_dax_query()` sends DAX to an existing semantic model and returns
+an R table. In this example, `SUMMARIZECOLUMNS()` groups by product category,
+`TREATAS()` applies the selected year, and `[Total Sales]` is evaluated by the
+model. You can reuse business measures already defined there while designing
+the dashboard in Shiny.
+
+The app renames the two returned columns to `Category` and `Sales` for use
+with `renderTable()` and `renderPlot()`. Replace the base R chart with ggplot2
+or another Shiny output as needed. For a larger dashboard, use separate tasks
+for views that should load independently, or return one dataset that several
+outputs can share.
+
+Requests run as the signed-in user; model permissions and any row-level
+security applicable to that user govern the result. The model remains the
+source of measures and relationships, while Shiny provides the dashboard UI.
+
+### How the background query works
+
+The app uses three fabricQueryR functions to connect sign-in with your Shiny UI:
+
+- `fabric_shiny_config()` holds the sign-in settings and selects the services.
+  Create it once, outside `server()`.
 - `fabric_shiny_ui()` wraps your usual UI so the app can complete sign-in.
 - `fabric_shiny_server()` creates helpers for the current visitor. Call it
   inside `server()` so each visitor has their own connection.
 
-The Sign in button calls `fabric$login()`. The Show tables button starts the
-`ExtendedTask` with `query$invoke()`. `fabric$access_token("sql", async = TRUE)`
-acquires the visitor's SQL token without waiting in the Shiny event handler.
-Once it is available, `future_promise()` runs the query in a background R
-process. Fabric checks the visitor's permission to access the requested data.
+The Load data button starts an `ExtendedTask`. First,
+`fabric$access_token(service, async = TRUE)` acquires the visitor's token for
+the selected service. Then `future_promise()` runs `read_data()` in a background
+R process. `query$result()` makes its result available to the Shiny outputs
+when it is ready. The task button stays busy until that work completes.
 
-`query$result()` makes the result available to `renderTable()` when it is ready.
-The task button is bound to the task, so it stays busy until the query completes.
+Read reactive inputs when calling `$invoke()`, before the worker starts.
+The example passes the source and year as ordinary values. It also passes
+`fabric$generation()`, which identifies the current sign-in. The result checks
+prevent data from an earlier sign-in or a different source or year being
+displayed. Signing out clears the outputs; an already running query can still
+finish. Signing in again requires a new click on Load data.
+
 See Shiny's [nonblocking operations guide](https://shiny.posit.co/r/articles/improve/nonblocking/)
 for more about `ExtendedTask`.
 
-To adapt this example, replace the SQL with your own read query and add the
-inputs and outputs your app needs. Use `params` for values supplied by
-inputs, as in the Warehouse example below.
+## Other data sources
 
-## Discover a Warehouse and reuse its methods
+Each branch of `read_data()` uses a regular fabricQueryR function with the
+current user's token. You can keep one branch, combine several sources in a
+dashboard, or replace the example queries. The displayed table shows at most
+100 rows; the OneLake file branch reads the whole file before displaying it.
 
-If you know a Warehouse's workspace ID and item ID, you can look it up in the
-background task and use its usual fabricQueryR methods. Change the configuration
-to `services = c("fabric", "sql")`: `"fabric"` lets the app look up the item,
-and `"sql"` lets it query the data.
+### SQL: Warehouse and Lakehouse
 
-The example below assumes an existing `dbo.orders` table, a Shiny input named
-`region`, and the environment variables `FABRIC_WORKSPACE_ID` and
-`FABRIC_WAREHOUSE_ID`. Replace the task definition and Show tables observer in
-the app above with:
+The two SQL entries use `fabric_sql_query()` with different endpoints.
+Copy the server and database names from your Warehouse or Lakehouse SQL
+analytics endpoint's connection details:
 
-```{r, eval=FALSE}
-query <- ExtendedTask$new(function(tokens, generation, region) {
-  promises::then(tokens, function(tokens) {
-    promises::future_promise({
-      warehouse <- fabric_item(
-        workspace = Sys.getenv("FABRIC_WORKSPACE_ID"),
-        item = Sys.getenv("FABRIC_WAREHOUSE_ID"),
-        type = "Warehouse", token = tokens$fabric
-      )
-      data <- warehouse$sql_query(
-        "SELECT TOP (100) order_id, region FROM dbo.orders WHERE region = ?",
-        params = list(region), token = tokens$sql,
-        numeric_policy = "driver", verbose = FALSE
-      )
-      list(generation = generation, data = data)
-    })
-  })
-}) |> bslib::bind_task_button("load")
-
-observeEvent(input$load, {
-  req(fabric$ready())
-  query$invoke(
-    promises::promise_all(
-      fabric = fabric$access_token("fabric", async = TRUE),
-      sql = fabric$access_token("sql", async = TRUE)
-    ),
-    fabric$generation(), input$region
-  )
-}, ignoreInit = TRUE)
+```text
+FABRIC_WAREHOUSE_SQL_SERVER=your-warehouse-sql-hostname
+FABRIC_WAREHOUSE_SQL_DATABASE=your-warehouse-database
+FABRIC_LAKEHOUSE_SQL_SERVER=your-lakehouse-sql-hostname
+FABRIC_LAKEHOUSE_SQL_DATABASE=your-lakehouse-database
 ```
 
-The task receives a token for each service. It creates the Warehouse object in
-the worker, then passes the SQL token to `$sql_query()`. The table output from
-the first example also works here. To use the ADBC backend instead, install its
-driver and add `backend = "adbc"` to the query.
+Install DBI, odbc, and Microsoft ODBC Driver 18 for SQL Server on the computer
+running the app and its workers. Add the Azure SQL Database delegated
+permission `user_impersonation` to the registration. Users need permission to
+connect and read the requested data.
 
-## Use GraphQL
+Replace `dbo.Sales` with your table. For filters taken from Shiny inputs, use
+SQL parameters: for example, `sql = "SELECT * FROM dbo.Sales WHERE Region = ?"`
+with `params = list(region)`. Pass `region` to the task as an ordinary value.
 
-An existing Fabric API for GraphQL is another way to query data, without a SQL
-driver. Configure `services = "graphql"`, change the readiness checks to
-`fabric$ready("graphql")`, and acquire `fabric$access_token("graphql", async = TRUE)`
-in the Show tables observer. Inside the task's `future_promise()` block, replace
-the SQL call with a GraphQL call:
+Both SQL branches use `numeric_policy = "driver"`, which keeps the ODBC
+driver's numeric representation. For exact numeric or Arrow results, see
+[SQL queries](reading-data.html) and the ADBC backend.
 
-```{r, eval=FALSE}
-data <- fabric_graphql_query(
-  api = Sys.getenv("FABRIC_GRAPHQL_ENDPOINT"),
-  query = configured_query_document,
-  variables = list(name = table_name),
-  token = token
-)
+### KQL: Eventhouse
+
+Set the query URI and database from your KQL database's connection details:
+
+```text
+FABRIC_KQL_ENDPOINT=https://your-cluster.kusto.fabric.microsoft.com
+FABRIC_KQL_DATABASE=your-kql-database
 ```
 
-Replace `configured_query_document` and its variables with a query for your API's
-schema, and adapt the output to the returned data. If the
-underlying data source should use each visitor's permissions, check that the
-API's source connection uses the appropriate single sign-on settings. A source
-connection using saved credentials can give different access. See Microsoft's
-[GraphQL connection guidance](https://learn.microsoft.com/en-us/fabric/data-engineering/connect-apps-api-graphql).
+The app runs `Sales | take 100` with `fabric_kql_query()`. Replace `Sales` with
+your table or use your own KQL query. The registration uses Azure Data Explorer's
+delegated `user_impersonation` permission, and each user needs access to the
+database. See [KQL queries](reading-data.html) for query parameters and results.
 
-## Task inputs and sign-out
+### OneLake files and Delta tables
 
-Use `fabric$logout()` to sign out, as in the example above, or
-`fabric$reauthorize()` to start sign-in again.
+Use `FABRIC_WORKSPACE_ID` from the setup and add your Lakehouse ID:
 
-An `ExtendedTask` uses the values passed to `$invoke()`. Read inputs such as
-`input$table_name` there, before the worker starts. Editing an input while a
-query runs affects the next invocation.
+```text
+FABRIC_LAKEHOUSE_ID=your-lakehouse-id
+FABRIC_ONELAKE_FILE=Files/sales.parquet
+FABRIC_DELTA_TABLE=Sales
+FABRIC_DELTA_SCHEMA=dbo
+```
 
-`fabric$generation()` identifies the current sign-in. The example passes it to
-the task and checks it before displaying the result. A query already running
-can finish after sign-out, but its result will no longer be displayed. Signing
-in again does not rerun the query; click Show tables to load a new result.
+`fabric_onelake_read_file()` reads a Parquet, CSV or Arrow file into R.
+Install the arrow package for this branch. `fabric_onelake_read_delta_table()`
+reads a Delta table directly from OneLake, with `limit = 100` in this example.
+Set the schema separately; use `FABRIC_DELTA_SCHEMA=` for a Lakehouse without
+schemas. The Delta reader needs reticulate and a compatible Python environment.
+`fabric_delta_config(initialize = TRUE)` prepares the runtime; see
+[OneLake and Lakehouse](onelake-and-lakehouse.html) for details.
+
+These branches use Azure Storage's delegated `user_impersonation` permission
+and the user's OneLake access. SQL and direct Delta reads offer different ways
+to work with Lakehouse tables; choose the interface that suits your app.
+
+### GraphQL
+
+Set the URL of an existing Fabric API for GraphQL:
+
+```text
+FABRIC_GRAPHQL_ENDPOINT=https://your-api.graphql.fabric.microsoft.com/graphql
+```
+
+The example calls `fabric_graphql_query()` and turns the returned `sales`
+items into an R data frame. Replace the query and `result$data$sales$items`
+with the names in your API's schema. `error_policy = "error"` reports a failed
+GraphQL query through the task's output. Add the Power BI Service delegated
+permission `GraphQLApi.Execute.All` to the registration.
+
+The API's source connection determines access to the underlying data. To use
+each visitor's source permissions, configure its single sign-on settings
+accordingly. See Microsoft's
+[GraphQL connection guidance](https://learn.microsoft.com/en-us/fabric/data-engineering/connect-apps-api-graphql)
+and [GraphQL queries](graphql-schema-and-rows.html).
 
 ## Advanced configuration
 
-The following details are useful when adapting an existing authentication setup,
-troubleshooting access, or preparing an app for deployment.
+### Discovery and service permissions
 
-### Choosing permissions
+The example uses known endpoints and IDs. Add `"fabric"` to `services` if you
+also want to discover workspaces and items. Its default permissions are
+`Workspace.Read.All` and `Item.Read.All`; you can choose a narrower set with
+`scopes = list(fabric = "Item.Read.All")` when using known item IDs.
 
-`services` selects the kinds of Fabric connection your app needs. The SQL
-example uses only `"sql"`; adding `"fabric"` requests permissions to look up
-workspaces and items. Its defaults are `Workspace.Read.All` and `Item.Read.All`.
-You can request a narrower set with, for example,
-`scopes = list(fabric = "Item.Read.All")` when using known item IDs. GraphQL
-uses the Power BI service permission `GraphQLApi.Execute.All`.
+A task that discovers an item and queries it needs a token for each service.
+For example, acquire both tokens in the Shiny process:
 
-The package fills in the full scope URLs, including SQL's
-`https://database.windows.net//user_impersonation`. You normally do not need to
-construct these yourself. See [Fabric data-plane authentication](https://learn.microsoft.com/en-us/fabric/workload-development-kit/fabric-data-plane)
-and [Fabric REST scopes](https://learn.microsoft.com/en-us/rest/api/fabric/articles/scopes)
-when choosing permissions for a registration.
+```{r, eval=FALSE}
+tokens <- promises::promise_all(
+  fabric = fabric$access_token("fabric", async = TRUE),
+  sql = fabric$access_token("sql", async = TRUE)
+)
+```
+
+Resolve that promise before starting `future_promise()`, as the main app does
+for one token. Inside the worker, create the item and query it:
+
+```{r, eval=FALSE}
+warehouse <- fabric_item(
+  workspace = Sys.getenv("FABRIC_WORKSPACE_ID"),
+  item = Sys.getenv("FABRIC_WAREHOUSE_ID"),
+  type = "Warehouse", token = tokens$fabric
+)
+data <- warehouse$sql_query(
+  "SELECT TOP (100) * FROM dbo.Sales",
+  token = tokens$sql, numeric_policy = "driver", verbose = FALSE
+)
+```
+
+The package fills in full scope URLs, including SQL's
+`https://database.windows.net//user_impersonation`. DAX and GraphQL share a
+Power BI token target; when both services are selected, their permissions are
+combined automatically. See [Fabric REST scopes](https://learn.microsoft.com/en-us/rest/api/fabric/articles/scopes)
+when choosing discovery permissions.
 
 Sign-in also requests `openid`, `profile` and `offline_access` to identify the
-visitor and renew credentials. Identity comes from a validated ID token; Graph
-UserInfo and `User.Read` are not needed just to display the visitor's name.
-The client secret authenticates the app during sign-in, while data requests use
-the visitor's delegated access. This follows Microsoft's
-[authorization code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+visitor and renew credentials. Identity comes from a validated ID token;
+Graph UserInfo and `User.Read` are not needed just to display the visitor's
+name. The client secret authenticates the app during sign-in, while data
+requests use the visitor's delegated access.
 
 ### Using an existing shinyOAuth app
 
-If your app already handles sign-in with shinyOAuth, use
-its existing connection to supply the token to the same `ExtendedTask`. The
-shinyOAuth client must declare a token target for the service you want to use.
-For a SQL target named `db`, the invocation and result display become:
+If your app already handles sign-in with shinyOAuth, its connection can supply
+a token to the same `ExtendedTask`. Declare the required token targets on the
+shinyOAuth client before sign-in. For a DAX target named `power_bi`, invoke
+the task with:
 
 ```{r, eval=FALSE}
 observeEvent(input$load, {
   connection <- req(auth$connection())
   query$invoke(
     connection$access_token(
-      target = "db",
-      required_scopes = "https://database.windows.net//user_impersonation",
+      target = "power_bi",
+      required_scopes = "https://analysis.windows.net/powerbi/api/Dataset.Read.All",
       min_valid_for = 60, async = TRUE
     ),
-    connection$id, input$table_name
+    connection$id, "dax", input$year
   )
 }, ignoreInit = TRUE)
-output$tables <- renderTable({
-  connection <- req(auth$connection())
-  result <- query$result()
-  req(identical(result$generation, connection$id))
-  result$data
-})
 ```
 
-For several managed authorizations, select one with
-`auth$connection(selected_id)` and follow shinyOAuth's ownership and activity
-requirements. Configure the needed targets before sign-in. For synchronous
-calls in the Shiny process, `fabric_shiny_token_provider()` also adapts an
-existing connection to the usual `token` argument.
+Adapt the result check to compare `value$generation` with the current
+`auth$connection()$id`, and keep the year check. For several managed
+authorizations, select one with `auth$connection(selected_id)` and follow
+shinyOAuth's ownership and activity requirements. For synchronous calls in
+the Shiny process, `fabric_shiny_token_provider()` adapts an existing
+connection to the usual `token` argument.
 
 ### Diagnosing connection problems
 
-`fabric$ready("sql")` checks the permissions recorded for the connection. The
-query itself can still fail because of network problems or database permissions.
-Use `fabric$status()` to inspect connection state and
-`fabric$prepare("sql")` to retry preparing SQL access. A problem with one
-service can leave the others available.
+`fabric$ready("dax")` checks the permissions recorded for the connection. A
+query can still fail because of service settings, network problems or data
+permissions. Use `fabric$status()` to inspect connection state and
+`fabric$prepare("dax")` to retry preparing DAX access. A problem with one
+service can leave the others available. Use `fabric$reauthorize()` to start
+sign-in again.
 
 For application error handling, `shinyOAuth_access_error` provides a
-`context$reason` field. `interaction_required` calls for an explicit sign-in
+`context$reason` field. `interaction_required` calls for explicit sign-in
 again; `insufficient_scope` calls for checking permissions and consent.
 `refresh_pending` means a synchronous call cannot yet get the renewed
 credential. SQL may wrap these errors in the parent of a
-`fabric_sql_authentication_error`. Show users a useful message without exposing
-raw credentials or provider diagnostics.
+`fabric_sql_authentication_error`.
 
-Routine token refresh does not change `generation()` or rerun queries that
-depend on it. A token passed to a worker is fixed for that invocation; it does
-not renew there. If it expires, start a new task to acquire a fresh token.
+Routine token refresh does not change `generation()` or rerun queries.
+A token passed to a worker is fixed for that invocation; it does not renew
+there. If it expires, start a new task to acquire a fresh token.
 Synchronous calls using a token provider retain fabricQueryR's retry behavior:
-one HTTP 401 response
-can trigger token renewal and a request retry even with `idempotent = FALSE`.
-This is separate from transient network/service retries. `prepare()` and
-`reauthorize()` themselves do not replay data operations.
+one HTTP 401 response can trigger token renewal and a request retry.
+`prepare()` and `reauthorize()` themselves do not replay data operations.
 
 ### Connections and deployment
 
 `fabric_sql_query()` opens and closes its own connection. If you use
 `fabric_sql_connect()` or `$sql_connect()` directly, close it with
-`DBI::dbDisconnect()`, usually through `on.exit()` in a helper function. Signing
-out does not close an already open DBI connection. Use `backend = "adbc"` with
-its driver when exact numeric or Arrow results are needed.
+`DBI::dbDisconnect()`, usually through `on.exit()` in a helper function.
+Signing out does not close an already open DBI connection.
 
 Set up the future worker pool once when the app starts. The example uses two
 background R processes; adjust `workers` for the resources available on your
-host. Use an exact registered HTTPS callback URL for deployment.
+host. Return ordinary R data from a worker; keep live database connections
+and Arrow streams within the process that created them.
+
+Use an exact registered HTTPS callback URL for deployment.
 The `uiPattern = ".*"` setting lets callback subpaths reach the app. Check your
 hosting service's routing, reverse-proxy and cookie settings using shinyOAuth's
 deployment guidance. The default local sign-in lifetime is eight hours; adjust
-`reauth_after_seconds` for your app. App logout does not sign the visitor out of
-Microsoft everywhere.
+`reauth_after_seconds` for your app. App logout does not sign the visitor out
+of Microsoft everywhere.
 
-Standard Microsoft service hosts are allowed. A trusted gateway needs its exact
-hostname in `endpoint_hosts`, configured by the app author. HTTP redirects are
-rejected, and later request destinations are checked too. These checks protect
-normal package use; they do not isolate untrusted R code.
+Standard Microsoft service hosts are allowed. A trusted gateway needs its
+exact hostname in `endpoint_hosts`, configured by the app author.

@@ -29,8 +29,8 @@ test_that("the example runs queries in a worker while its Shiny session remains 
   env$Sys.getenv <- function(name, unset = "") {
     switch(
       name,
-      FABRIC_SQL_SERVER = "warehouse.datawarehouse.fabric.microsoft.com",
-      FABRIC_SQL_DATABASE = "orders",
+      FABRIC_WORKSPACE_ID = "workspace-id",
+      FABRIC_SEMANTIC_MODEL_ID = "model-id",
       unset
     )
   }
@@ -47,11 +47,17 @@ test_that("the example runs queries in a worker while its Shiny session remains 
       login = function() state$generation("next-user")
     )
   }
-  env$fabric_sql_query <- function(server, sql, database, token, params, ...) {
+  env$fabric_pbi_dax_query <- function(
+    workspace_id,
+    dataset_id,
+    dax,
+    token,
+    ...
+  ) {
     stopifnot(
-      server == "warehouse.datawarehouse.fabric.microsoft.com",
-      database == "orders",
-      grepl("TABLE_NAME LIKE ?", sql, fixed = TRUE)
+      workspace_id == "workspace-id",
+      dataset_id == "model-id",
+      grepl("TREATAS({2026}", dax, fixed = TRUE)
     )
     writeLines("started", started_file)
     deadline <- Sys.time() + 20
@@ -61,9 +67,9 @@ test_that("the example runs queries in a worker while its Shiny session remains 
     if (!file.exists(release_file)) {
       stop("Worker was not released by the test")
     }
-    data.frame(TABLE_NAME = token, filter = params[[1L]], pid = Sys.getpid())
+    data.frame(Category = token, Sales = Sys.getpid())
   }
-  environment(env$fabric_sql_query) <- list2env(
+  environment(env$fabric_pbi_dax_query) <- list2env(
     list(started_file = started_file, release_file = release_file),
     parent = baseenv()
   )
@@ -74,7 +80,7 @@ test_that("the example runs queries in a worker while its Shiny session remains 
   )
   shiny::testServer(app$serverFuncSource(), {
     session$flushReact()
-    session$setInputs(table_name = "orders", load = 1L)
+    session$setInputs(source = "dax", year = 2026, load = 1L)
     shiny_test_wait(function() file.exists(started_file))
     expect_identical(query$status(), "running")
     shiny::observeEvent(input$ping, state$ping <- input$ping)
@@ -82,16 +88,16 @@ test_that("the example runs queries in a worker while its Shiny session remains 
     expect_identical(state$ping, 1L)
     expect_identical(query$status(), "running")
     session$setInputs(logout = 1L)
-    expect_identical(fabric$ready("sql"), FALSE)
+    expect_identical(fabric$ready("dax"), FALSE)
     session$setInputs(login = 1L)
     writeLines("released", release_file)
     shiny_test_wait(function() identical(query$status(), "success"))
     session$flushReact()
-    result <- query$result()
-    expect_identical(result$generation, "first-user")
-    expect_identical(result$data$TABLE_NAME, "first-user")
-    expect_identical(result$data$filter, "%orders%")
-    expect_equal(result$data$pid == Sys.getpid(), FALSE)
+    value <- query$result()
+    expect_identical(value$generation, "first-user")
+    expect_identical(value$data$Category, "first-user")
+    expect_identical(value$year, 2026)
+    expect_false(value$data$Sales == Sys.getpid())
     expect_s3_class(
       rlang::catch_cnd(output$tables, classes = "error"),
       "shiny.silent.error"

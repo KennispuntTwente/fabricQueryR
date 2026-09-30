@@ -1066,7 +1066,7 @@ test_that("user-data-function vignette executes scalar and structured calls", {
   expect_true(calls[[4L]]$options$idempotent)
 })
 
-test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
+test_that("the Shiny vignette executes its data sources and DAX dashboard", {
   skip_if_no_shiny_targets()
   skip_if_not_installed("bslib", "0.7.0")
   skip_if_not_installed("future")
@@ -1084,29 +1084,45 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
     skip("Package vignette source is not available in installed test runs")
   }
   calls <- new.env(parent = emptyenv())
+  calls$sql <- list()
   signed_in <- shiny::reactiveVal(FALSE)
   bindings <- mget(
     c(
       "fluidPage",
+      "titlePanel",
       "actionButton",
-      "textInput",
+      "selectInput",
+      "numericInput",
+      "conditionalPanel",
       "tableOutput",
+      "plotOutput",
       "ExtendedTask",
       "observeEvent",
+      "reactive",
       "renderTable",
+      "renderPlot",
       "req",
       "shinyApp"
     ),
     envir = asNamespace("shiny")
   )
+  bindings$barplot <- graphics::barplot
   bindings$Sys.getenv <- function(name, unset = "") {
     switch(
       name,
       ENTRA_TENANT_ID = "11111111-1111-1111-1111-111111111111",
       ENTRA_CLIENT_ID = "app",
       ENTRA_CLIENT_SECRET = "synthetic-secret",
-      FABRIC_SQL_SERVER = "warehouse.datawarehouse.fabric.microsoft.com",
-      FABRIC_SQL_DATABASE = "orders",
+      FABRIC_WORKSPACE_ID = "workspace-id",
+      FABRIC_SEMANTIC_MODEL_ID = "model-id",
+      FABRIC_LAKEHOUSE_ID = "lakehouse-id",
+      FABRIC_WAREHOUSE_SQL_SERVER = "warehouse.datawarehouse.fabric.microsoft.com",
+      FABRIC_WAREHOUSE_SQL_DATABASE = "warehouse-db",
+      FABRIC_LAKEHOUSE_SQL_SERVER = "lakehouse.datawarehouse.fabric.microsoft.com",
+      FABRIC_LAKEHOUSE_SQL_DATABASE = "lakehouse-db",
+      FABRIC_KQL_ENDPOINT = "https://cluster.kusto.fabric.microsoft.com",
+      FABRIC_KQL_DATABASE = "kql-db",
+      FABRIC_GRAPHQL_ENDPOINT = "https://example.graphql.fabric.microsoft.com/graphql",
       unset
     )
   }
@@ -1114,22 +1130,55 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
   bindings$fabric_shiny_ui <- fabric_shiny_ui
   bindings$fabric_shiny_server <- function(id, config) {
     list(
-      ready = function(service) signed_in() && service == "sql",
+      ready = function(service) {
+        signed_in() && service %in% names(config$profiles)
+      },
       login = function() signed_in(TRUE),
       logout = function() signed_in(FALSE),
       generation = function() if (signed_in()) "doc-user" else NULL,
       access_token = function(service, async) {
-        expect_identical(service, "sql")
+        expect_true(service %in% names(config$profiles))
         expect_identical(async, TRUE)
-        promises::promise_resolve("synthetic-user-token")
+        promises::promise_resolve(paste0(service, "-user-token"))
       }
     )
   }
+  bindings$fabric_pbi_dax_query <- function(...) {
+    calls$dax <- list(...)
+    data.frame(
+      "Product[Category]" = c("Bikes", "Clothing"),
+      "[Sales]" = c(100, 50),
+      check.names = FALSE
+    )
+  }
   bindings$fabric_sql_query <- function(server, sql, database, token, ...) {
-    calls$server <- server
-    calls$token <- token
-    calls$database <- database
-    data.frame(TABLE_SCHEMA = "dbo", TABLE_NAME = "orders")
+    calls$sql[[database]] <- list(server = server, sql = sql, token = token)
+    data.frame(Category = "Bikes", Sales = 100)
+  }
+  bindings$fabric_kql_query <- function(...) {
+    calls$kql <- list(...)
+    data.frame(Category = "Bikes", Sales = 100)
+  }
+  bindings$fabric_onelake_read_file <- function(...) {
+    calls$files <- list(...)
+    data.frame(Category = "Bikes", Sales = 100)
+  }
+  bindings$fabric_onelake_read_delta_table <- function(...) {
+    calls$delta <- list(...)
+    data.frame(Category = "Bikes", Sales = 100)
+  }
+  bindings$fabric_graphql_query <- function(...) {
+    calls$graphql <- list(...)
+    list(
+      data = list(
+        sales = list(
+          items = list(
+            list(Category = "Bikes", Amount = 100),
+            list(Category = "Clothing", Amount = 50)
+          )
+        )
+      )
+    )
   }
   chunks <- vignette_r_chunks(path)
   app_chunk <- which(vapply(
@@ -1149,22 +1198,97 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
   example <- vignette_evaluate_chunks(path, app_chunk, bindings = bindings)
   shiny::testServer(example$server, {
     session$flushReact()
-    expect_null(calls$token)
+    expect_null(calls$dax)
     session$setInputs(login = 1L)
-    expect_null(calls$token)
-    session$setInputs(table_name = "orders", load = 1L)
+    expect_null(calls$dax)
+    session$setInputs(source = "dax", year = 2026, load = 1L)
     shiny_test_wait(function() identical(query$status(), "success"))
     session$flushReact()
-    expect_match(output$tables, "orders", fixed = TRUE)
+    expect_match(output$tables, "Bikes", fixed = TRUE)
+    expect_equal(
+      result(),
+      data.frame(Category = c("Bikes", "Clothing"), Sales = c(100, 50))
+    )
+    expect_true(nzchar(output$sales$src))
+    expect_identical(calls$dax$workspace_id, "workspace-id")
+    expect_identical(calls$dax$dataset_id, "model-id")
+    expect_match(calls$dax$dax, "TREATAS({2026}", fixed = TRUE)
+    expect_match(calls$dax$dax, "[Total Sales]", fixed = TRUE)
+    expect_identical(calls$dax$token, "dax-user-token")
+
+    session$setInputs(year = 2025)
+    expect_s3_class(
+      rlang::catch_cnd(output$tables, classes = "error"),
+      "shiny.silent.error"
+    )
+    session$setInputs(load = 2L)
+    shiny_test_wait(function() identical(query$status(), "success"))
+    session$flushReact()
+    expect_match(calls$dax$dax, "TREATAS({2025}", fixed = TRUE)
+    expect_match(output$tables, "Bikes", fixed = TRUE)
+
+    other_sources <- c(
+      "warehouse",
+      "lakehouse",
+      "kql",
+      "files",
+      "delta",
+      "graphql"
+    )
+    for (index in seq_along(other_sources)) {
+      session$setInputs(source = other_sources[[index]])
+      expect_s3_class(
+        rlang::catch_cnd(output$tables, classes = "error"),
+        "shiny.silent.error"
+      )
+      session$setInputs(load = index + 2L)
+      shiny_test_wait(function() identical(query$status(), "success"))
+      session$flushReact()
+      expect_match(output$tables, "Bikes", fixed = TRUE)
+    }
     expect_identical(
-      calls$server,
+      calls$sql[["warehouse-db"]]$server,
       "warehouse.datawarehouse.fabric.microsoft.com"
     )
-    expect_identical(calls$database, "orders")
-    expect_identical(calls$token, "synthetic-user-token")
+    expect_identical(
+      calls$sql[["lakehouse-db"]]$server,
+      "lakehouse.datawarehouse.fabric.microsoft.com"
+    )
+    expect_identical(calls$sql[["warehouse-db"]]$token, "sql-user-token")
+    expect_identical(calls$sql[["lakehouse-db"]]$token, "sql-user-token")
+    expect_identical(
+      calls$kql$cluster,
+      "https://cluster.kusto.fabric.microsoft.com"
+    )
+    expect_identical(calls$kql$database, "kql-db")
+    expect_identical(calls$kql$query, "Sales | take 100")
+    expect_identical(calls$kql$token, "kql-user-token")
+    expect_identical(calls$files$workspace, "workspace-id")
+    expect_identical(calls$files$item, "lakehouse-id")
+    expect_identical(calls$files$path, "Files/sales.parquet")
+    expect_identical(calls$files$token, "onelake-user-token")
+    expect_identical(calls$delta$table_path, "Sales")
+    expect_identical(calls$delta$schema, "dbo")
+    expect_identical(calls$delta$limit, 100)
+    expect_identical(calls$delta$token, "onelake-user-token")
+    expect_identical(
+      calls$graphql$api,
+      "https://example.graphql.fabric.microsoft.com/graphql"
+    )
+    expect_identical(calls$graphql$token, "graphql-user-token")
+    expect_identical(calls$graphql$error_policy, "error")
+    expect_equal(
+      result(),
+      data.frame(Category = c("Bikes", "Clothing"), Amount = c(100, 50))
+    )
+
     session$setInputs(logout = 1L)
     expect_s3_class(
       rlang::catch_cnd(output$tables, classes = "error"),
+      "shiny.silent.error"
+    )
+    expect_s3_class(
+      rlang::catch_cnd(output$sales, classes = "error"),
       "shiny.silent.error"
     )
   })

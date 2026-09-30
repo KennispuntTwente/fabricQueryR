@@ -4,6 +4,8 @@ Implementation: 29 September 2026. Scope: explicit delegated Fabric discovery,
 SQL and GraphQL; one fixed tenant; session retention; synchronous calls.
 Updated 30 September 2026 with asynchronous token acquisition and query workers
 using Shiny `ExtendedTask` and `promises::future_promise()`.
+The same day's service expansion adds DAX, KQL and OneLake, with a complete
+example app covering each data service.
 
 The user requested local implementation/testing and explicitly deferred browser
 acceptance. Do not describe an offline test or a service-principal sandbox pass
@@ -102,6 +104,29 @@ and exercises asynchronous token snapshots for DAX and KQL.
 
 This is local execution evidence only. Delegated service permissions and
 browser acceptance remain pending.
+
+## Example data-source coverage (30 September)
+
+The vignette and packaged app now contain the same complete app with seven
+choices: semantic-model DAX, Warehouse SQL, Lakehouse SQL, Eventhouse KQL,
+OneLake files, OneLake Delta tables and GraphQL. DAX is the initial choice and
+uses a year filter, an existing model measure and a Shiny chart. The selected
+source determines the service token passed into the `ExtendedTask` worker.
+
+Focused `shiny-example` and `vignettes` tests pass. They exercise all seven
+branches, the DAX chart, service selection, query inputs, and stale-result
+checks after changing year, source or sign-in. The real-worker responsiveness
+test now exercises the DAX branch with a synthetic query transport. It still
+proves that Shiny handles another input and logout while the worker is held,
+and that a result from a previous sign-in is suppressed.
+
+The full offline suite (`devtools::test(stop_on_failure = TRUE,
+reporter = "summary")`) passes without test failures or warnings, with 181
+optional/live cases skipped. The vignette renders successfully and
+`pkgdown::check_pkgdown()` passes.
+A clean staged `R CMD check --no-manual --ignore-vignettes --no-tests` reports
+0 errors, 0 warnings and 0 notes. The delegated/browser gate below remains
+pending, as requested; none of these local checks substitutes for it.
 
 ## Pending delegated/browser gate
 

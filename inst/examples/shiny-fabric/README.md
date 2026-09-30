@@ -1,11 +1,15 @@
-# Fabric SQL with each visitor's Microsoft sign-in
+# Fabric data in Shiny with each visitor's Microsoft sign-in
 
 Install fabricQueryR, Shiny (1.8.1 or later), bslib (0.7.0 or later), future,
-promises, the target-enabled shinyOAuth version, DBI, odbc, and Microsoft ODBC
-Driver 18 for SQL Server. During development install the
+promises, and the target-enabled shinyOAuth version. During development install the
 sibling shinyOAuth checkout with `R CMD INSTALL ../shinyoauth` first.
 
-Configure these environment variables on the server:
+The app includes a DAX sales dashboard, Warehouse and Lakehouse SQL, KQL,
+OneLake files and Delta tables, and GraphQL. Keep the entries you need in the
+`sources` vector in `app.R`. Its sign-in configuration selects those services
+automatically.
+
+To start with DAX, keep only the semantic-model entry and configure:
 
 | Variable | Value |
 | --- | --- |
@@ -13,13 +17,29 @@ Configure these environment variables on the server:
 | `ENTRA_CLIENT_ID` | Web app registration's application ID |
 | `ENTRA_CLIENT_SECRET` | Server-held app secret |
 | `ENTRA_REDIRECT_URI` | Registered callback, default `http://localhost:8100/` |
-| `FABRIC_SQL_SERVER` | Warehouse or SQL endpoint hostname |
-| `FABRIC_SQL_DATABASE` | Database/catalog name |
+| `FABRIC_WORKSPACE_ID` | Workspace GUID |
+| `FABRIC_SEMANTIC_MODEL_ID` | Semantic model GUID |
 
 Register that callback as a Web redirect URI and configure the delegated
-Azure SQL Database `user_impersonation` permission. Complete any consent your
-tenant requires. Users must also have permission to connect to the database.
-The secret authenticates the app; SQL queries still use each signed-in user.
+Power BI Service `Dataset.Read.All` permission. Complete any consent your
+tenant requires. Users need Read and Build permission on the model, and the
+tenant must enable the Dataset Execute Queries REST API.
+
+Replace `'Product'[Category]`, `'Date'[Year]` and `[Total Sales]` in the DAX
+query with names from your model. The app evaluates the measure for a selected
+year and draws a chart in Shiny.
+
+For the other sources, set their environment variables used in `read_data()`
+and replace the example table and field names. The vignette's Other data
+sources section explains each connection and its delegated permission:
+
+```r
+vignette("shiny-integration", package = "fabricQueryR")
+```
+
+SQL requires DBI, odbc and Microsoft ODBC Driver 18 for SQL Server on the host.
+OneLake file reads require arrow; Delta reads require reticulate and the runtime
+described by `fabric_delta_config()`. DAX, KQL and GraphQL use HTTP APIs.
 
 From this directory run:
 
@@ -27,15 +47,14 @@ From this directory run:
 shiny::runApp(".", host = "127.0.0.1", port = 8100)
 ```
 
-Open `http://localhost:8100/`, sign in and click Show tables. The app lists tables
-visible through the user's SQL metadata permissions and uses a bound parameter
-for the name filter.
-Zero rows can be a valid result. It does not create or modify any tables.
+Open `http://localhost:8100/`, sign in, select a source and click Load data.
+For DAX, choose a year present in the model. Change the year and click Load data
+again to update the chart.
 
 Queries use `ExtendedTask` and `future_promise()` so the app stays responsive
-while data loads. The Show tables button stays busy until its task finishes.
+while data loads. The Load data button stays busy until its task finishes.
 The app starts two background R workers; adjust `workers` for your host.
 
 For deployment, use a registered HTTPS callback and correct session routing.
-See `vignette("shiny-integration")` for the complete app code, Warehouse queries,
-GraphQL and existing shinyOAuth apps.
+The vignette contains the complete app code and guidance for adapting an
+existing shinyOAuth app.
