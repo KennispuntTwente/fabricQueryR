@@ -313,19 +313,13 @@ can trigger token renewal and a request retry even with `idempotent = FALSE`.
 This is separate from transient network/service retries. `prepare()` and
 `reauthorize()` themselves do not replay data operations.
 
-### Connections, caching and deployment
+### Connections and deployment
 
 `fabric_sql_query()` opens and closes its own connection. If you use
 `fabric_sql_connect()` or `$sql_connect()` directly, close it with
 `DBI::dbDisconnect()`, usually through `on.exit()` in a helper function. Signing
 out does not close an already open DBI connection. Use `backend = "adbc"` with
 its driver when exact numeric or Arrow results are needed.
-
-Keep caches local to each Shiny session and include the sign-in generation and
-query parameters in cache keys. Do not share user connections globally or send
-providers and authenticated R6 objects to futures or other R processes.
-Small writes belong in an explicit Save event, using bound parameters and a
-writable endpoint. Do not replay a write after sign-in or an uncertain timeout.
 
 For deployment, use one R process and an exact registered HTTPS callback URL.
 The `uiPattern = ".*"` setting lets callback subpaths reach the app. Check your
