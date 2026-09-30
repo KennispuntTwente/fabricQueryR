@@ -12,18 +12,18 @@ if (use_mirai) {
 
 # Keep the sources your app needs.
 sources <- c(
-  "Semantic model (DAX)" = "dax",
   "Warehouse (SQL)" = "warehouse",
   "Lakehouse (SQL)" = "lakehouse",
+  "Semantic model (DAX)" = "dax",
   "Eventhouse (KQL)" = "kql",
   "OneLake file" = "files",
   "OneLake Delta table" = "delta",
   "GraphQL API" = "graphql"
 )
 service_for <- c(
-  dax = "dax",
   warehouse = "sql",
   lakehouse = "sql",
+  dax = "dax",
   kql = "kql",
   files = "onelake",
   delta = "onelake",
@@ -41,6 +41,22 @@ config <- fabric_shiny_config(
 read_data <- function(source, token, year) {
   switch(
     source,
+    warehouse = fabric_sql_query(
+      server = Sys.getenv("FABRIC_WAREHOUSE_SQL_SERVER"),
+      database = Sys.getenv("FABRIC_WAREHOUSE_SQL_DATABASE"),
+      sql = "SELECT TOP (100) * FROM dbo.Sales",
+      token = token,
+      numeric_policy = "driver",
+      verbose = FALSE
+    ),
+    lakehouse = fabric_sql_query(
+      server = Sys.getenv("FABRIC_LAKEHOUSE_SQL_SERVER"),
+      database = Sys.getenv("FABRIC_LAKEHOUSE_SQL_DATABASE"),
+      sql = "SELECT TOP (100) * FROM dbo.Sales",
+      token = token,
+      numeric_policy = "driver",
+      verbose = FALSE
+    ),
     dax = {
       data <- fabric_pbi_dax_query(
         workspace_id = Sys.getenv("FABRIC_WORKSPACE_ID"),
@@ -61,22 +77,6 @@ read_data <- function(source, token, year) {
       }
       data
     },
-    warehouse = fabric_sql_query(
-      server = Sys.getenv("FABRIC_WAREHOUSE_SQL_SERVER"),
-      database = Sys.getenv("FABRIC_WAREHOUSE_SQL_DATABASE"),
-      sql = "SELECT TOP (100) * FROM dbo.Sales",
-      token = token,
-      numeric_policy = "driver",
-      verbose = FALSE
-    ),
-    lakehouse = fabric_sql_query(
-      server = Sys.getenv("FABRIC_LAKEHOUSE_SQL_SERVER"),
-      database = Sys.getenv("FABRIC_LAKEHOUSE_SQL_DATABASE"),
-      sql = "SELECT TOP (100) * FROM dbo.Sales",
-      token = token,
-      numeric_policy = "driver",
-      verbose = FALSE
-    ),
     kql = fabric_kql_query(
       cluster = Sys.getenv("FABRIC_KQL_ENDPOINT"),
       database = Sys.getenv("FABRIC_KQL_DATABASE"),

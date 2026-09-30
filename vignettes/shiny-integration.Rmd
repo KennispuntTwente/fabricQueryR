@@ -13,15 +13,15 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 fabricQueryR lets you build Shiny apps around data in Microsoft Fabric.
 Visitors sign in with a Microsoft account, and the app uses that account's
-access when it queries Fabric. You can work with semantic models using DAX,
-Warehouse and Lakehouse tables using SQL, Eventhouse data using KQL, files and
+access when it queries Fabric. You can work with Warehouse and Lakehouse tables
+using SQL, semantic models using DAX, Eventhouse data using KQL, files and
 Delta tables in OneLake, or an API for GraphQL.
 
-A semantic model is a useful starting point for a Shiny dashboard. You can
-query the same measures and relationships used by Power BI, then build the
-filters, charts and interactions in R. The example below uses a model's sales
-measure to draw a chart for a selected year. It also includes the other data
-sources, so you can see how each fits into the same app.
+This guide starts with SQL: connect to a Warehouse or Lakehouse, run a query,
+and display the result in Shiny. It then shows how to build a dashboard from a
+semantic model using DAX, reusing the measures and relationships used by Power
+BI. The complete app includes both approaches and the other data sources, so
+you can see how each fits into a Shiny app.
 
 Queries run in background R processes using Shiny's `ExtendedTask`, keeping
 the app responsive while data loads. The shinyOAuth package handles Microsoft
@@ -37,14 +37,15 @@ and shinyOAuth. If you have both source checkouts, install shinyOAuth first:
 ```{r, eval=FALSE}
 devtools::install("../shinyoauth")
 devtools::install(".")
-install.packages(c("shiny", "bslib", "mirai", "promises"))
+install.packages(c("shiny", "bslib", "mirai", "promises", "DBI", "odbc"))
 ```
 
 Use shiny 1.8.1 or later, bslib 0.7.0 or later, and promises 1.3.0 or later.
 The app uses mirai when installed. Without mirai, install future to use the
-`future_promise()` fallback. DAX, KQL and GraphQL use HTTP APIs, so they do not
-need a database driver. SQL and OneLake have
-additional dependencies, described under Other data sources below.
+`future_promise()` fallback. For SQL, install Microsoft ODBC Driver 18 for SQL
+Server separately on the computer running the app and its workers. DAX, KQL
+and GraphQL use HTTP APIs, so they do not need a database driver. OneLake's
+additional dependencies are described under Other data sources below.
 
 ### Arrange Microsoft sign-in
 
@@ -52,12 +53,10 @@ Your app needs a Web application registration in Microsoft Entra, the service
 that manages your organization's Microsoft sign-in. Your Fabric or Microsoft
 365 administrator can help set this up.
 
-To start with DAX, add the Power BI Service delegated permission
-`Dataset.Read.All`. A delegated permission allows the app to make requests
-using the signed-in person's access. Each user also needs Read and Build
-permission on the semantic model, and the tenant must allow the Dataset
-Execute Queries REST API. See Microsoft's
-[DAX query requirements](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries).
+For SQL, add the Azure SQL Database delegated permission
+`user_impersonation`. A delegated permission allows the app to make requests
+using the signed-in person's access. Users also need permission to connect
+to the database and read the requested data.
 
 The registration needs a redirect URI: the address where Microsoft sends
 the visitor after sign-in. For local development, use `http://localhost:8100/`.
@@ -78,25 +77,27 @@ in your user `.Renviron` file and restart R:
 ENTRA_TENANT_ID=your-directory-id
 ENTRA_CLIENT_ID=your-application-id
 ENTRA_CLIENT_SECRET=your-client-secret
-FABRIC_WORKSPACE_ID=your-workspace-id
-FABRIC_SEMANTIC_MODEL_ID=your-semantic-model-id
+FABRIC_WAREHOUSE_SQL_SERVER=your-warehouse-sql-hostname
+FABRIC_WAREHOUSE_SQL_DATABASE=your-warehouse-database
 ```
 
-Use the semantic model's ID, rather than a report's ID. Keep the client secret
-out of app code and version control; deployed apps can use the hosting
-service's environment-variable or secret settings.
+Copy the server and database names from your Warehouse's SQL connection
+details. The Lakehouse section below gives the equivalent settings for its SQL
+analytics endpoint. Keep the client secret out of app code and version control;
+deployed apps can use the hosting service's environment-variable or secret
+settings.
 
 ## A complete example app
 
 Save the following code as `app.R` in a new directory. Keep the entries you
-want in `sources`; for a DAX-only app, keep just
-`"Semantic model (DAX)" = "dax"`. The sign-in configuration automatically
+want in `sources`; to start with just a Warehouse, keep
+`"Warehouse (SQL)" = "warehouse"`. The sign-in configuration automatically
 selects the services needed by those entries. If you keep other sources, add
 their settings and registration permissions as described below.
 
-The DAX query assumes a model with `'Product'[Category]`, `'Date'[Year]` and a
-`[Total Sales]` measure. Replace these with names from your model. The other
-queries likewise use example table and field names to replace with your own.
+The SQL queries use an example `dbo.Sales` table; replace it with your own table.
+The other branches also use example table, column and measure names, described
+in their sections below.
 
 ```{r fabric-app, eval=FALSE}
 library(shiny)
@@ -113,18 +114,18 @@ if (use_mirai) {
 
 # Keep the sources your app needs.
 sources <- c(
-  "Semantic model (DAX)" = "dax",
   "Warehouse (SQL)" = "warehouse",
   "Lakehouse (SQL)" = "lakehouse",
+  "Semantic model (DAX)" = "dax",
   "Eventhouse (KQL)" = "kql",
   "OneLake file" = "files",
   "OneLake Delta table" = "delta",
   "GraphQL API" = "graphql"
 )
 service_for <- c(
-  dax = "dax",
   warehouse = "sql",
   lakehouse = "sql",
+  dax = "dax",
   kql = "kql",
   files = "onelake",
   delta = "onelake",
@@ -142,6 +143,22 @@ config <- fabric_shiny_config(
 read_data <- function(source, token, year) {
   switch(
     source,
+    warehouse = fabric_sql_query(
+      server = Sys.getenv("FABRIC_WAREHOUSE_SQL_SERVER"),
+      database = Sys.getenv("FABRIC_WAREHOUSE_SQL_DATABASE"),
+      sql = "SELECT TOP (100) * FROM dbo.Sales",
+      token = token,
+      numeric_policy = "driver",
+      verbose = FALSE
+    ),
+    lakehouse = fabric_sql_query(
+      server = Sys.getenv("FABRIC_LAKEHOUSE_SQL_SERVER"),
+      database = Sys.getenv("FABRIC_LAKEHOUSE_SQL_DATABASE"),
+      sql = "SELECT TOP (100) * FROM dbo.Sales",
+      token = token,
+      numeric_policy = "driver",
+      verbose = FALSE
+    ),
     dax = {
       data <- fabric_pbi_dax_query(
         workspace_id = Sys.getenv("FABRIC_WORKSPACE_ID"),
@@ -162,22 +179,6 @@ read_data <- function(source, token, year) {
       }
       data
     },
-    warehouse = fabric_sql_query(
-      server = Sys.getenv("FABRIC_WAREHOUSE_SQL_SERVER"),
-      database = Sys.getenv("FABRIC_WAREHOUSE_SQL_DATABASE"),
-      sql = "SELECT TOP (100) * FROM dbo.Sales",
-      token = token,
-      numeric_policy = "driver",
-      verbose = FALSE
-    ),
-    lakehouse = fabric_sql_query(
-      server = Sys.getenv("FABRIC_LAKEHOUSE_SQL_SERVER"),
-      database = Sys.getenv("FABRIC_LAKEHOUSE_SQL_DATABASE"),
-      sql = "SELECT TOP (100) * FROM dbo.Sales",
-      token = token,
-      numeric_policy = "driver",
-      verbose = FALSE
-    ),
     kql = fabric_kql_query(
       cluster = Sys.getenv("FABRIC_KQL_ENDPOINT"),
       database = Sys.getenv("FABRIC_KQL_DATABASE"),
@@ -299,11 +300,49 @@ shinyApp(
 ```
 
 Run the directory with `shiny::runApp("path/to/your/app")`, then open
-`http://localhost:8100/`. Click Sign in, choose a source, and click Load data.
-For DAX, select a year that exists in your model. The app displays the returned
-rows and a sales chart. Change the year and click Load data to update it.
+`http://localhost:8100/`. Click Sign in, leave Warehouse (SQL) selected, and
+click Load data. The app displays up to 100 rows from your table. You can then
+adapt the query or choose another configured source.
 
-### Using a semantic model for a Shiny dashboard
+### SQL: Warehouse and Lakehouse
+
+The two SQL entries use `fabric_sql_query()` with different endpoints. Both
+return an R table for `renderTable()`. The Warehouse uses the settings from
+Setup. To use the Lakehouse entry, copy the server and database names from its
+SQL analytics endpoint's connection details:
+
+```text
+FABRIC_LAKEHOUSE_SQL_SERVER=your-lakehouse-sql-hostname
+FABRIC_LAKEHOUSE_SQL_DATABASE=your-lakehouse-database
+```
+
+Replace `dbo.Sales` with your table. For filters taken from Shiny inputs, use
+SQL parameters: for example, `sql = "SELECT * FROM dbo.Sales WHERE Region = ?"`
+with `params = list(region)`. Pass `region` to the task as an ordinary value.
+
+Both SQL branches use `numeric_policy = "driver"`, which keeps the ODBC
+driver's numeric representation. For exact numeric or Arrow results, see
+[SQL queries](reading-data.html) and the ADBC backend.
+
+### DAX: a semantic-model dashboard
+
+To use the semantic-model entry, add these settings to `.Renviron` and restart R:
+
+```text
+FABRIC_WORKSPACE_ID=your-workspace-id
+FABRIC_SEMANTIC_MODEL_ID=your-semantic-model-id
+```
+
+Use the semantic model's ID, rather than a report's ID. Add the Power BI Service
+delegated permission `Dataset.Read.All` to the registration. Each user needs
+Read and Build permission on the model, and the tenant must allow the Dataset
+Execute Queries REST API. See Microsoft's
+[DAX query requirements](https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/execute-queries).
+
+The example assumes `'Product'[Category]`, `'Date'[Year]` and a `[Total Sales]`
+measure. Replace these with names from your model. Select Semantic model (DAX)
+in the app, choose a year present in the model, and click Load data to display
+the sales chart. Change the year and click Load data again to update it.
 
 `fabric_pbi_dax_query()` sends DAX to an existing semantic model and returns
 an R table. In this example, `SUMMARIZECOLUMNS()` groups by product category,
@@ -358,32 +397,6 @@ current user's token. You can keep one branch, combine several sources in a
 dashboard, or replace the example queries. The displayed table shows at most
 100 rows; the OneLake file branch reads the whole file before displaying it.
 
-### SQL: Warehouse and Lakehouse
-
-The two SQL entries use `fabric_sql_query()` with different endpoints.
-Copy the server and database names from your Warehouse or Lakehouse SQL
-analytics endpoint's connection details:
-
-```text
-FABRIC_WAREHOUSE_SQL_SERVER=your-warehouse-sql-hostname
-FABRIC_WAREHOUSE_SQL_DATABASE=your-warehouse-database
-FABRIC_LAKEHOUSE_SQL_SERVER=your-lakehouse-sql-hostname
-FABRIC_LAKEHOUSE_SQL_DATABASE=your-lakehouse-database
-```
-
-Install DBI, odbc, and Microsoft ODBC Driver 18 for SQL Server on the computer
-running the app and its workers. Add the Azure SQL Database delegated
-permission `user_impersonation` to the registration. Users need permission to
-connect and read the requested data.
-
-Replace `dbo.Sales` with your table. For filters taken from Shiny inputs, use
-SQL parameters: for example, `sql = "SELECT * FROM dbo.Sales WHERE Region = ?"`
-with `params = list(region)`. Pass `region` to the task as an ordinary value.
-
-Both SQL branches use `numeric_policy = "driver"`, which keeps the ODBC
-driver's numeric representation. For exact numeric or Arrow results, see
-[SQL queries](reading-data.html) and the ADBC backend.
-
 ### KQL: Eventhouse
 
 Set the query URI and database from your KQL database's connection details:
@@ -400,9 +413,10 @@ database. See [KQL queries](reading-data.html) for query parameters and results.
 
 ### OneLake files and Delta tables
 
-Use `FABRIC_WORKSPACE_ID` from the setup and add your Lakehouse ID:
+Set the workspace and Lakehouse IDs, together with the file or table to read:
 
 ```text
+FABRIC_WORKSPACE_ID=your-workspace-id
 FABRIC_LAKEHOUSE_ID=your-lakehouse-id
 FABRIC_ONELAKE_FILE=Files/sales.parquet
 FABRIC_DELTA_TABLE=Sales

@@ -6,12 +6,12 @@ prefers mirai when installed; without it, install future for the fallback.
 During development install the sibling shinyOAuth checkout with
 `R CMD INSTALL ../shinyoauth` first.
 
-The app includes a DAX sales dashboard, Warehouse and Lakehouse SQL, KQL,
-OneLake files and Delta tables, and GraphQL. Keep the entries you need in the
-`sources` vector in `app.R`. Its sign-in configuration selects those services
+The app starts with Warehouse and Lakehouse SQL, followed by a DAX sales
+dashboard, KQL, OneLake files and Delta tables, and GraphQL. Keep the entries
+you need in the `sources` vector in `app.R`. Its sign-in configuration selects those services
 automatically.
 
-To start with DAX, keep only the semantic-model entry and configure:
+To start with SQL, keep only the Warehouse entry and configure:
 
 | Variable | Value |
 | --- | --- |
@@ -19,27 +19,32 @@ To start with DAX, keep only the semantic-model entry and configure:
 | `ENTRA_CLIENT_ID` | Web app registration's application ID |
 | `ENTRA_CLIENT_SECRET` | Server-held app secret |
 | `ENTRA_REDIRECT_URI` | Registered callback, default `http://localhost:8100/` |
-| `FABRIC_WORKSPACE_ID` | Workspace GUID |
-| `FABRIC_SEMANTIC_MODEL_ID` | Semantic model GUID |
+| `FABRIC_WAREHOUSE_SQL_SERVER` | Warehouse SQL endpoint hostname |
+| `FABRIC_WAREHOUSE_SQL_DATABASE` | Warehouse database name |
 
 Register that callback as a Web redirect URI and configure the delegated
-Power BI Service `Dataset.Read.All` permission. Complete any consent your
-tenant requires. Users need Read and Build permission on the model, and the
-tenant must enable the Dataset Execute Queries REST API.
+Azure SQL Database `user_impersonation` permission. Complete any consent your
+tenant requires. Users also need permission to connect and read the data.
 
-Replace `'Product'[Category]`, `'Date'[Year]` and `[Total Sales]` in the DAX
-query with names from your model. The app evaluates the measure for a selected
-year and draws a chart in Shiny.
+Copy the connection settings from your Warehouse and replace `dbo.Sales` in
+the query with your table. SQL requires DBI, odbc and Microsoft ODBC Driver 18
+for SQL Server on the host.
+
+The DAX entry shows how to reuse a semantic model's measure in a Shiny chart,
+with a year filter. Set `FABRIC_WORKSPACE_ID` and `FABRIC_SEMANTIC_MODEL_ID`,
+and replace `'Product'[Category]`, `'Date'[Year]` and `[Total Sales]` with names
+from your model. The registration needs Power BI Service `Dataset.Read.All`;
+users need Read and Build permission on the model, and the tenant must enable
+the Dataset Execute Queries REST API.
 
 For the other sources, set their environment variables used in `read_data()`
-and replace the example table and field names. The vignette's Other data
-sources section explains each connection and its delegated permission:
+and replace the example table and field names. The vignette explains each
+connection and its delegated permission:
 
 ```r
 vignette("shiny-integration", package = "fabricQueryR")
 ```
 
-SQL requires DBI, odbc and Microsoft ODBC Driver 18 for SQL Server on the host.
 OneLake file reads require arrow; Delta reads require reticulate and the runtime
 described by `fabric_delta_config()`. DAX, KQL and GraphQL use HTTP APIs.
 
@@ -49,7 +54,8 @@ From this directory run:
 shiny::runApp(".", host = "127.0.0.1", port = 8100)
 ```
 
-Open `http://localhost:8100/`, sign in, select a source and click Load data.
+Open `http://localhost:8100/`, sign in and click Load data to run the Warehouse
+query. Select another configured source to try its query.
 For DAX, choose a year present in the model. Change the year and click Load data
 again to update the chart.
 

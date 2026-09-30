@@ -149,6 +149,16 @@ optional/live cases skipped. Vignette rendering and `pkgdown::check_pkgdown()`
 pass. A clean staged `R CMD check --no-manual --ignore-vignettes --no-tests`
 reports 0 errors, 0 warnings and 0 notes; tests and rendering ran separately.
 
+## SQL introduction (30 September)
+
+The vignette now starts with Warehouse/Lakehouse SQL setup and queries, then
+introduces the DAX dashboard. The full app lists SQL first and initially
+selects Warehouse; its mirai preference and query behavior are unchanged.
+
+`devtools::test(filter = "^(fabric_shiny_config|shiny-example|vignettes)$",
+stop_on_failure = TRUE, reporter = "summary")` passes, including both real
+worker backends. Vignette rendering and `pkgdown::check_pkgdown()` also pass.
+
 ## Pending delegated/browser gate
 
 Use a dedicated Web registration and two restricted users in the target tenant.
