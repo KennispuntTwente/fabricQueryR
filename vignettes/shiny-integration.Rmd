@@ -12,10 +12,18 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
 fabricQueryR lets you build Shiny apps around data in Microsoft Fabric.
-Visitors sign in with a Microsoft account, and the app uses that account's
-access when it queries Fabric. You can work with Warehouse and Lakehouse tables
-using SQL, semantic models using DAX, Eventhouse data using KQL, files and
-Delta tables in OneLake, or an API for GraphQL.
+You can use a regular Fabric connection with a shared account or the app's own
+credentials; queries then use that connection's permissions.
+
+This vignette focuses on delegated access: each visitor signs in, and the
+Shiny helpers shown here use that user's authorization for Fabric queries.
+The advantage is that the permissions you already manage in Fabric determine
+which data each user can access through the app. You can reuse those access
+rules without maintaining a second set in Shiny.
+
+You can work with Warehouse and Lakehouse tables using SQL, semantic models
+using DAX, Eventhouse data using KQL, files and Delta tables in OneLake, or an
+API for GraphQL.
 
 This guide starts with SQL: connect to a Warehouse or Lakehouse, run a query,
 and display the result in Shiny. It then shows how to build a dashboard from a
