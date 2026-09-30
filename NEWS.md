@@ -11,6 +11,7 @@ Its `access_token()` helper can acquire a service token asynchronously for
 nonblocking queries with Shiny's `ExtendedTask` and background R workers.
 The complete Shiny example includes a DAX dashboard, Warehouse and Lakehouse
 SQL, Eventhouse KQL, OneLake files and Delta tables, and GraphQL queries.
+It uses mirai when installed, with `promises::future_promise()` as a fallback.
 
 * `fabric_shiny_token_provider()` adapts an existing shinyOAuth connection for
 Fabric functions, with synchronous refresh, declared audience routing and

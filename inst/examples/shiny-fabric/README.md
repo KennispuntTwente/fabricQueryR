@@ -1,8 +1,10 @@
 # Fabric data in Shiny with each visitor's Microsoft sign-in
 
-Install fabricQueryR, Shiny (1.8.1 or later), bslib (0.7.0 or later), future,
-promises, and the target-enabled shinyOAuth version. During development install the
-sibling shinyOAuth checkout with `R CMD INSTALL ../shinyoauth` first.
+Install fabricQueryR, Shiny (1.8.1 or later), bslib (0.7.0 or later), mirai,
+promises (1.3.0 or later), and the target-enabled shinyOAuth version. The app
+prefers mirai when installed; without it, install future for the fallback.
+During development install the sibling shinyOAuth checkout with
+`R CMD INSTALL ../shinyoauth` first.
 
 The app includes a DAX sales dashboard, Warehouse and Lakehouse SQL, KQL,
 OneLake files and Delta tables, and GraphQL. Keep the entries you need in the
@@ -51,9 +53,11 @@ Open `http://localhost:8100/`, sign in, select a source and click Load data.
 For DAX, choose a year present in the model. Change the year and click Load data
 again to update the chart.
 
-Queries use `ExtendedTask` and `future_promise()` so the app stays responsive
-while data loads. The Load data button stays busy until its task finishes.
-The app starts two background R workers; adjust `workers` for your host.
+Queries use `ExtendedTask` with mirai, or `future_promise()` as a fallback, so
+the app stays responsive while data loads. The Load data button stays busy
+until its task finishes.
+The app starts two background R workers; adjust `daemons(2)` or `workers = 2`
+for your host. `onStop()` shuts down the workers when the app stops.
 
 For deployment, use a registered HTTPS callback and correct session routing.
 The vignette contains the complete app code and guidance for adapting an

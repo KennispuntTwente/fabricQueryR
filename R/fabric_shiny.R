@@ -62,7 +62,7 @@ fabric_shiny_ui <- function(ui, id, config) {
 #'
 #' Uses one fixed tenant and session-only retention. OAuth connections stay in
 #' the owning R process. Use `access_token(service, async = TRUE)` with
-#' [shiny::ExtendedTask] and [promises::future_promise()] for background queries;
+#' [shiny::ExtendedTask] with [mirai::mirai()] or [promises::future_promise()];
 #' pass the resolved token and ordinary query inputs to the worker. Fixed tokens
 #' do not refresh in a worker. Acquire a new token for each task invocation and
 #' compare its captured `generation()` before displaying the result. Logout does

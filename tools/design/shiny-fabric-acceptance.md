@@ -128,6 +128,27 @@ A clean staged `R CMD check --no-manual --ignore-vignettes --no-tests` reports
 0 errors, 0 warnings and 0 notes. The delegated/browser gate below remains
 pending, as requested; none of these local checks substitutes for it.
 
+## Mirai preference (30 September)
+
+The complete example selects mirai when installed and falls back to
+`promises::future_promise()` otherwise. Both use `ExtendedTask`. The mirai
+expression receives the reader function, resolved service token and query
+inputs explicitly, and loads fabricQueryR in its worker. An app-level
+`onStop()` callback shuts down the selected worker pool.
+
+`devtools::test(filter = "^(shiny-example|vignettes)$",
+stop_on_failure = TRUE, reporter = "summary")` passes. The responsiveness test
+runs once with real mirai daemons and once with a real future worker. Each
+backend handles another input and logout during a held query, suppresses stale
+results after a new sign-in, propagates query errors, and shuts down through
+the registered callback. No live Fabric calls were needed for this backend
+change; the delegated/browser gate remains pending.
+
+The full offline suite also passes with no test failures or warnings and 181
+optional/live cases skipped. Vignette rendering and `pkgdown::check_pkgdown()`
+pass. A clean staged `R CMD check --no-manual --ignore-vignettes --no-tests`
+reports 0 errors, 0 warnings and 0 notes; tests and rendering ran separately.
+
 ## Pending delegated/browser gate
 
 Use a dedicated Web registration and two restricted users in the target tenant.

@@ -13,7 +13,8 @@ fabricQueryR delivery follows four commits:
 
 The implementation uses a fixed tenant and session retention. The 30 September
 update adds asynchronous service-token acquisition and `ExtendedTask` examples
-using `future_promise()` workers. Workers receive fixed service tokens and plain
+using mirai workers when installed and `future_promise()` otherwise. Workers
+receive fixed service tokens and plain
 query inputs; OAuth connections and refresh remain in the owning Shiny process.
 The service profiles now also cover DAX, KQL and OneLake; DAX and GraphQL share
 one declared Power BI target with the union of their scopes.

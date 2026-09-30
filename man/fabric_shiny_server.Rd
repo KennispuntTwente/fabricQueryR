@@ -68,7 +68,7 @@ Retrying transient failures separately requires an idempotent request.
 
 Uses one fixed tenant and session-only retention. OAuth connections stay in
 the owning R process. Use \code{access_token(service, async = TRUE)} with
-\link[shiny:ExtendedTask]{shiny::ExtendedTask} and \code{\link[promises:future_promise]{promises::future_promise()}} for background queries;
+\link[shiny:ExtendedTask]{shiny::ExtendedTask} with \code{\link[mirai:mirai]{mirai::mirai()}} or \code{\link[promises:future_promise]{promises::future_promise()}};
 pass the resolved token and ordinary query inputs to the worker. Fixed tokens
 do not refresh in a worker. Acquire a new token for each task invocation and
 compare its captured \code{generation()} before displaying the result. Logout does

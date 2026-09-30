@@ -1107,6 +1107,10 @@ test_that("the Shiny vignette executes its data sources and DAX dashboard", {
     envir = asNamespace("shiny")
   )
   bindings$barplot <- graphics::barplot
+  bindings$requireNamespace <- function(package, ...) {
+    if (package == "mirai") FALSE else base::requireNamespace(package, ...)
+  }
+  bindings$onStop <- function(...) invisible(NULL)
   bindings$Sys.getenv <- function(name, unset = "") {
     switch(
       name,

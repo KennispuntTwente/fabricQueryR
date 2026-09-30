@@ -37,11 +37,13 @@ and shinyOAuth. If you have both source checkouts, install shinyOAuth first:
 ```{r, eval=FALSE}
 devtools::install("../shinyoauth")
 devtools::install(".")
-install.packages(c("shiny", "bslib", "future", "promises"))
+install.packages(c("shiny", "bslib", "mirai", "promises"))
 ```
 
-Use shiny 1.8.1 or later and bslib 0.7.0 or later. DAX, KQL and GraphQL use
-HTTP APIs, so they do not need a database driver. SQL and OneLake have
+Use shiny 1.8.1 or later, bslib 0.7.0 or later, and promises 1.3.0 or later.
+The app uses mirai when installed. Without mirai, install future to use the
+`future_promise()` fallback. DAX, KQL and GraphQL use HTTP APIs, so they do not
+need a database driver. SQL and OneLake have
 additional dependencies, described under Other data sources below.
 
 ### Arrange Microsoft sign-in
@@ -100,7 +102,14 @@ queries likewise use example table and field names to replace with your own.
 library(shiny)
 library(fabricQueryR)
 
-future::plan(future::multisession, workers = 2)
+use_mirai <- requireNamespace("mirai", quietly = TRUE)
+if (use_mirai) {
+  mirai::daemons(2)
+  onStop(\() mirai::daemons(0), session = NULL)
+} else {
+  future::plan(future::multisession, workers = 2)
+  onStop(\() future::plan(future::sequential), session = NULL)
+}
 
 # Keep the sources your app needs.
 sources <- c(
@@ -224,8 +233,21 @@ server <- function(input, output, session) {
   fabric <- fabric_shiny_server("fabric", config)
   query <- ExtendedTask$new(function(token, generation, source, year) {
     promises::then(token, function(token) {
-      promises::future_promise({
-        data <- read_data(source, token, year)
+      data <- if (use_mirai) {
+        mirai::mirai(
+          {
+            library(fabricQueryR)
+            read_data(source, token, year)
+          },
+          read_data = read_data,
+          source = source,
+          token = token,
+          year = year
+        )
+      } else {
+        promises::future_promise(read_data(source, token, year))
+      }
+      promises::then(data, function(data) {
         list(generation = generation, source = source, year = year, data = data)
       })
     })
@@ -311,9 +333,10 @@ The app uses three fabricQueryR functions to connect sign-in with your Shiny UI:
 
 The Load data button starts an `ExtendedTask`. First,
 `fabric$access_token(service, async = TRUE)` acquires the visitor's token for
-the selected service. Then `future_promise()` runs `read_data()` in a background
-R process. `query$result()` makes its result available to the Shiny outputs
-when it is ready. The task button stays busy until that work completes.
+the selected service. Then mirai runs `read_data()` in a background R process,
+or `future_promise()` does so if mirai is not installed. `query$result()` makes
+the result available to the Shiny outputs when it is ready. The task button
+stays busy until that work completes.
 
 Read reactive inputs when calling `$invoke()`, before the worker starts.
 The example passes the source and year as ordinary values. It also passes
@@ -323,7 +346,10 @@ displayed. Signing out clears the outputs; an already running query can still
 finish. Signing in again requires a new click on Load data.
 
 See Shiny's [nonblocking operations guide](https://shiny.posit.co/r/articles/improve/nonblocking/)
-for more about `ExtendedTask`.
+for more about `ExtendedTask`, and the
+[mirai Shiny guide](https://mirai.r-lib.org/articles/mirai-promises.html)
+for its background workers. The mirai call explicitly supplies the reader
+function and query inputs, and loads fabricQueryR in the worker.
 
 ## Other data sources
 
@@ -434,8 +460,9 @@ tokens <- promises::promise_all(
 )
 ```
 
-Resolve that promise before starting `future_promise()`, as the main app does
-for one token. Inside the worker, create the item and query it:
+Resolve that promise before starting the background query, as the main app
+does for one token. With mirai, pass the resolved list as `tokens = tokens`.
+Inside the worker, create the item and query it:
 
 ```{r, eval=FALSE}
 warehouse <- fabric_item(
@@ -519,10 +546,12 @@ one HTTP 401 response can trigger token renewal and a request retry.
 `DBI::dbDisconnect()`, usually through `on.exit()` in a helper function.
 Signing out does not close an already open DBI connection.
 
-Set up the future worker pool once when the app starts. The example uses two
-background R processes; adjust `workers` for the resources available on your
-host. Return ordinary R data from a worker; keep live database connections
-and Arrow streams within the process that created them.
+Set up the worker pool once when the app starts. The example uses two
+background R processes: `mirai::daemons(2)` when mirai is installed, or
+`future::plan(future::multisession, workers = 2)` otherwise. Adjust that count
+for your host. The workers serve all visitors, and `onStop()` shuts them down
+when the app stops. Return ordinary R data from a worker; keep live database
+connections and Arrow streams within the process that created them.
 
 Use an exact registered HTTPS callback URL for deployment.
 The `uiPattern = ".*"` setting lets callback subpaths reach the app. Check your

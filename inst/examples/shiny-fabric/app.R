@@ -1,7 +1,14 @@
 library(shiny)
 library(fabricQueryR)
 
-future::plan(future::multisession, workers = 2)
+use_mirai <- requireNamespace("mirai", quietly = TRUE)
+if (use_mirai) {
+  mirai::daemons(2)
+  onStop(\() mirai::daemons(0), session = NULL)
+} else {
+  future::plan(future::multisession, workers = 2)
+  onStop(\() future::plan(future::sequential), session = NULL)
+}
 
 # Keep the sources your app needs.
 sources <- c(
@@ -125,8 +132,21 @@ server <- function(input, output, session) {
   fabric <- fabric_shiny_server("fabric", config)
   query <- ExtendedTask$new(function(token, generation, source, year) {
     promises::then(token, function(token) {
-      promises::future_promise({
-        data <- read_data(source, token, year)
+      data <- if (use_mirai) {
+        mirai::mirai(
+          {
+            library(fabricQueryR)
+            read_data(source, token, year)
+          },
+          read_data = read_data,
+          source = source,
+          token = token,
+          year = year
+        )
+      } else {
+        promises::future_promise(read_data(source, token, year))
+      }
+      promises::then(data, function(data) {
         list(generation = generation, source = source, year = year, data = data)
       })
     })
