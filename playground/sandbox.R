@@ -144,7 +144,8 @@ connect_playground_sandbox <- function(
   tenant_id = Sys.getenv("FABRICQUERYR_TENANT_ID"),
   client_id = Sys.getenv("FABRICQUERYR_CLIENT_ID"),
   client_secret = Sys.getenv("FABRICQUERYR_CLIENT_SECRET"),
-  auth_args = list()
+  auth_args = list(),
+  allow_partial = FALSE
 ) {
   required <- c("AzureAuth", "devtools", "jsonlite")
   missing <- required[
@@ -154,6 +155,13 @@ connect_playground_sandbox <- function(
     cli::cli_abort(
       "Install {length(missing)} missing playground package{?s}: {.pkg {missing}}"
     )
+  }
+  if (
+    !is.logical(allow_partial) ||
+      length(allow_partial) != 1L ||
+      is.na(allow_partial)
+  ) {
+    cli::cli_abort("{.arg allow_partial} must be TRUE or FALSE")
   }
 
   if (
@@ -295,7 +303,7 @@ connect_playground_sandbox <- function(
     items,
     target_names,
     target_types,
-    optional = "sql_database"
+    optional = if (allow_partial) names(target_names) else "sql_database"
   )
   names(items) <- make.unique(paste(item_types, item_names, sep = ":"))
 
