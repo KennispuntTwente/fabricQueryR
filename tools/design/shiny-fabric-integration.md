@@ -15,7 +15,9 @@ The implementation uses a fixed tenant and session retention. The 30 September
 update adds asynchronous service-token acquisition and `ExtendedTask` examples
 using `future_promise()` workers. Workers receive fixed service tokens and plain
 query inputs; OAuth connections and refresh remain in the owning Shiny process.
-Static `.default` consent, other workloads, retained/multiple-worker sessions
+The service profiles now also cover DAX, KQL and OneLake; DAX and GraphQL share
+one declared Power BI target with the union of their scopes.
+Static `.default` consent, remaining workloads, retained/multiple-worker sessions
 and credential renewal during background work remain follow-ups. Browser
 acceptance with two restricted users is pending; local tests must not be cited
 as proof of Entra consent, delegated SQL grants or row-level security.

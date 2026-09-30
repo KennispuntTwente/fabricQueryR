@@ -87,6 +87,22 @@ Focused validation:
 The worker test uses a synthetic query implementation; it does not establish
 delegated Fabric access. Browser acceptance remains pending below.
 
+## Additional data services (30 September)
+
+Added DAX, KQL and OneLake profiles. DAX and GraphQL combine their declared
+scopes in one Power BI target while retaining separate endpoint policies.
+Exact audience routing takes priority over overlapping scope overrides.
+
+`devtools::test(filter = "^fabric_shiny", stop_on_failure = TRUE,
+reporter = "summary")` passed without test warnings or skips. The new service
+test executes real shinyOAuth target acquisition with synthetic HTTP responses,
+then sends the resulting credentials through the package's DAX, GraphQL, KQL
+and OneLake transports. It checks that DAX and GraphQL reuse one acquired token,
+and exercises asynchronous token snapshots for DAX and KQL.
+
+This is local execution evidence only. Delegated service permissions and
+browser acceptance remain pending.
+
 ## Pending delegated/browser gate
 
 Use a dedicated Web registration and two restricted users in the target tenant.
@@ -102,13 +118,15 @@ Record only nonsecret test outcomes, timestamps and scope/expiry metadata.
 | Logout/replacement | Clear rows and references in each tab, reject old items/providers; failed replacement cannot revive old access | Pending |
 | SQL writes | Parameterized insert succeeds for writer and fails for reader; close connections and never replay ambiguous writes | Pending |
 | GraphQL | Driver-free query; configured source SSO enforces the intended user's source permissions | Pending |
+| DAX | Query a semantic model with each user's Read/Build access and applicable model security; reuse a model measure in Shiny | Pending |
+| KQL/OneLake | User-specific Eventhouse queries, file reads and Delta reads with the appropriate service token | Pending |
 | Hosting | Exact HTTPS redirect, callback subpath, proxy headers/cookies and WebSocket routing in the chosen deployment | Pending |
 | Network policy | Standard/private Fabric endpoint variants work; unconfigured gateways/redirects fail without credential delivery | Pending |
 
 ## Follow-up scope
 
 The broader design's service-breadth and performance phases remain open:
-OneLake/Storage, Kusto, DAX, Livy, jobs/functions, bulk-write workflows, static
+Livy, jobs/functions, bulk-write workflows, static
 `.default` consent, retained/multiple-worker authorizations and background-task
 credential renewal. Do not advertise them as supported by this first facade.
 General fabricQueryR functions still support their existing authentication modes.

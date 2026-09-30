@@ -32,6 +32,47 @@ test_that("the provider routes declared resources with synchronous forced refres
   expect_identical(error$context$reason, "authorization_unavailable")
 })
 
+test_that("workload tokens retain distinct routing even when Power BI scopes overlap", {
+  skip_if_no_shiny_targets()
+  connection <- shiny_test_connection()
+  provider <- fabric_shiny_token_provider(
+    connection,
+    services = c("dax", "graphql", "kql", "onelake"),
+    scopes = list(dax = c("Dataset.Read.All", "GraphQLApi.Execute.All"))
+  )
+  profiles <- attr(provider, "fabric_endpoint_policy")
+  expect_identical(
+    fabric_shiny_route(.fabric_audience$graphql, profiles),
+    profiles$graphql
+  )
+  credential <- fabric_credential(token = provider)
+  endpoints <- c(
+    dax = "https://api.powerbi.com/v1.0/myorg",
+    graphql = "https://example.graphql.fabric.microsoft.com/graphql",
+    kql = "https://cluster.kusto.fabric.microsoft.com",
+    onelake = "https://onelake.dfs.fabric.microsoft.com"
+  )
+  for (service in names(endpoints)) {
+    profile <- profiles[[service]]
+    expect_invisible(fabric_require_trusted_credential_endpoint(
+      endpoints[[service]],
+      credential,
+      profile$audience
+    ))
+    expect_identical(provider(profile$audience), "synthetic-user-token")
+    expect_identical(
+      tail(connection$state$calls, 1L)[[1L]]$target,
+      profile$target
+    )
+    error <- rlang::catch_cnd(fabric_require_trusted_credential_endpoint(
+      "https://other.example",
+      credential,
+      profile$audience
+    ))
+    expect_identical(error$reason, "untrusted_endpoint")
+  }
+})
+
 test_that("undeclared services and scope bundles never acquire a token", {
   skip_if_no_shiny_targets()
   connection <- shiny_test_connection()

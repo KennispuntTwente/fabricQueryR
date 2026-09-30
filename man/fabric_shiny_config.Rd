@@ -25,13 +25,15 @@ fabric_shiny_config(
 
 \item{redirect_uri}{Exact registered Web callback URI; HTTPS in deployment.}
 
-\item{services}{Character vector selecting \code{"fabric"}, \code{"sql"}, and/or
-\code{"graphql"}. SQL alone supports a configured server/database without discovery.}
+\item{services}{Character vector selecting \code{"fabric"} (discovery), \code{"sql"},
+\code{"dax"} (semantic models), \code{"kql"} (Eventhouse), \code{"onelake"} (files and Delta
+tables), and/or \code{"graphql"}. Known endpoints and IDs do not need discovery.}
 
 \item{scopes}{Named list of explicit delegated scopes, overriding each
 service's defaults. Short names are qualified with the service resource.
 Defaults are Fabric \code{Workspace.Read.All} and \code{Item.Read.All}, SQL
-\code{user_impersonation}, and GraphQL \code{GraphQLApi.Execute.All}. This initial
+\code{user_impersonation}, DAX \code{Dataset.Read.All}, KQL and OneLake
+\code{user_impersonation}, and GraphQL \code{GraphQLApi.Execute.All}. This
 integration does not support \code{.default} consent or incremental consent.}
 
 \item{default_service}{Service used for initial code redemption. Defaults to
@@ -58,6 +60,8 @@ Only 'shinyOAuth' owns sign-in, validated OIDC identity, token caches and
 refresh. This configuration disables Graph UserInfo while retaining ID-token
 validation, PKCE and nonce handling. The client secret authenticates the app;
 it does not turn the user's data requests into service-principal requests.
+DAX and GraphQL share a Power BI token target; its declared scopes combine
+the selected services' permissions while their endpoint policies stay separate.
 
 Scope selection does not grant Fabric item or SQL permissions. SQL's delegated
 scope can allow writes when the user has the corresponding SQL grants.

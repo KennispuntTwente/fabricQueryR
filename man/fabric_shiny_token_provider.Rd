@@ -17,18 +17,21 @@ fabric_shiny_token_provider(
 \item{connection}{A connection returned by 'shinyOAuth'
 \code{auth$connection()}, or \code{auth$connection(id)} for a manager.}
 
-\item{services}{Character vector selecting \code{"fabric"}, \code{"sql"}, and/or
-\code{"graphql"}. SQL alone supports a configured server/database without discovery.}
+\item{services}{Character vector selecting \code{"fabric"} (discovery), \code{"sql"},
+\code{"dax"} (semantic models), \code{"kql"} (Eventhouse), \code{"onelake"} (files and Delta
+tables), and/or \code{"graphql"}. Known endpoints and IDs do not need discovery.}
 
 \item{scopes}{Named list of explicit delegated scopes, overriding each
 service's defaults. Short names are qualified with the service resource.
 Defaults are Fabric \code{Workspace.Read.All} and \code{Item.Read.All}, SQL
-\code{user_impersonation}, and GraphQL \code{GraphQLApi.Execute.All}. This initial
+\code{user_impersonation}, DAX \code{Dataset.Read.All}, KQL and OneLake
+\code{user_impersonation}, and GraphQL \code{GraphQLApi.Execute.All}. This
 integration does not support \code{.default} consent or incremental consent.}
 
 \item{targets}{Optional named character vector mapping configured service
 names to the connection's declared target names. Defaults are \code{fabric},
-\code{sql}, and \code{power_bi} (for GraphQL). Target declarations on the existing
+\code{sql}, \code{power_bi} (DAX and GraphQL), \code{kusto} (KQL), and \code{storage} (OneLake).
+Target declarations on the existing
 OAuth client must use the matching resources and scopes.}
 
 \item{endpoint_hosts}{Named list of additional exact hostnames per service.

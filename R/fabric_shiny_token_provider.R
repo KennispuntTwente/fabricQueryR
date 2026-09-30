@@ -9,7 +9,8 @@
 #' @inheritParams fabric_shiny_config
 #' @param targets Optional named character vector mapping configured service
 #'   names to the connection's declared target names. Defaults are `fabric`,
-#'   `sql`, and `power_bi` (for GraphQL). Target declarations on the existing
+#'   `sql`, `power_bi` (DAX and GraphQL), `kusto` (KQL), and `storage` (OneLake).
+#'   Target declarations on the existing
 #'   OAuth client must use the matching resources and scopes.
 #' @return A synchronous `function(audience, force_refresh = FALSE)` suitable
 #'   for the package's `token` arguments. The provider carries endpoint policy
@@ -97,10 +98,12 @@ fabric_shiny_provider <- function(connection, profiles, min_valid_for) {
 fabric_shiny_route <- function(audience, profiles) {
   if (is.character(audience) && length(audience) && !anyNA(audience)) {
     for (profile in profiles) {
-      if (
-        identical(audience, profile$audience) ||
-          all(audience %in% profile$scopes)
-      ) {
+      if (identical(audience, profile$audience)) {
+        return(profile)
+      }
+    }
+    for (profile in profiles) {
+      if (all(audience %in% profile$scopes)) {
         return(profile)
       }
     }

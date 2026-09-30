@@ -9,12 +9,14 @@
 #' @param client_id Entra Web application's client ID.
 #' @param client_secret Server-side client secret. Never send this to the browser.
 #' @param redirect_uri Exact registered Web callback URI; HTTPS in deployment.
-#' @param services Character vector selecting `"fabric"`, `"sql"`, and/or
-#'   `"graphql"`. SQL alone supports a configured server/database without discovery.
+#' @param services Character vector selecting `"fabric"` (discovery), `"sql"`,
+#'   `"dax"` (semantic models), `"kql"` (Eventhouse), `"onelake"` (files and Delta
+#'   tables), and/or `"graphql"`. Known endpoints and IDs do not need discovery.
 #' @param scopes Named list of explicit delegated scopes, overriding each
 #'   service's defaults. Short names are qualified with the service resource.
 #'   Defaults are Fabric `Workspace.Read.All` and `Item.Read.All`, SQL
-#'   `user_impersonation`, and GraphQL `GraphQLApi.Execute.All`. This initial
+#'   `user_impersonation`, DAX `Dataset.Read.All`, KQL and OneLake
+#'   `user_impersonation`, and GraphQL `GraphQLApi.Execute.All`. This
 #'   integration does not support `.default` consent or incremental consent.
 #' @param default_service Service used for initial code redemption. Defaults to
 #'   the first entry of `services`; later calls select their own token target.
@@ -29,6 +31,8 @@
 #' refresh. This configuration disables Graph UserInfo while retaining ID-token
 #' validation, PKCE and nonce handling. The client secret authenticates the app;
 #' it does not turn the user's data requests into service-principal requests.
+#' DAX and GraphQL share a Power BI token target; its declared scopes combine
+#' the selected services' permissions while their endpoint policies stay separate.
 #'
 #' Scope selection does not grant Fabric item or SQL permissions. SQL's delegated
 #' scope can allow writes when the user has the corresponding SQL grants.
@@ -78,10 +82,14 @@ fabric_shiny_config <- function(
     fabric_shiny_error("default_service must select a configured service.")
   }
   fabric_shiny_lifetime(min_valid_for)
-  token_targets <- lapply(profiles, function(profile) {
-    list(resource = profile$resource, scopes = profile$scopes)
-  })
-  names(token_targets) <- vapply(profiles, `[[`, character(1), "target")
+  token_targets <- list()
+  for (profile in profiles) {
+    previous <- token_targets[[profile$target]]
+    token_targets[[profile$target]] <- list(
+      resource = profile$resource,
+      scopes = union(previous$scopes, profile$scopes)
+    )
+  }
   client <- shinyOAuth::oauth_client(
     provider = shinyOAuth::oauth_provider_microsoft(
       tenant = tenant_id,
@@ -176,6 +184,27 @@ fabric_shiny_profiles <- function(
       audience = .fabric_audience$sql,
       hosts = .fabric_audience_hosts$sql
     ),
+    dax = list(
+      resource = "https://analysis.windows.net/powerbi/api",
+      target = "power_bi",
+      scopes = "Dataset.Read.All",
+      audience = .fabric_audience$power_bi,
+      hosts = .fabric_audience_hosts$power_bi
+    ),
+    kql = list(
+      resource = "https://api.kusto.windows.net",
+      target = "kusto",
+      scopes = "user_impersonation",
+      audience = .fabric_audience$kusto,
+      hosts = .fabric_audience_hosts$kusto
+    ),
+    onelake = list(
+      resource = "https://storage.azure.com",
+      target = "storage",
+      scopes = "user_impersonation",
+      audience = .fabric_audience$storage,
+      hosts = .fabric_audience_hosts$storage
+    ),
     graphql = list(
       resource = "https://analysis.windows.net/powerbi/api",
       target = "power_bi",
@@ -192,7 +221,7 @@ fabric_shiny_profiles <- function(
       !all(services %in% names(catalog))
   ) {
     fabric_shiny_error(
-      "services must select distinct entries from fabric, sql and graphql."
+      "services must select distinct entries from fabric, sql, dax, kql, onelake and graphql."
     )
   }
   for (overrides in list(scopes, endpoint_hosts)) {
@@ -237,6 +266,14 @@ fabric_shiny_profiles <- function(
     }
     if (service == "graphql" && !"GraphQLApi.Execute.All" %in% short) {
       fabric_shiny_error("The graphql service requires GraphQLApi.Execute.All.")
+    }
+    if (
+      service == "dax" &&
+        !any(c("Dataset.Read.All", "Dataset.ReadWrite.All") %in% short)
+    ) {
+      fabric_shiny_error(
+        "The dax service requires Dataset.Read.All or Dataset.ReadWrite.All."
+      )
     }
     extra_hosts <- endpoint_hosts[[service]] %||% character()
     if (
