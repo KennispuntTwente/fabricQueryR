@@ -38,6 +38,10 @@ without tokens. \code{not_acquired} does not establish missing consent.
 Unchanged by refresh; use it to guard event-bound results and caches.
 \item \code{token_provider()}: a provider bound to the current connection, for
 existing functions' \code{token} arguments.
+\item \code{access_token(service, async = FALSE)}: a fixed bearer token for one
+configured service, or a promise resolving to it when \code{async = TRUE}.
+Acquire it before invoking a background query. The token retains the
+service's endpoint policy and can be serialized to a worker.
 \item \code{workspaces(...)} and \code{item(workspace, item, ...)}: discovery with the
 current user's credentials, returning the ordinary R6 objects by default.
 \item \code{request(path, method = "GET", query = list(), body = NULL, idempotent = FALSE)}: an advanced Fabric REST call beneath \verb{/v1}, returning
@@ -62,10 +66,16 @@ data operations. HTTP calls retain the package's retry policy: one 401 can
 trigger forced acquisition and a retry even when \code{idempotent = FALSE}.
 Retrying transient failures separately requires an idempotent request.
 
-Only synchronous data calls, one fixed tenant and session-only retention are
-supported here. OAuth and query execution run in the owning R process. Refresh
-alone does not invalidate generation-dependent queries. Existing providers
-and items remain bound to their original authorization and fail after logout,
+Uses one fixed tenant and session-only retention. OAuth connections stay in
+the owning R process. Use \code{access_token(service, async = TRUE)} with
+\link[shiny:ExtendedTask]{shiny::ExtendedTask} and \code{\link[promises:future_promise]{promises::future_promise()}} for background queries;
+pass the resolved token and ordinary query inputs to the worker. Fixed tokens
+do not refresh in a worker. Acquire a new token for each task invocation and
+compare its captured \code{generation()} before displaying the result. Logout does
+not cancel an operation already running in a worker.
+
+Refresh alone does not invalidate generation-dependent queries. Existing
+providers and items remain bound to their original authorization and fail after logout,
 replacement or session closure. Do not share them across users or workers.
 
 Keep query results session-local. Store \code{generation()} beside event-bound

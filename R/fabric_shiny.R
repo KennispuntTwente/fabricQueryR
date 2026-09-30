@@ -38,6 +38,10 @@ fabric_shiny_ui <- function(ui, id, config) {
 #'     Unchanged by refresh; use it to guard event-bound results and caches.
 #'   * `token_provider()`: a provider bound to the current connection, for
 #'     existing functions' `token` arguments.
+#'   * `access_token(service, async = FALSE)`: a fixed bearer token for one
+#'     configured service, or a promise resolving to it when `async = TRUE`.
+#'     Acquire it before invoking a background query. The token retains the
+#'     service's endpoint policy and can be serialized to a worker.
 #'   * `workspaces(...)` and `item(workspace, item, ...)`: discovery with the
 #'     current user's credentials, returning the ordinary R6 objects by default.
 #'   * `request(path, method = "GET", query = list(), body = NULL,
@@ -56,10 +60,16 @@ fabric_shiny_ui <- function(ui, id, config) {
 #' trigger forced acquisition and a retry even when `idempotent = FALSE`.
 #' Retrying transient failures separately requires an idempotent request.
 #'
-#' Only synchronous data calls, one fixed tenant and session-only retention are
-#' supported here. OAuth and query execution run in the owning R process. Refresh
-#' alone does not invalidate generation-dependent queries. Existing providers
-#' and items remain bound to their original authorization and fail after logout,
+#' Uses one fixed tenant and session-only retention. OAuth connections stay in
+#' the owning R process. Use `access_token(service, async = TRUE)` with
+#' [shiny::ExtendedTask] and [promises::future_promise()] for background queries;
+#' pass the resolved token and ordinary query inputs to the worker. Fixed tokens
+#' do not refresh in a worker. Acquire a new token for each task invocation and
+#' compare its captured `generation()` before displaying the result. Logout does
+#' not cancel an operation already running in a worker.
+#'
+#' Refresh alone does not invalidate generation-dependent queries. Existing
+#' providers and items remain bound to their original authorization and fail after logout,
 #' replacement or session closure. Do not share them across users or workers.
 #'
 #' Keep query results session-local. Store `generation()` beside event-bound
@@ -114,6 +124,7 @@ fabric_shiny_check_config <- function(config) {
 }
 
 fabric_shiny_session <- function(auth, profiles, min_valid_for) {
+  session <- shiny::getDefaultReactiveDomain()
   current <- shiny::reactive(auth$connection())
   acquisition_errors <- shiny::reactiveVal(list())
   select_services <- function(service) {
@@ -135,6 +146,61 @@ fabric_shiny_session <- function(auth, profiles, min_valid_for) {
   }
   provider <- function() {
     fabric_shiny_provider(shiny::req(current()), profiles, min_valid_for)
+  }
+  access_token <- function(service, async = FALSE) {
+    if (!is.logical(async) || length(async) != 1L || is.na(async)) {
+      fabric_shiny_error("async must be TRUE or FALSE.")
+    }
+    if (async && !requireNamespace("promises", quietly = TRUE)) {
+      fabric_shiny_error("Install promises to acquire tokens asynchronously.")
+    }
+    acquire <- function() {
+      services <- select_services(service)
+      if (length(services) != 1L) {
+        fabric_shiny_error("service must name one configured service.")
+      }
+      connection <- current()
+      if (is.null(connection) || isTRUE(session$isClosed())) {
+        fabric_shiny_error(
+          "Sign in before acquiring a query token.",
+          "authorization_unavailable"
+        )
+      }
+      profile <- profiles[[services]]
+      finish <- function(token) {
+        if (
+          isTRUE(session$isClosed()) ||
+            !identical(shiny::isolate(current())$id, connection$id)
+        ) {
+          fabric_shiny_error(
+            "The authorization changed before token acquisition completed.",
+            "authorization_unavailable"
+          )
+        }
+        fabric_validate_bearer_token(token, "The query token")
+        attr(token, "fabric_endpoint_policy") <- profiles[services]
+        token
+      }
+      token <- connection$access_token(
+        target = profile$target,
+        required_scopes = profile$scopes,
+        min_valid_for = min_valid_for,
+        force_refresh = FALSE,
+        async = async
+      )
+      if (async) {
+        promises::then(promises::promise_resolve(token), finish)
+      } else {
+        finish(token)
+      }
+    }
+    if (async) {
+      tryCatch(acquire(), error = function(error) {
+        promises::promise_reject(error)
+      })
+    } else {
+      acquire()
+    }
   }
   ready <- function(service = NULL) {
     services <- select_services(service)
@@ -224,6 +290,7 @@ fabric_shiny_session <- function(auth, profiles, min_valid_for) {
       if (is.null(connection)) NULL else connection$id
     },
     token_provider = provider,
+    access_token = access_token,
     workspaces = function(...) discovery(fabric_workspaces, list(...)),
     item = function(workspace, item, ...) {
       discovery(

@@ -71,6 +71,11 @@ test_that("real module references isolate refresh, logout, replacement and forei
       workspace <- fabric$workspaces()[[1L]]
       expect_s3_class(workspace, "FabricWorkspace")
       expect_identical(fabric$identity()$id_token_claims$name, "Test User")
+      if (requireNamespace("promises", quietly = TRUE)) {
+        token <- shiny_test_await(fabric$access_token("fabric", async = TRUE))
+        expect_identical(as.character(token), "synthetic-user-token")
+        expect_identical(attr(token, "fabric_endpoint_policy"), config$profiles)
+      }
       reads <- 0L
       observer <- shiny::observe({
         fabric$generation()

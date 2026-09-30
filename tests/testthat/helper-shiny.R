@@ -88,3 +88,32 @@ shiny_test_token <- function(
     )
   )
 }
+
+shiny_test_await <- function(promise, timeout = 10) {
+  complete <- FALSE
+  value <- error <- NULL
+  promises::then(
+    promise,
+    function(result) {
+      value <<- result
+      complete <<- TRUE
+      NULL
+    },
+    function(condition) {
+      error <<- condition
+      complete <<- TRUE
+      NULL
+    }
+  )
+  deadline <- Sys.time() + timeout
+  while (!complete && Sys.time() < deadline) {
+    later::run_now(0.01)
+  }
+  if (!complete) {
+    stop("Timed out waiting for the test promise")
+  }
+  if (!is.null(error)) {
+    stop(error)
+  }
+  value
+}
