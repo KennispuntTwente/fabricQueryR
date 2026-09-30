@@ -79,31 +79,13 @@ Fabric Warehouse, SQL Database or Lakehouse SQL analytics endpoint. Keep the
 client secret out of your app code and version control. For a deployed app,
 use the hosting service's environment-variable or secret settings.
 
-## Try the example app
+## A complete example app
 
-The package includes a complete app with sign-in, sign-out and a table-name
-filter. After setting the values above, run:
+After saving the settings above, save the following code as `app.R` in a new
+directory. This is the complete app: it signs visitors in, lists the tables
+they can access, and lets them sign out.
 
-```{r, eval=FALSE}
-example_dir <- system.file("examples", "shiny-fabric", package = "fabricQueryR")
-shiny::runApp(example_dir, host = "127.0.0.1", port = 8100)
-```
-
-Open `http://localhost:8100/`, sign in, and click Show tables. The app lists
-tables visible to your account; an empty result can be valid if the account
-cannot see any tables. It does not create or change data.
-
-## Build your own app
-
-Here is a smaller app showing the three pieces you add to a Shiny application:
-
-- `fabric_shiny_config()` holds the sign-in settings and selects the services
-  the app will use. Create it once, outside `server()`.
-- `fabric_shiny_ui()` wraps your usual UI so the app can complete sign-in.
-- `fabric_shiny_server()` creates helpers for the current visitor. Call it
-  inside `server()` so each visitor has their own connection.
-
-```{r, eval=FALSE}
+```{r fabric-app, eval=FALSE}
 library(shiny)
 library(fabricQueryR)
 
@@ -115,12 +97,17 @@ config <- fabric_shiny_config(
   services = "sql"
 )
 ui <- fabric_shiny_ui(
-  fluidPage(actionButton("login", "Sign in"), tableOutput("tables")),
+  fluidPage(
+    actionButton("login", "Sign in"),
+    actionButton("logout", "Sign out"),
+    tableOutput("tables")
+  ),
   "fabric", config
 )
 server <- function(input, output, session) {
   fabric <- fabric_shiny_server("fabric", config)
   observeEvent(input$login, fabric$login(), ignoreInit = TRUE)
+  observeEvent(input$logout, fabric$logout(), ignoreInit = TRUE)
   output$tables <- renderTable({
     req(fabric$ready("sql"))
     fabric_sql_query(
@@ -131,8 +118,24 @@ server <- function(input, output, session) {
     )
   })
 }
-shinyApp(ui, server, uiPattern = ".*")
+shinyApp(
+  ui, server, uiPattern = ".*",
+  options = list(host = "127.0.0.1", port = 8100)
+)
 ```
+
+Run the directory with `shiny::runApp("path/to/your/app")`, then open
+`http://localhost:8100/` and click Sign in. The app displays the tables visible
+to your account; an empty result can be valid if the account cannot see any
+tables. Click Sign out to end the app's sign-in and clear the table display.
+
+The app uses three fabricQueryR functions:
+
+- `fabric_shiny_config()` holds the sign-in settings and selects the services
+  the app will use. Create it once, outside `server()`.
+- `fabric_shiny_ui()` wraps your usual UI so the app can complete sign-in.
+- `fabric_shiny_server()` creates helpers for the current visitor. Call it
+  inside `server()` so each visitor has their own connection.
 
 The Sign in button calls `fabric$login()`. Inside `renderTable()`,
 `req(fabric$ready("sql"))` waits until SQL access is ready to try. Passing
@@ -204,9 +207,9 @@ connection using saved credentials can give different access. See Microsoft's
 
 ## Sign out and load data on demand
 
-The full example app includes buttons for `fabric$logout()` and
-`fabric$reauthorize()`, which starts sign-in again. A sign-out should also clear
-any data you have stored in the app for that visitor.
+Use `fabric$logout()` to sign out, as in the example above, or
+`fabric$reauthorize()` to start sign-in again. A sign-out should also clear any
+data you have stored in the app for that visitor.
 
 This matters when a Load button runs a query: signing out does not click that
 button again, so its previous result can remain in a reactive value.

@@ -1073,6 +1073,7 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
     skip("Package vignette source is not available in installed test runs")
   }
   calls <- new.env(parent = emptyenv())
+  signed_in <- shiny::reactiveVal(FALSE)
   bindings <- mget(
     c(
       "fluidPage",
@@ -1099,8 +1100,9 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
   bindings$fabric_shiny_ui <- fabric_shiny_ui
   bindings$fabric_shiny_server <- function(id, config) {
     list(
-      ready = function(service) service == "sql",
-      login = function() TRUE,
+      ready = function(service) signed_in() && service == "sql",
+      login = function() signed_in(TRUE),
+      logout = function() signed_in(FALSE),
       token_provider = function() {
         function(audience, force_refresh = FALSE) {
           expect_identical(audience, .fabric_audience$sql)
@@ -1115,9 +1117,17 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
     calls$database <- database
     data.frame(TABLE_SCHEMA = "dbo", TABLE_NAME = "orders")
   }
-  example <- vignette_evaluate_chunks(path, 4L, bindings = bindings)
+  chunks <- vignette_r_chunks(path)
+  app_chunk <- which(vapply(
+    chunks,
+    function(chunk) grepl("r fabric-app,", chunk$header, fixed = TRUE),
+    logical(1)
+  ))
+  example <- vignette_evaluate_chunks(path, app_chunk, bindings = bindings)
   shiny::testServer(example$server, {
     session$flushReact()
+    expect_null(calls$token)
+    session$setInputs(login = 1L)
     expect_match(output$tables, "orders", fixed = TRUE)
     expect_identical(
       calls$server,
@@ -1125,6 +1135,11 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
     )
     expect_identical(calls$database, "orders")
     expect_identical(calls$token, "synthetic-user-token")
+    session$setInputs(logout = 1L)
+    expect_s3_class(
+      rlang::catch_cnd(output$tables, classes = "error"),
+      "shiny.silent.error"
+    )
   })
 })
 
