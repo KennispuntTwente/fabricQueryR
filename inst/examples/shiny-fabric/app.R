@@ -1,6 +1,8 @@
 library(shiny)
 library(fabricQueryR)
 
+future::plan(future::multisession, workers = 2)
+
 config <- fabric_shiny_config(
   tenant_id = Sys.getenv("ENTRA_TENANT_ID"),
   client_id = Sys.getenv("ENTRA_CLIENT_ID"),
@@ -13,93 +15,66 @@ sql_database <- Sys.getenv("FABRIC_SQL_DATABASE")
 
 ui <- fabric_shiny_ui(
   fluidPage(
-    titlePanel("Your Fabric tables"),
-    actionButton("login", "Sign in with Microsoft"),
+    actionButton("login", "Sign in"),
     actionButton("logout", "Sign out"),
-    actionButton("reauthorize", "Sign in again"),
-    actionButton("retry", "Retry connection"),
-    textOutput("account"),
     textInput("table_name", "Table name contains", ""),
-    actionButton("load", "Show tables"),
+    bslib::input_task_button("load", "Show tables"),
     tableOutput("tables")
   ),
-  id = "fabric",
-  config = config
+  "fabric",
+  config
 )
 
 server <- function(input, output, session) {
   fabric <- fabric_shiny_server("fabric", config)
-  rows <- reactiveVal(NULL)
+  query <- ExtendedTask$new(function(token, generation, table_name) {
+    promises::then(token, function(token) {
+      promises::future_promise({
+        data <- fabric_sql_query(
+          sql_server,
+          paste(
+            "SELECT TOP (100) TABLE_SCHEMA, TABLE_NAME",
+            "FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE ?",
+            "ORDER BY TABLE_SCHEMA, TABLE_NAME"
+          ),
+          database = sql_database,
+          params = list(paste0("%", table_name, "%")),
+          token = token,
+          numeric_policy = "driver",
+          verbose = FALSE
+        )
+        list(generation = generation, data = data)
+      })
+    })
+  }) |>
+    bslib::bind_task_button("load")
 
   observeEvent(input$login, fabric$login(), ignoreInit = TRUE)
   observeEvent(input$logout, fabric$logout(), ignoreInit = TRUE)
-  observeEvent(input$reauthorize, fabric$reauthorize(), ignoreInit = TRUE)
-  observeEvent(input$retry, fabric$prepare("sql"), ignoreInit = TRUE)
-  observeEvent(
-    fabric$generation(),
-    rows(NULL),
-    ignoreNULL = FALSE,
-    priority = 50
-  )
-
-  output$account <- renderText({
-    if (is.null(fabric$generation())) {
-      return("Sign in to view your Fabric tables.")
-    }
-    identity <- fabric$identity()$id_token_claims
-    if (!fabric$ready("sql")) {
-      return(
-        "SQL access is unavailable. Retry the connection or sign in again."
-      )
-    }
-    display_name <- if (is.null(identity$name)) identity$sub else identity$name
-    paste("Signed in as", display_name)
-  })
-
   observeEvent(
     input$load,
     {
       req(fabric$ready("sql"))
-      generation <- fabric$generation()
-      rows(NULL)
-      result <- tryCatch(
-        fabric_sql_query(
-          server = sql_server,
-          database = sql_database,
-          sql = paste(
-            "SELECT TOP (100) TABLE_SCHEMA, TABLE_NAME",
-            "FROM INFORMATION_SCHEMA.TABLES",
-            "WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME LIKE ?",
-            "ORDER BY TABLE_SCHEMA, TABLE_NAME"
-          ),
-          params = list(paste0("%", input$table_name, "%")),
-          token = fabric$token_provider(),
-          backend = "odbc",
-          numeric_policy = "driver",
-          idempotent = TRUE,
-          verbose = FALSE
-        ),
-        error = function(error) {
-          showNotification(
-            "Could not read tables. Check your data access, retry, or sign in again.",
-            type = "error"
-          )
-          NULL
-        }
+      query$invoke(
+        fabric$access_token("sql", async = TRUE),
+        fabric$generation(),
+        input$table_name
       )
-      if (!is.null(result) && identical(generation, fabric$generation())) {
-        rows(list(generation = generation, data = result))
-      }
     },
     ignoreInit = TRUE
   )
 
   output$tables <- renderTable({
     req(fabric$ready("sql"))
-    value <- req(rows())
-    req(identical(value$generation, fabric$generation()))
-    value$data
+    result <- query$result()
+    req(identical(result$generation, fabric$generation()))
+    result$data
   })
 }
 
-shinyApp(ui, server, uiPattern = ".*")
+shinyApp(
+  ui,
+  server,
+  uiPattern = ".*",
+  options = list(host = "127.0.0.1", port = 8100)
+)

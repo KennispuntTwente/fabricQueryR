@@ -15,10 +15,10 @@ fabricQueryR lets Shiny apps query Microsoft Fabric using each signed-in user's
 permissions. Visitors sign in with a Microsoft account, and requests to Fabric
 use that account's access to the data.
 
-You can use Shiny functions such as `reactive()` and `renderTable()`,
-together with fabricQueryR's SQL and GraphQL functions. The shinyOAuth package
-handles the Microsoft sign-in process. You add a small amount of configuration
-and connect it to your app's UI and server.
+The example below runs queries in the background using Shiny's `ExtendedTask`,
+so the app stays responsive while Fabric returns data. You can display the
+results with Shiny functions such as `renderTable()`. The shinyOAuth package
+handles the Microsoft sign-in process.
 
 This vignette starts with an app that lists the tables a user can see in a
 Fabric SQL database. It then shows how to work with a Warehouse, load data on
@@ -36,9 +36,10 @@ devtools::install("../shinyoauth")
 devtools::install(".")
 ```
 
-For the SQL example, you also need shiny, DBI, odbc, and Microsoft
-ODBC Driver 18 for SQL Server. The driver is installed separately from the R
-packages, on the computer that runs the app.
+For the SQL example, you also need shiny (1.8.1 or later), bslib (0.7.0 or
+later), future, promises, DBI, odbc, and Microsoft ODBC Driver 18 for SQL Server.
+The driver is installed separately from the R packages, on the computer that
+runs the app and its background workers.
 
 ### Arrange Microsoft sign-in
 
@@ -82,52 +83,98 @@ use the hosting service's environment-variable or secret settings.
 ## A complete example app
 
 After saving the settings above, save the following code as `app.R` in a new
-directory. This is the complete app: it signs visitors in, lists the tables
-they can access, and lets them sign out.
+directory. This is the complete app: it signs visitors in, loads their table
+list in the background, and lets them sign out.
 
 ```{r fabric-app, eval=FALSE}
 library(shiny)
 library(fabricQueryR)
 
+future::plan(future::multisession, workers = 2)
+
 config <- fabric_shiny_config(
   tenant_id = Sys.getenv("ENTRA_TENANT_ID"),
   client_id = Sys.getenv("ENTRA_CLIENT_ID"),
   client_secret = Sys.getenv("ENTRA_CLIENT_SECRET"),
-  redirect_uri = "http://localhost:8100/",
+  redirect_uri = Sys.getenv("ENTRA_REDIRECT_URI", "http://localhost:8100/"),
   services = "sql"
 )
+sql_server <- Sys.getenv("FABRIC_SQL_SERVER")
+sql_database <- Sys.getenv("FABRIC_SQL_DATABASE")
+
 ui <- fabric_shiny_ui(
   fluidPage(
     actionButton("login", "Sign in"),
     actionButton("logout", "Sign out"),
+    textInput("table_name", "Table name contains", ""),
+    bslib::input_task_button("load", "Show tables"),
     tableOutput("tables")
   ),
-  "fabric", config
+  "fabric",
+  config
 )
+
 server <- function(input, output, session) {
   fabric <- fabric_shiny_server("fabric", config)
+  query <- ExtendedTask$new(function(token, generation, table_name) {
+    promises::then(token, function(token) {
+      promises::future_promise({
+        data <- fabric_sql_query(
+          sql_server,
+          paste(
+            "SELECT TOP (100) TABLE_SCHEMA, TABLE_NAME",
+            "FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE ?",
+            "ORDER BY TABLE_SCHEMA, TABLE_NAME"
+          ),
+          database = sql_database,
+          params = list(paste0("%", table_name, "%")),
+          token = token,
+          numeric_policy = "driver",
+          verbose = FALSE
+        )
+        list(generation = generation, data = data)
+      })
+    })
+  }) |>
+    bslib::bind_task_button("load")
+
   observeEvent(input$login, fabric$login(), ignoreInit = TRUE)
   observeEvent(input$logout, fabric$logout(), ignoreInit = TRUE)
+  observeEvent(
+    input$load,
+    {
+      req(fabric$ready("sql"))
+      query$invoke(
+        fabric$access_token("sql", async = TRUE),
+        fabric$generation(),
+        input$table_name
+      )
+    },
+    ignoreInit = TRUE
+  )
+
   output$tables <- renderTable({
     req(fabric$ready("sql"))
-    fabric_sql_query(
-      Sys.getenv("FABRIC_SQL_SERVER"),
-      "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES",
-      database = Sys.getenv("FABRIC_SQL_DATABASE"),
-      token = fabric$token_provider(), numeric_policy = "driver"
-    )
+    result <- query$result()
+    req(identical(result$generation, fabric$generation()))
+    result$data
   })
 }
+
 shinyApp(
-  ui, server, uiPattern = ".*",
+  ui,
+  server,
+  uiPattern = ".*",
   options = list(host = "127.0.0.1", port = 8100)
 )
 ```
 
 Run the directory with `shiny::runApp("path/to/your/app")`, then open
-`http://localhost:8100/` and click Sign in. The app displays the tables visible
-to your account; an empty result can be valid if the account cannot see any
-tables. Click Sign out to end the app's sign-in and clear the table display.
+`http://localhost:8100/` and click Sign in, then Show tables. You can enter part
+of a table name to filter the result. While the query runs, the button shows its
+progress and the rest of the app stays responsive. An empty result can be valid
+if the account cannot see any matching tables. Click Sign out to end the app's
+sign-in and clear the table display.
 
 The app uses three fabricQueryR functions:
 
@@ -137,10 +184,16 @@ The app uses three fabricQueryR functions:
 - `fabric_shiny_server()` creates helpers for the current visitor. Call it
   inside `server()` so each visitor has their own connection.
 
-The Sign in button calls `fabric$login()`. Inside `renderTable()`,
-`req(fabric$ready("sql"))` waits until SQL access is ready to try. Passing
-`token = fabric$token_provider()` tells the query to use the current visitor's
-sign-in. Fabric still checks whether that person can access the requested data.
+The Sign in button calls `fabric$login()`. The Show tables button starts the
+`ExtendedTask` with `query$invoke()`. `fabric$access_token("sql", async = TRUE)`
+acquires the visitor's SQL token without waiting in the Shiny event handler.
+Once it is available, `future_promise()` runs the query in a background R
+process. Fabric checks the visitor's permission to access the requested data.
+
+`query$result()` makes the result available to `renderTable()` when it is ready.
+The task button is bound to the task, so it stays busy until the query completes.
+See Shiny's [nonblocking operations guide](https://shiny.posit.co/r/articles/improve/nonblocking/)
+for more about `ExtendedTask`.
 
 To adapt this example, replace the SQL with your own read query and add the
 inputs and outputs your app needs. Use `params` for values supplied by
@@ -148,99 +201,89 @@ inputs, as in the Warehouse example below.
 
 ## Discover a Warehouse and reuse its methods
 
-If you know a Warehouse's workspace ID and item ID, you can look it up and use
-its usual fabricQueryR methods. Change the configuration to
-`services = c("fabric", "sql")`: `"fabric"` lets the app look up the item, and
-`"sql"` lets it query the data.
+If you know a Warehouse's workspace ID and item ID, you can look it up in the
+background task and use its usual fabricQueryR methods. Change the configuration
+to `services = c("fabric", "sql")`: `"fabric"` lets the app look up the item,
+and `"sql"` lets it query the data.
 
-The example below assumes an existing `dbo.orders` table and a Shiny input named
-`region`. It uses the ADBC backend, which needs its corresponding driver
-installed. Add this code inside your server function:
+The example below assumes an existing `dbo.orders` table, a Shiny input named
+`region`, and the environment variables `FABRIC_WORKSPACE_ID` and
+`FABRIC_WAREHOUSE_ID`. Replace the task definition and Show tables observer in
+the app above with:
 
 ```{r, eval=FALSE}
-warehouse <- reactive({
-  req(fabric$ready("fabric"))
-  fabric$item(
-    workspace = Sys.getenv("FABRIC_WORKSPACE_ID"),
-    item = Sys.getenv("FABRIC_WAREHOUSE_ID"),
-    type = "Warehouse"
+query <- ExtendedTask$new(function(tokens, generation, region) {
+  promises::then(tokens, function(tokens) {
+    promises::future_promise({
+      warehouse <- fabric_item(
+        workspace = Sys.getenv("FABRIC_WORKSPACE_ID"),
+        item = Sys.getenv("FABRIC_WAREHOUSE_ID"),
+        type = "Warehouse", token = tokens$fabric
+      )
+      data <- warehouse$sql_query(
+        "SELECT TOP (100) order_id, region FROM dbo.orders WHERE region = ?",
+        params = list(region), token = tokens$sql,
+        numeric_policy = "driver", verbose = FALSE
+      )
+      list(generation = generation, data = data)
+    })
+  })
+}) |> bslib::bind_task_button("load")
+
+observeEvent(input$load, {
+  req(fabric$ready())
+  query$invoke(
+    promises::promise_all(
+      fabric = fabric$access_token("fabric", async = TRUE),
+      sql = fabric$access_token("sql", async = TRUE)
+    ),
+    fabric$generation(), input$region
   )
-})
-output$orders <- renderTable({
-  req(fabric$ready("sql"))
-  warehouse()$sql_query(
-    "SELECT TOP (100) order_id, region FROM dbo.orders WHERE region = ?",
-    params = list(input$region), backend = "adbc"
-  )
-})
+}, ignoreInit = TRUE)
 ```
 
-The returned Warehouse object remembers the visitor's connection, so its
-`$sql_query()` method does not need a separate `token` argument. You can also use
-`fabric$workspaces()` to list available workspaces. Looking up an item by its
-IDs avoids needing that list first.
-
-When calling standalone functions such as `fabric_sql_query()`, always include
-`token = fabric$token_provider()`, even if you pass a Warehouse object as the
-target. Without it, the function uses the package's usual AzureAuth sign-in.
+The task receives a token for each service. It creates the Warehouse object in
+the worker, then passes the SQL token to `$sql_query()`. The table output from
+the first example also works here. To use the ADBC backend instead, install its
+driver and add `backend = "adbc"` to the query.
 
 ## Use GraphQL
 
 An existing Fabric API for GraphQL is another way to query data, without a SQL
-driver. Configure `services = "graphql"` and pass the visitor's connection to
-`fabric_graphql_query()` inside your server code:
+driver. Configure `services = "graphql"`, change the readiness checks to
+`fabric$ready("graphql")`, and acquire `fabric$access_token("graphql", async = TRUE)`
+in the Show tables observer. Inside the task's `future_promise()` block, replace
+the SQL call with a GraphQL call:
 
 ```{r, eval=FALSE}
-result <- fabric_graphql_query(
+data <- fabric_graphql_query(
   api = Sys.getenv("FABRIC_GRAPHQL_ENDPOINT"),
   query = configured_query_document,
-  variables = list(region = input$region),
-  token = fabric$token_provider()
+  variables = list(name = table_name),
+  token = token
 )
 ```
 
-Replace `configured_query_document` with a query for your API's schema. If the
+Replace `configured_query_document` and its variables with a query for your API's
+schema, and adapt the output to the returned data. If the
 underlying data source should use each visitor's permissions, check that the
 API's source connection uses the appropriate single sign-on settings. A source
 connection using saved credentials can give different access. See Microsoft's
 [GraphQL connection guidance](https://learn.microsoft.com/en-us/fabric/data-engineering/connect-apps-api-graphql).
 
-## Sign out and load data on demand
+## Task inputs and sign-out
 
 Use `fabric$logout()` to sign out, as in the example above, or
-`fabric$reauthorize()` to start sign-in again. A sign-out should also clear any
-data you have stored in the app for that visitor.
+`fabric$reauthorize()` to start sign-in again.
 
-This matters when a Load button runs a query: signing out does not click that
-button again, so its previous result can remain in a reactive value.
-`fabric$generation()` identifies the current sign-in. Store it with the result
-and check it before displaying data. It changes when the visitor signs out or
-signs in again, while routine credential renewal leaves it unchanged.
+An `ExtendedTask` uses the values passed to `$invoke()`. Read inputs such as
+`input$table_name` there, before the worker starts. Editing an input while a
+query runs affects the next invocation.
 
-For example, with a Load button and the `warehouse()` reactive defined above:
-
-```{r, eval=FALSE}
-rows <- reactiveVal(NULL)
-observeEvent(fabric$generation(), rows(NULL), ignoreNULL = FALSE, priority = 50)
-observeEvent(input$load, {
-  req(fabric$ready("sql"))
-  generation <- fabric$generation()
-  data <- warehouse()$sql_query(configured_read_query)
-  if (identical(generation, fabric$generation())) {
-    rows(list(generation = generation, data = data))
-  }
-}, ignoreInit = TRUE)
-output$rows <- renderTable({
-  req(fabric$ready("sql"))
-  value <- req(rows())
-  req(identical(value$generation, fabric$generation()))
-  value$data
-})
-```
-
-Here, `configured_read_query` is your SQL read query. Keep `rows` and other
-user-specific data inside `server()`. Avoid `req(..., cancelOutput = TRUE)` for
-these checks, because it keeps the previous output visible.
+`fabric$generation()` identifies the current sign-in. The example passes it to
+the task and checks it before displaying the result. A query already running
+can finish after sign-out, but its result will no longer be displayed. Signing
+in again does not rerun the query; click Show tables to load a new result.
 
 ## Advanced configuration
 
@@ -272,27 +315,35 @@ the visitor's delegated access. This follows Microsoft's
 ### Using an existing shinyOAuth app
 
 If your app already handles sign-in with shinyOAuth, use
-`fabric_shiny_token_provider()` with its existing connection. You do not need a
-second login UI. The shinyOAuth client must already declare a token target for
-the service you want to use. In this example, its SQL target is named `db`:
+its existing connection to supply the token to the same `ExtendedTask`. The
+shinyOAuth client must declare a token target for the service you want to use.
+For a SQL target named `db`, the invocation and result display become:
 
 ```{r, eval=FALSE}
-provider <- reactive({
+observeEvent(input$load, {
   connection <- req(auth$connection())
-  fabric_shiny_token_provider(connection, services = "sql", targets = c(sql = "db"))
-})
-output$tables <- renderTable({
-  fabric_sql_query(
-    configured_server, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES",
-    database = configured_database, token = provider(), numeric_policy = "driver"
+  query$invoke(
+    connection$access_token(
+      target = "db",
+      required_scopes = "https://database.windows.net//user_impersonation",
+      min_valid_for = 60, async = TRUE
+    ),
+    connection$id, input$table_name
   )
+}, ignoreInit = TRUE)
+output$tables <- renderTable({
+  connection <- req(auth$connection())
+  result <- query$result()
+  req(identical(result$generation, connection$id))
+  result$data
 })
 ```
 
 For several managed authorizations, select one with
 `auth$connection(selected_id)` and follow shinyOAuth's ownership and activity
-requirements. The provider stays tied to that connection. Configure the needed
-targets before sign-in; wrapping a Graph-only connection does not add SQL access.
+requirements. Configure the needed targets before sign-in. For synchronous
+calls in the Shiny process, `fabric_shiny_token_provider()` also adapts an
+existing connection to the usual `token` argument.
 
 ### Diagnosing connection problems
 
@@ -311,7 +362,10 @@ credential. SQL may wrap these errors in the parent of a
 raw credentials or provider diagnostics.
 
 Routine token refresh does not change `generation()` or rerun queries that
-depend on it. HTTP calls retain fabricQueryR's retry behavior: one 401 response
+depend on it. A token passed to a worker is fixed for that invocation; it does
+not renew there. If it expires, start a new task to acquire a fresh token.
+Synchronous calls using a token provider retain fabricQueryR's retry behavior:
+one HTTP 401 response
 can trigger token renewal and a request retry even with `idempotent = FALSE`.
 This is separate from transient network/service retries. `prepare()` and
 `reauthorize()` themselves do not replay data operations.
@@ -324,7 +378,9 @@ This is separate from transient network/service retries. `prepare()` and
 out does not close an already open DBI connection. Use `backend = "adbc"` with
 its driver when exact numeric or Arrow results are needed.
 
-For deployment, use one R process and an exact registered HTTPS callback URL.
+Set up the future worker pool once when the app starts. The example uses two
+background R processes; adjust `workers` for the resources available on your
+host. Use an exact registered HTTPS callback URL for deployment.
 The `uiPattern = ".*"` setting lets callback subpaths reach the app. Check your
 hosting service's routing, reverse-proxy and cookie settings using shinyOAuth's
 deployment guidance. The default local sign-in lifetime is eight hours; adjust

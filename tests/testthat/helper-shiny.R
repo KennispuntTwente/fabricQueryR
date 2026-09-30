@@ -117,3 +117,14 @@ shiny_test_await <- function(promise, timeout = 10) {
   }
   value
 }
+
+shiny_test_wait <- function(ready, timeout = 30) {
+  deadline <- Sys.time() + timeout
+  while (!ready() && Sys.time() < deadline) {
+    later::run_now(0.01)
+  }
+  if (!ready()) {
+    stop("Timed out waiting for the background test task")
+  }
+  invisible(NULL)
+}

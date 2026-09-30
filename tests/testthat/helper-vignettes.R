@@ -140,6 +140,21 @@ documentation_r6_method_registry <- function() {
       ))
     )
   }
+  registry$access_token <- c(
+    registry$access_token,
+    list(list(
+      class = "OAuthConnection",
+      parameters = c(
+        "target",
+        "required_scopes",
+        "min_valid_for",
+        "force_refresh",
+        "async"
+      ),
+      allow_dots = FALSE,
+      targets = character()
+    ))
+  )
   registry
 }
 
@@ -164,7 +179,9 @@ documentation_external_methods <- c(
   "Close",
   "read_next_batch",
   "set",
-  "connection"
+  "connection",
+  "new",
+  "invoke"
 )
 
 vignette_mock_r6 <- function(fields = list(), methods = list(), class = NULL) {

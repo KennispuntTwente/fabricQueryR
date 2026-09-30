@@ -1068,6 +1068,17 @@ test_that("user-data-function vignette executes scalar and structured calls", {
 
 test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
   skip_if_no_shiny_targets()
+  skip_if_not_installed("bslib", "0.7.0")
+  skip_if_not_installed("future")
+  skip_if_not_installed("promises")
+  local_mocked_bindings(
+    plan = function(...) invisible(NULL),
+    .package = "future"
+  )
+  local_mocked_bindings(
+    future_promise = function(expr, ...) promises::promise_resolve(force(expr)),
+    .package = "promises"
+  )
   path <- test_path("..", "..", "vignettes", "shiny-integration.Rmd")
   if (!file.exists(path)) {
     skip("Package vignette source is not available in installed test runs")
@@ -1078,7 +1089,9 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
     c(
       "fluidPage",
       "actionButton",
+      "textInput",
       "tableOutput",
+      "ExtendedTask",
       "observeEvent",
       "renderTable",
       "req",
@@ -1086,14 +1099,15 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
     ),
     envir = asNamespace("shiny")
   )
-  bindings$Sys.getenv <- function(name) {
+  bindings$Sys.getenv <- function(name, unset = "") {
     switch(
       name,
       ENTRA_TENANT_ID = "11111111-1111-1111-1111-111111111111",
       ENTRA_CLIENT_ID = "app",
       ENTRA_CLIENT_SECRET = "synthetic-secret",
       FABRIC_SQL_SERVER = "warehouse.datawarehouse.fabric.microsoft.com",
-      FABRIC_SQL_DATABASE = "orders"
+      FABRIC_SQL_DATABASE = "orders",
+      unset
     )
   }
   bindings$fabric_shiny_config <- fabric_shiny_config
@@ -1103,17 +1117,17 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
       ready = function(service) signed_in() && service == "sql",
       login = function() signed_in(TRUE),
       logout = function() signed_in(FALSE),
-      token_provider = function() {
-        function(audience, force_refresh = FALSE) {
-          expect_identical(audience, .fabric_audience$sql)
-          "synthetic-user-token"
-        }
+      generation = function() if (signed_in()) "doc-user" else NULL,
+      access_token = function(service, async) {
+        expect_identical(service, "sql")
+        expect_identical(async, TRUE)
+        promises::promise_resolve("synthetic-user-token")
       }
     )
   }
   bindings$fabric_sql_query <- function(server, sql, database, token, ...) {
     calls$server <- server
-    calls$token <- token(.fabric_audience$sql)
+    calls$token <- token
     calls$database <- database
     data.frame(TABLE_SCHEMA = "dbo", TABLE_NAME = "orders")
   }
@@ -1123,11 +1137,24 @@ test_that("the Shiny vignette executes its fixed-endpoint SQL app", {
     function(chunk) grepl("r fabric-app,", chunk$header, fixed = TRUE),
     logical(1)
   ))
+  expect_identical(
+    chunks[[app_chunk]]$body,
+    readLines(system.file(
+      "examples",
+      "shiny-fabric",
+      "app.R",
+      package = "fabricQueryR"
+    ))
+  )
   example <- vignette_evaluate_chunks(path, app_chunk, bindings = bindings)
   shiny::testServer(example$server, {
     session$flushReact()
     expect_null(calls$token)
     session$setInputs(login = 1L)
+    expect_null(calls$token)
+    session$setInputs(table_name = "orders", load = 1L)
+    shiny_test_wait(function() identical(query$status(), "success"))
+    session$flushReact()
     expect_match(output$tables, "orders", fixed = TRUE)
     expect_identical(
       calls$server,

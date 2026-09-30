@@ -11,9 +11,12 @@ fabricQueryR delivery follows four commits:
 3. UI/server integration reusing discovery and existing R6 objects.
 4. Runnable app, deployment guidance and local acceptance tests.
 
-The initial implementation uses a fixed tenant and session retention. Static
-`.default` consent, other workloads, retained/multiple-worker sessions and
-background workers remain follow-ups. Per the implementation request, browser
+The implementation uses a fixed tenant and session retention. The 30 September
+update adds asynchronous service-token acquisition and `ExtendedTask` examples
+using `future_promise()` workers. Workers receive fixed service tokens and plain
+query inputs; OAuth connections and refresh remain in the owning Shiny process.
+Static `.default` consent, other workloads, retained/multiple-worker sessions
+and credential renewal during background work remain follow-ups. Browser
 acceptance with two restricted users is pending; local tests must not be cited
 as proof of Entra consent, delegated SQL grants or row-level security.
 

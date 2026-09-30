@@ -1,7 +1,9 @@
-# Initial Shiny integration acceptance
+# Shiny integration acceptance
 
 Implementation: 29 September 2026. Scope: explicit delegated Fabric discovery,
 SQL and GraphQL; one fixed tenant; session retention; synchronous calls.
+Updated 30 September 2026 with asynchronous token acquisition and query workers
+using Shiny `ExtendedTask` and `promises::future_promise()`.
 
 The user requested local implementation/testing and explicitly deferred browser
 acceptance. Do not describe an offline test or a service-principal sandbox pass
@@ -42,7 +44,7 @@ Covered locally:
 The full offline suite skips external Fabric, Python oracle and runtime lanes
 when not opted in. Those skips are not evidence for the scenarios below.
 
-Validation results:
+Initial validation results (29 September):
 
 - Full offline suite: **7,840 passing expectations, 0 failures, 0 errors,
   0 warnings, 181 skipped test cases** in optional/external lanes.
@@ -55,6 +57,35 @@ Validation results:
   copying local development/check artifacts, and set `LC_ALL=C`, `LANG=C` and
   `LANGUAGE=en` for child processes because this Windows R setup rejects
   `C.UTF-8`. The new vignette was rendered separately.
+
+## ExtendedTask update (30 September)
+
+`fabric$access_token(service, async = TRUE)` resolves a fixed token for one
+service while retaining endpoint policy through serialization. Acquisition
+rejects an authorization replaced or closed before the token is delivered.
+The vignette and packaged app contain the same complete `ExtendedTask` example.
+Only resolved access tokens and ordinary query inputs enter the query worker;
+the owning Shiny process retains OAuth connections and refresh credentials.
+
+Focused validation:
+
+- Shiny facade, token-provider and asynchronous-acquisition tests passed.
+- A real background R process ran the example's task with a synthetic SQL
+  transport. A second Shiny input and logout were handled while the worker was
+  held open. Its result was discarded after login changed; an explicit new
+  invocation displayed the new user's result. The worker PID differed from
+  the Shiny process PID.
+- Vignette execution and signature checks passed. The rendered HTML contains
+  the complete app, and `pkgdown::check_pkgdown()` found no problems.
+- `devtools::test(stop_on_failure = TRUE, reporter = "summary")` passed with
+  no failures or test warnings; 181 optional/live test cases were skipped.
+- A clean staged package passed
+  `R CMD check --no-manual --ignore-vignettes --no-tests` with 0 errors,
+  0 warnings and 0 notes. The full test suite and vignette rendering were run
+  separately, as above.
+
+The worker test uses a synthetic query implementation; it does not establish
+delegated Fabric access. Browser acceptance remains pending below.
 
 ## Pending delegated/browser gate
 

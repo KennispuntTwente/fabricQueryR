@@ -28,6 +28,7 @@ Suggests:
     later,
     lifecycle,
     odbc,
+    parallelly,
     processx,
     promises,
     purrr,
