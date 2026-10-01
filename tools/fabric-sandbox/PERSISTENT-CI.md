@@ -58,3 +58,31 @@ Local tests exercise reuse, interrupted preparation, ownership checks, lease
 isolation and shutdown behavior. Paid activation and two consecutive full live
 runs are separate acceptance checks; offline passes do not establish that every
 Fabric service is ready or that the full suite fits an F2 one-hour session.
+
+Verified on 1 October 2026:
+
+- `uv --directory tools/fabric-sandbox run pytest -o addopts= -q`: 301 passed.
+- `python -m unittest discover -s tools/ci/tests`: 10 passed.
+- `actionlint` 1.7.12: integration, manual sandbox and periodic guard workflows
+  passed (shellcheck and pyflakes integrations disabled).
+- The capacity controller read the actual ARM resource and Fabric capacity ID;
+  `rpackagecap` was F2 and Paused. Read-only workspace reconciliation found no
+  existing core or preview integration workspace. No paid resume was requested.
+- [Integration shutdown check](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36925668767)
+  passed on Ubuntu: tooling tests, OIDC, lease tagging, independent guard dispatch
+  and final pause verification. Provisioning and R live tests were deliberately
+  skipped by `action=check-shutdown`.
+- Its [independent two-minute timer](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36925751790)
+  also passed, including fresh OIDC login at the deadline and lease-scoped pause
+  verification. A final ARM read confirmed F2 remained Paused.
+- The already enabled default-branch periodic guard also completed a real
+  [scheduled run](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36925496422).
+  It understands integration leases through the unchanged lease/repository/deadline
+  tag keys; the separate purpose and run tags prevent sharing an active session.
+
+Pending paid acceptance: first bootstrap, a second run reusing the same item IDs
+without seeding, all selected R service tests, scratch recovery after an
+interrupted live test, and an actual Active-to-Paused transition. The independent
+timer targets one hour, while test processes reserve the final three minutes
+for cleanup. No live evidence yet establishes the full suite's elapsed time on
+this F2. Use a single lane first if bootstrap plus tests exceed the budget.

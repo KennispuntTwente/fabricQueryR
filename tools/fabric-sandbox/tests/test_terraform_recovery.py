@@ -161,4 +161,3 @@ def test_sql_capacity_fallback_still_uses_an_ordinary_apply(tmp_path, workflow):
     assert (tmp_path / "github-env").read_text().strip() == (
         "TF_VAR_provision_sql_database=false"
     )
-
