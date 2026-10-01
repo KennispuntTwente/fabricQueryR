@@ -1,0 +1,35 @@
+name: Pause expired Shiny F2
+
+on:
+  schedule:
+    # Offset from the top of the hour; independent of the startup/shutdown runs.
+    - cron: "3-58/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: fabric-shiny-periodic-pause-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 8
+    env:
+      CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the pause-only controller
+        run: python3 -m unittest discover -s tools/ci/tests -p 'test_fabric_capacity_watchdog.py'
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Pause F2 if its Shiny deadline expired
+        run: python3 tools/ci/fabric_capacity_watchdog.py --resource-id "$CAPACITY_RESOURCE_ID"
