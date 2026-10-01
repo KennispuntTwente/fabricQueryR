@@ -199,6 +199,10 @@ explicit `reseed=true`. The preview seed remains focused on OneLake; a stale
 core data contract currently reseeds the full core data scope. Job-definition
 changes publish separately without a data reseed. The Warehouse snapshot is
 replaced after data changes, not on ordinary test runs.
+On reuse after a day or longer, its timestamp is advanced in place while keeping
+the snapshot ID. This keeps it within the parent Warehouse's
+[retention window](https://learn.microsoft.com/en-us/fabric/data-warehouse/warehouse-snapshot)
+without another data seed.
 
 `sql_database=true` includes the optional SQL Database target. If the capacity
 cannot host it, explicitly dispatch with `sql_database=false`; unexpected API

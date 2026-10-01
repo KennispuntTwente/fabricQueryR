@@ -5,11 +5,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 from dataclasses import replace
 from hashlib import sha256
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.storage.filedatalake import DataLakeServiceClient
+import pyodbc
 
 from .credentials import CachedTokenCredential, get_credential
 from .deployment_revision import (
@@ -33,6 +35,7 @@ from .power_bi_api import (
 )
 from .seed import seed
 from .settings import SandboxSettings
+from .sql_api import SQL_AUDIENCE, _odbc_connection_settings
 from .shiny_sandbox import (
     complete_operation,
     definition_part,
@@ -41,6 +44,27 @@ from .shiny_sandbox import (
 )
 
 MANAGER = ".github/workflows/integration-fabric.yaml"
+SNAPSHOT_MAX_AGE = 24 * 60 * 60
+
+
+def advance_snapshot(api, credential, settings, warehouse_id):
+    """Keep the same snapshot ID while moving its time into the retention window."""
+    warehouse = api.get_warehouse(settings.workspace_id, warehouse_id)
+    connection_string, attributes = _odbc_connection_settings(
+        warehouse["properties"]["connectionString"],
+        "TestWarehouse",
+        credential.get_token(SQL_AUDIENCE).token,
+    )
+    connection = pyodbc.connect(
+        connection_string, attrs_before=attributes, autocommit=True
+    )
+    try:
+        connection.timeout = 30
+        connection.cursor().execute(
+            "ALTER DATABASE [TestWarehouseSnapshot] SET TIMESTAMP = CURRENT_TIMESTAMP"
+        )
+    finally:
+        connection.close()
 
 
 def workspace_identity(repository, lane):
@@ -296,7 +320,9 @@ def prepare(api, credential, service, settings, repository, *, reseed=False):
         ]
         if len(snapshots) > 1:
             raise RuntimeError("Ambiguous Warehouse snapshot")
-        if read_marker(service, settings, "snapshot") != snapshot_contract:
+        previous_snapshot = read_marker(service, settings, "snapshot") or {}
+        fixture_changed = previous_snapshot.get("fixture") != snapshot_contract
+        if fixture_changed:
             for snapshot in snapshots:
                 complete_operation(
                     api,
@@ -307,7 +333,7 @@ def prepare(api, credential, service, settings, repository, *, reseed=False):
                     "Delete stale snapshot",
                 )
                 items.remove(snapshot)
-        ensure_item(
+        snapshot = ensure_item(
             api,
             settings.workspace_id,
             items,
@@ -316,7 +342,29 @@ def prepare(api, credential, service, settings, repository, *, reseed=False):
             "warehouseSnapshots",
             creationPayload={"parentWarehouseId": targets["TestWarehouse"]},
         )
-        write_marker(service, settings, "snapshot", snapshot_contract)
+        captured_at = previous_snapshot.get("captured_at", 0)
+        if (
+            fixture_changed
+            or not snapshots
+            or previous_snapshot.get("id") != snapshot["id"]
+        ):
+            captured_at = int(time.time())
+        elif (
+            not isinstance(captured_at, (int, float))
+            or not 0 <= time.time() - captured_at < SNAPSHOT_MAX_AGE
+        ):
+            advance_snapshot(api, credential, settings, targets["TestWarehouse"])
+            captured_at = int(time.time())
+        write_marker(
+            service,
+            settings,
+            "snapshot",
+            {
+                "fixture": snapshot_contract,
+                "id": snapshot["id"],
+                "captured_at": captured_at,
+            },
+        )
     (discover if scope == "all" else discover_onelake)(settings)
     print(f"Persistent {lane} manifest: {settings.manifest_path}", flush=True)
     return settings

@@ -256,3 +256,40 @@ def test_missing_deployed_item_is_republished_without_data_reset(sandbox):
         ci.prepare(api, Credential(), service, settings, REPO)
     assert published[-1] == ["TestPipeline.DataPipeline"]
     assert seeded == ["all"]
+
+
+def test_old_snapshot_advances_in_place_without_reseeding(sandbox, monkeypatch):
+    settings, fabric, service, published, seeded = sandbox
+    clock = [1000000]
+    monkeypatch.setattr(ci.time, "time", lambda: clock[0])
+    advance = MagicMock()
+    monkeypatch.setattr(ci, "advance_snapshot", advance)
+    with fabric.client() as api:
+        configured = ci.prepare(api, Credential(), service, settings, REPO)
+        before = ci.read_marker(service, configured, "snapshot")
+        clock[0] += ci.SNAPSHOT_MAX_AGE
+        ci.prepare(api, Credential(), service, settings, REPO)
+        after = ci.read_marker(service, configured, "snapshot")
+        ci.prepare(api, Credential(), service, settings, REPO)
+    assert before["id"] == after["id"]
+    assert after["captured_at"] == clock[0]
+    advance.assert_called_once()
+    assert seeded == ["all"]
+    assert len(published) == 1
+    assert not any(method == "DELETE" for method, _ in fabric.requests)
+
+
+def test_advancing_snapshot_uses_parent_connection_and_closes_it(sandbox, monkeypatch):
+    settings = sandbox[0]
+    api, connection = MagicMock(), MagicMock()
+    api.get_warehouse.return_value = {
+        "properties": {"connectionString": "test.sql.fabric.microsoft.com"}
+    }
+    connect = MagicMock(return_value=connection)
+    monkeypatch.setattr(ci.pyodbc, "connect", connect)
+    ci.advance_snapshot(api, Credential(), settings, "warehouse")
+    assert "Database=TestWarehouse;" in connect.call_args.args[0]
+    connection.cursor.return_value.execute.assert_called_once_with(
+        "ALTER DATABASE [TestWarehouseSnapshot] SET TIMESTAMP = CURRENT_TIMESTAMP"
+    )
+    connection.close.assert_called_once()
