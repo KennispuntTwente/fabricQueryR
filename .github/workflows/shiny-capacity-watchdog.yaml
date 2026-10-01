@@ -2,8 +2,8 @@ name: Pause expired Fabric F2
 
 on:
   schedule:
-    # Offset from the top of the hour; independent of the startup/shutdown runs.
-    - cron: "3-58/5 * * * *"
+    # Hourly, offset from the top of the hour; independent of startup/shutdown.
+    - cron: "3 * * * *"
   workflow_dispatch:
 
 permissions:

@@ -110,7 +110,7 @@ asks for the sandbox, action, and optional reseed.
 ### Periodic backup check
 
 The separate [Pause expired Fabric F2 workflow](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/shiny-capacity-watchdog.yaml)
-checks the existing capacity every five minutes. It is installed on `master`,
+checks the existing capacity hourly, at minute 3. It is installed on `master`,
 where GitHub runs scheduled workflows, and can also be run manually. Its queue
 is independent of the setup and one-hour shutdown jobs.
 
