@@ -2,6 +2,8 @@
 
 ## fabricQueryR 1.0.1
 
+CRAN release: 2026-09-30
+
 - Fix a GraphQL numeric round-trip test on R builds without long-double
   support (CRAN’s `noLD` check). Package behavior is unchanged.
 
