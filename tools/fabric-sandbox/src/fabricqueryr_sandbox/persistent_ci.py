@@ -42,6 +42,7 @@ from .shiny_sandbox import (
     wait_active_capacity,
 )
 from .sql_api import SQL_AUDIENCE, _odbc_connection_settings
+from .storage import check_storage
 
 MANAGER = ".github/workflows/integration-fabric.yaml"
 SNAPSHOT_MAX_AGE = 24 * 60 * 60
@@ -409,12 +410,16 @@ def main(argv=None):
                 credential,
                 service,
                 workspace["id"],
-                scratch=args.action == "prepare",
+                # The shutdown runner needs no SQL driver installation. SQL
+                # scratch is reaped at the next prepare; OneLake/KQL at both ends.
+                sql=args.action == "prepare",
             )
+            check_storage(api, service, workspace["id"])
         if args.action == "prepare":
-            prepare(
+            configured = prepare(
                 api, credential, service, settings, args.repository, reseed=args.reseed
             )
+            check_storage(api, service, configured.workspace_id)
 
 
 if __name__ == "__main__":

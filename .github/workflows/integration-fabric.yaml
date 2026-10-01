@@ -131,6 +131,8 @@ jobs:
           - lane: core
             runtime: "1.3"
     env: &provision_env
+      FABRIC_SANDBOX_MAX_STORAGE_BYTES: ${{ vars.FABRIC_SANDBOX_MAX_STORAGE_BYTES || '1073741824' }}
+      FABRIC_SANDBOX_MAX_STORAGE_ENTRIES: ${{ vars.FABRIC_SANDBOX_MAX_STORAGE_ENTRIES || '20000' }}
       FABRIC_CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
       FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}
@@ -531,6 +533,8 @@ jobs:
     timeout-minutes: 10
     permissions: *fabric_permissions
     env:
+      FABRIC_SANDBOX_MAX_STORAGE_BYTES: ${{ vars.FABRIC_SANDBOX_MAX_STORAGE_BYTES || '1073741824' }}
+      FABRIC_SANDBOX_MAX_STORAGE_ENTRIES: ${{ vars.FABRIC_SANDBOX_MAX_STORAGE_ENTRIES || '20000' }}
       CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
       CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
       FABRIC_CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
@@ -545,7 +549,7 @@ jobs:
       - name: Sign in for cleanup
         uses: azure/login@v3
         with: *azure_login
-      - name: Stop test schedules and compute before pausing
+      - name: Stop compute and remove disposable test data before pausing
         if: inputs.action == 'test'
         timeout-minutes: 2
         env:
@@ -572,4 +576,4 @@ jobs:
         run: |
           uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause pause \
             --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
-          echo 'F2 paused; persistent workspaces, fixtures and Delta history retained.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'F2 paused. Reusable fixtures and their Delta history are retained; disposable outputs are cleaned above or retried at the next start.' >> "$GITHUB_STEP_SUMMARY"

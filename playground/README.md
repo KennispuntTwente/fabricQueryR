@@ -20,6 +20,11 @@ Use `pause` with the sandbox you started to finish early; all workspaces and dat
 are retained. The shared capacity allows one sandbox or integration session at a
 time. Starting again keeps the original deadline.
 
+Each start clears known temporary test and demo outputs, then checks the test
+Lakehouses against a 1 GiB / 20,000-entry storage budget. Seeded data and other
+manually created data are preserved. See [storage cleanup](../infra/fabric/README.md#storage-cleanup-and-budget)
+for the scope and configurable thresholds.
+
 ```sh
 gh workflow run fabric-sandbox.yaml --ref master -f sandbox=development -f action=start
 gh workflow run fabric-sandbox.yaml --ref master -f sandbox=development -f action=pause
@@ -152,7 +157,7 @@ warehouse_round_trip <- demo_warehouse_write(sandbox)
 The Lakehouse writer is different because the package deliberately has no
 table-deletion helper. This call creates or replaces the dedicated
 `fabricqueryr_playground_orders` table and leaves it available for later SQL,
-Delta, and Livy experiments:
+Delta, and Livy experiments until the next sandbox `start`:
 
 ```r
 lakehouse_write <- write_playground_lakehouse_table(sandbox)
@@ -160,7 +165,7 @@ lakehouse_write$rows
 ```
 
 The optional KQL ingestion snippet in `tour.R` similarly retains
-`fabricqueryr_playground_events`. Its stable ingestion key is intended for
+`fabricqueryr_playground_events` until the next sandbox `start`. Its stable ingestion key is intended for
 retrying the same example batch. The KQL export snippet removes its temporary
 OneLake directory after reading the Parquet files.
 

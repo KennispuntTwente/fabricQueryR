@@ -8,9 +8,10 @@ import pyodbc
 from azure.core.exceptions import ResourceNotFoundError
 
 from .fabric_api import TERMINAL_JOB_STATES
-from .kusto_api import KustoApi, INGESTION_TABLE_COMMAND
+from .kusto_api import INGESTION_TABLE_COMMAND, KustoApi
 from .shiny_sandbox import complete_operation
 from .sql_api import SQL_AUDIENCE, _odbc_connection_settings
+from .storage import LAKEHOUSES, children, inside, relative_path
 
 JOB_TYPES = {
     "Notebook": "RunNotebook",
@@ -20,17 +21,45 @@ JOB_TYPES = {
 LIVY_TERMINAL = {"dead", "error", "killed", "success"}
 TEMP_NOTEBOOK = re.compile(r"^fabricqueryr_(probe|operation|jupyter)_[A-Za-z0-9_-]+$")
 TEMP_SQL = re.compile(
-    r"^(fabricqueryr_(r_write|adbc_write|case_[0-9]+|unsigned_[0-9]+|timestamp_[0-9]+|narrowing_[0-9]+|dictionary_[0-9]+|records_[0-9]+)|rollback_[0-9a-f]+)$"
+    r"^(fabricqueryr_(r_write|adbc_write|case_[0-9]+|unsigned_[0-9]+|timestamp_[0-9]+|narrowing_[0-9]+|dictionary_[0-9]+|records_[0-9]+|playground_[0-9]+_[0-9]+)|rollback_[0-9a-f]+)$"
 )
 TEMP_KQL = re.compile(
-    r"^fabricqueryr_(mixed|cleanup|decimal|r_create|storage|unsigned)_[A-Za-z0-9_-]+$"
+    r"^fabricqueryr_((mixed|cleanup|decimal|r_create|storage|unsigned)_[A-Za-z0-9_-]+|playground_events)$"
 )
 TEMP_FILES = re.compile(
     r"^fabricqueryr(?:-(?:tests|staging|decimal-export|kql-export)$|-(?:datetime|livy-languages|livy-dependencies|encoding|collision)-[A-Za-z0-9_-]+$|_(?:dependencies|job_override|discovery|case|mixed|cleanup|csv_transform)_[A-Za-z0-9_-]+$|_recovery$)"
 )
 TEMP_SHORTCUT = re.compile(
-    r"^fabricqueryr_(shortcut_live|table_shortcut_[A-Za-z0-9_-]+|bulk_[A-Za-z0-9_-]+|csv_transform_[A-Za-z0-9_-]+|external_[A-Za-z0-9_-]+|case_[A-Za-z0-9_-]+)$"
+    r"^fabricqueryr_(shortcut_live|table_shortcut_[A-Za-z0-9_-]+|bulk_[A-Za-z0-9_-]+|csv_transform_[A-Za-z0-9_-]+|external_[A-Za-z0-9_-]+|case_[A-Za-z0-9_-]+|playground_[0-9]+)$"
 )
+# These are outputs recreated by write tests/the playground, never seed fixtures.
+# Removing the entire disposable table removes its old Delta files and log too.
+TEMP_TABLES = {
+    "fabricqueryr_csv_load",
+    "fabricqueryr_r_load",
+    "fabricqueryr_expected_failure",
+    "fabricqueryr_recovered_load",
+    "fabricqueryr_lazy_arrow_load",
+    "fabricqueryr_complex_arrow_load",
+    "fabricqueryr_playground_orders",
+}
+TEMP_PLAYGROUND = re.compile(
+    r"^(fabricqueryr-demo-[0-9]+-[0-9]+\.csv|kql-export-[A-Za-z0-9_-]+)$"
+)
+
+
+def scratch_path(path):
+    parts = relative_path(path).split("/")
+    if len(parts) >= 2 and parts[0] == "Files":
+        return bool(TEMP_FILES.fullmatch(parts[1])) or (
+            len(parts) >= 3
+            and parts[1] == "playground"
+            and bool(TEMP_PLAYGROUND.fullmatch(parts[2]))
+        )
+    if len(parts) >= 2 and parts[0] == "Tables":
+        table = parts[2] if parts[1] == "dbo" and len(parts) >= 3 else parts[1]
+        return table in TEMP_TABLES
+    return False
 
 
 def pages(api, path):
@@ -123,35 +152,40 @@ def quiesce_livy(api, workspace_id, lakehouse_id):
 def clean_files(api, service, workspace_id, lakehouse_id):
     root = f"/workspaces/{workspace_id}/items/{lakehouse_id}/shortcuts"
     # Remove links via the shortcut API, never recursively through their target.
+    all_links, remaining_links = set(), set()
     for shortcut in pages(api, root):
         path, name = shortcut["path"], shortcut["name"]
-        components = path.split("/")
-        inside_scratch = (
-            len(components) > 1
-            and components[0] == "Files"
-            and TEMP_FILES.fullmatch(components[1])
-            and ".." not in components
-        )
-        if inside_scratch or (
+        link = relative_path(f"{path}/{name}")
+        all_links.add(link)
+        if scratch_path(link) or (
             path in {"Files", "Tables", "Tables/dbo"} and TEMP_SHORTCUT.fullmatch(name)
         ):
             api.request(
                 "DELETE", f"{root}/{quote(path, safe='/')}/{quote(name, safe='')}"
             )
+        else:
+            remaining_links.add(link)
     filesystem = service.get_file_system_client(workspace_id)
-    try:
-        paths = list(
-            filesystem.get_paths(path=f"{lakehouse_id}/Files", recursive=False)
-        )
-    except ResourceNotFoundError:
-        return
-    for entry in paths:
-        name = entry.name.rsplit("/", 1)[-1]
-        if TEMP_FILES.fullmatch(name):
-            if entry.is_directory:
-                filesystem.get_directory_client(entry.name).delete_directory()
-            else:
-                filesystem.get_file_client(entry.name).delete_file()
+    # Only descend into known containers, and never into a schema/folder shortcut.
+    for parent in ("Files", "Files/playground", "Tables", "Tables/dbo"):
+        if any(inside(parent, link) for link in remaining_links):
+            continue
+        for entry in children(filesystem, f"{lakehouse_id}/{parent}"):
+            path = entry.name[len(lakehouse_id) + 1 :]
+            if not scratch_path(path):
+                continue
+            # Do not assume that removal of a shortcut is instantly visible to
+            # OneLake. Reap any containing scratch directory on the next pass.
+            if any(inside(path, link) or inside(link, path) for link in all_links):
+                continue
+            print(f"Removing disposable OneLake path: {entry.name}", flush=True)
+            try:
+                if entry.is_directory:
+                    filesystem.get_directory_client(entry.name).delete_directory()
+                else:
+                    filesystem.get_file_client(entry.name).delete_file()
+            except ResourceNotFoundError:
+                pass  # A deleted shortcut or a concurrent test finalizer removed it.
 
 
 def clean_sql(api, credential, workspace_id, item):
@@ -221,30 +255,36 @@ def clean_kql(api, credential, workspace_id, item):
             )
 
 
-def clean_workspace(api, credential, service, workspace_id, *, scratch=True):
+def clean_workspace(api, credential, service, workspace_id, *, scratch=True, sql=True):
     """Caller must validate workspace ownership before calling this function."""
     items = api.list_items(workspace_id)
     quiesce_jobs(api, workspace_id, items)
+    lakehouses = [
+        i for i in items if i["type"] == "Lakehouse" and i["displayName"] in LAKEHOUSES
+    ]
+    # Stop every writer before deleting any data, including cross-Lakehouse jobs.
+    for item in lakehouses:
+        quiesce_livy(api, workspace_id, item["id"])
+    if not scratch:
+        return
+    for item in lakehouses:
+        clean_files(api, service, workspace_id, item["id"])
     for item in items:
-        if item["type"] == "Lakehouse" and item["displayName"] in {
-            "TestLakehouse",
-            "TestLakehouseNoSchemas",
-        }:
-            quiesce_livy(api, workspace_id, item["id"])
-            if scratch:
-                clean_files(api, service, workspace_id, item["id"])
-        if not scratch:
-            continue
         if item["type"] == "Notebook" and TEMP_NOTEBOOK.fullmatch(item["displayName"]):
             complete_operation(
                 api,
                 api.request("DELETE", f"/workspaces/{workspace_id}/items/{item['id']}"),
                 "Delete interrupted probe",
             )
-        elif item["type"] in {"Warehouse", "SQLDatabase"} and item["displayName"] in {
-            "TestWarehouse",
-            "TestSQLDatabase",
-        }:
+        elif (
+            sql
+            and item["type"] in {"Warehouse", "SQLDatabase"}
+            and item["displayName"]
+            in {
+                "TestWarehouse",
+                "TestSQLDatabase",
+            }
+        ):
             clean_sql(api, credential, workspace_id, item)
         elif item["type"] == "KQLDatabase" and item["displayName"] == "TestKQLDatabase":
             clean_kql(api, credential, workspace_id, item)

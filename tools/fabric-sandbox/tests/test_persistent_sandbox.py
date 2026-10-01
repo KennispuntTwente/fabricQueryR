@@ -48,6 +48,7 @@ def development(sandbox, monkeypatch):
     monkeypatch.setattr(
         interactive, "DataLakeServiceClient", lambda **_: nullcontext(service)
     )
+    monkeypatch.setattr(interactive, "maintain", MagicMock())
     return settings, fabric, service, published, seeded, sql_error
 
 
@@ -67,6 +68,12 @@ def test_development_start_retains_full_fixtures_and_reuses_runtime_two_workspac
     assert first["displayName"] == persistent_workspace.WORKSPACES["development"]
     assert [r for r in fabric.requests if r[0] != "GET"] == mutations
     assert seeded == ["all"] and len(published) == 1
+    assert [c.kwargs for c in interactive.maintain.call_args_list] == [
+        {},
+        {"clean": False},
+        {},
+        {"clean": False},
+    ]
     assert {i["type"] for i in fabric.items} >= {
         "SQLDatabase",
         "WarehouseSnapshot",
@@ -137,11 +144,14 @@ def test_shiny_uses_its_existing_lightweight_fixtures(sandbox, monkeypatch, rese
         side_effect=AssertionError("Shiny must not deploy the full development suite")
     )
     monkeypatch.setattr(persistent_ci, "reconcile", reconcile)
+    maintain = MagicMock()
+    monkeypatch.setattr(interactive, "maintain", maintain)
     result = interactive.prepare(
         api, Credential(), settings, REPO, OWNER, "shiny", reseed=reseed
     )
     assert result["displayName"] == shiny_sandbox.WORKSPACE_NAME
     assert seed.call_count == int(reseed)
+    assert [c.kwargs for c in maintain.call_args_list] == [{}, {"clean": False}]
     assert all(method != "DELETE" for method, *_ in api.requests)
 
 

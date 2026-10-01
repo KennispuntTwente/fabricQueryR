@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
-
 from fabricqueryr_sandbox import reset_ci as reset
 from fabricqueryr_sandbox.fabric_api import FabricApi
 from test_shiny_sandbox import Credential
@@ -96,10 +95,13 @@ def test_files_cleanup_preserves_fixtures_markers_and_unknown_data():
         "fabricqueryr-staging",
         "fabricqueryr_case_123",
     ]
-    filesystem.get_paths.return_value = [
+    entries = [
         SimpleNamespace(name=f"lakehouse/Files/{name}", is_directory=True)
         for name in names
     ]
+    filesystem.get_paths.side_effect = lambda *, path, recursive: (
+        entries if path == "lakehouse/Files" else []
+    )
     api.request.return_value = httpx.Response(
         200,
         json={
@@ -111,7 +113,9 @@ def test_files_cleanup_preserves_fixtures_markers_and_unknown_data():
     )
     reset.clean_files(api, service, "workspace", "lakehouse")
     deleted = [call.args[0] for call in filesystem.get_directory_client.call_args_list]
-    assert deleted == [f"lakehouse/Files/{name}" for name in names[3:]]
+    # The parent of a just-deleted shortcut waits until the next reset, because
+    # the link deletion may not yet be visible through OneLake.
+    assert deleted == [f"lakehouse/Files/{name}" for name in names[3:5]]
     api.request.assert_any_call(
         "DELETE",
         "/workspaces/workspace/items/lakehouse/shortcuts/Files/fabricqueryr_case_123/ExternalTarget",

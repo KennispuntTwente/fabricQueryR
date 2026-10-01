@@ -190,9 +190,10 @@ fails with an explicit migration message instead of destroying an existing item.
 Preparation deletes interrupted test schedules and stops remaining jobs and
 Livy sessions before resetting scratch data. It removes temporary notebooks,
 test shortcuts/staged files, temporary SQL/KQL tables and the GraphQL mutation
-sentinel; it empties the ingestion test table. Fixed Lakehouse load-test tables
-are retained and overwritten by their tests. Baseline fixture tables, Delta
-history and unchanged definitions remain intact. Data seeding runs only for a
+sentinel; it empties the ingestion test table. Disposable Lakehouse load-test
+tables are removed with all their Delta data and log files, then recreated by
+their tests. Baseline fixture tables, their Delta history and unchanged
+definitions remain intact. Data seeding runs only for a
 missing/incomplete/stale lane fixture contract, a missing data target, or an
 explicit `reseed=true`. The preview seed remains focused on OneLake; a stale
 core data contract currently reseeds the full core data scope. Job-definition
@@ -235,6 +236,52 @@ For leftovers from the former temporary CI setup, `fabric-sandbox cleanup`
 lists workspaces with both the `fabricqueryr-ci-` prefix and `fabricqueryr-ci;`
 marker. It remains a dry run unless `--confirm` is supplied.
 
+### Storage cleanup and budget
+
+Cleanup runs during sessions that are already active; it never resumes F2 or
+starts Spark just to reclaim storage. It verifies workspace ownership and stops
+item jobs and Livy sessions before deleting any test data.
+
+Integration preparation removes recognized temporary files, notebooks, shortcuts
+and SQL/KQL tables. The final cleanup also removes disposable OneLake tables,
+staging files and KQL outputs before pausing. SQL scratch is handled by the tests
+and retried at the next preparation, avoiding SQL driver installation in the
+shutdown runner. Final cleanup has a two-minute deadline: failures or timeouts
+still lead to the pause step, and the next preparation retries leftover cleanup.
+
+Both interactive sandboxes apply the same cleanup at `start`. This also catches
+outputs left by interrupted local tests or playground sessions. Known demo
+outputs (`fabricqueryr_playground_orders`, `fabricqueryr_playground_events`,
+temporary demo files and SQL tables) last for the current session and are cleared
+at the next start. Other manually created data is retained. Manual pause and the
+shutdown timer pause immediately without waiting for storage cleanup.
+
+The disposable Lakehouse table allowlist lives in `reset_ci.py`. Removing whole
+disposable tables also removes old Parquet files and `_delta_log`; merely
+overwriting their rows would retain old files. Seeded tables are excluded so
+time-travel, deletion-vector and shallow-clone fixtures keep working. There is no
+blanket `VACUUM` of fixtures. Shortcuts are removed through the shortcut API;
+their targets are never recursively deleted. A directory containing a shortcut
+is left for the next cleanup pass to allow link deletion to become visible.
+
+Before and after preparation, and after integration cleanup, a metadata scan
+reports the combined visible size of `TestLakehouse` and `TestLakehouseNoSchemas`
+in the Actions summary. The default budget per workspace is 1 GiB and 20,000
+file/directory entries. Historical Delta files and unknown local data count
+toward the budget; shortcut targets are excluded. The scan stops early and fails
+the step when either budget is exceeded, preventing further preparation/testing.
+Startup failure still triggers F2 pause. Data outside the disposable allowlist
+is never automatically deleted to satisfy the budget.
+
+Set the GitHub environment/repository variables `FABRIC_SANDBOX_MAX_STORAGE_BYTES`
+and `FABRIC_SANDBOX_MAX_STORAGE_ENTRIES` to positive integers to adjust these
+thresholds. Local Python invocations use environment variables with those names.
+These are growth checks at session boundaries, not a hard storage quota or total
+Fabric billing measurement. They exclude service-managed SQL/KQL/mirrored storage,
+backups and soft-deleted files. Pausing retains fixtures, and OneLake soft-delete
+retention can keep deleted files billable until expiry; see
+[OneLake consumption](https://learn.microsoft.com/en-us/fabric/onelake/onelake-consumption).
+
 ### Persistent interactive sandbox
 
 The [Manage persistent Fabric sandbox](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/fabric-sandbox.yaml)
@@ -256,8 +303,8 @@ same paid F2 session lifecycle.
 `reseed=true` refreshes fixture data during `start`. Normal starts preserve
 unchanged data. An incomplete setup can be retried; it does not delete and
 recreate the workspace. Development starts publish changed item definitions
-independently of data seeding, using the same reconciliation engine as CI, but
-without resetting test scratch resources. The optional SQL Database is omitted
+independently of data seeding, using the same reconciliation engine and scratch
+cleanup as CI. The optional SQL Database is omitted
 only if Fabric reports its per-capacity database limit; other errors fail setup.
 
 ```sh
@@ -291,8 +338,8 @@ trial capacity, start [assigns it to F2](https://learn.microsoft.com/en-us/rest/
 and keeps its ID and items. The first preparation under this workflow can seed
 once to establish the fixture revision records.
 
-Start operations share the integration concurrency group; manual pause and shutdown timers run
-independently so they can interrupt startup. The Actions summary reports the
+Start operations share the integration concurrency group; manual pause and
+shutdown timers run independently so they can interrupt startup. The Actions summary reports the
 workspace, deadline, shutdown run and R launch command.
 
 The former `rebuild` and `teardown` actions are removed from the session form.

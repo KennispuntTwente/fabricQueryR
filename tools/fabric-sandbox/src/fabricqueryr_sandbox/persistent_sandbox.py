@@ -16,6 +16,20 @@ from .credentials import CachedTokenCredential, get_credential
 from .fabric_api import FabricApi
 from .persistent_workspace import WORKSPACES, ensure_workspace, find_workspace
 from .settings import SandboxSettings
+from .storage import check_storage
+
+
+def maintain(api, credential, workspace_id, *, clean=True):
+    """Run only inside the already active, ownership-verified sandbox session."""
+    from .reset_ci import clean_workspace
+
+    with DataLakeServiceClient(
+        account_url="https://onelake.dfs.fabric.microsoft.com",
+        credential=credential,
+    ) as service:
+        if clean:
+            clean_workspace(api, credential, service, workspace_id)
+        check_storage(api, service, workspace_id)
 
 
 def prepare(api, credential, settings, repository, owner, sandbox, *, reseed=False):
@@ -28,6 +42,7 @@ def prepare(api, credential, settings, repository, owner, sandbox, *, reseed=Fal
         owner,
         assign_capacity=True,
     )
+    maintain(api, credential, workspace["id"])
     if sandbox == "shiny":
         shiny_sandbox.prepare_workspace(
             api,
@@ -78,6 +93,7 @@ def prepare(api, credential, settings, repository, owner, sandbox, *, reseed=Fal
                     replace(settings, provision_sql_database=False),
                     reseed=reseed,
                 )
+    maintain(api, credential, workspace["id"], clean=False)
     return workspace
 
 

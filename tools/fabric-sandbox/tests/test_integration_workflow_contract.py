@@ -147,7 +147,9 @@ def test_pause_survives_failure_skips_and_cleanup_timeout():
     }
     steps = {step.get("name"): step for step in pause["steps"]}
     assert (
-        steps["Stop test schedules and compute before pausing"]["timeout-minutes"]
+        steps["Stop compute and remove disposable test data before pausing"][
+            "timeout-minutes"
+        ]
         == "2"
     )
     assert steps["Sign in again for pause even if cleanup failed"]["if"] == "always()"

@@ -40,6 +40,8 @@ jobs:
       actions: write
     timeout-minutes: 80
     env:
+      FABRIC_SANDBOX_MAX_STORAGE_BYTES: ${{ vars.FABRIC_SANDBOX_MAX_STORAGE_BYTES || '1073741824' }}
+      FABRIC_SANDBOX_MAX_STORAGE_ENTRIES: ${{ vars.FABRIC_SANDBOX_MAX_STORAGE_ENTRIES || '20000' }}
       SANDBOX: ${{ inputs.sandbox }}
       CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
       CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
