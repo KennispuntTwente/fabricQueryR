@@ -38,23 +38,25 @@ unavailable Fabric service appears as an error for that source.
 ## Start the dedicated Shiny sandbox
 
 The [Manage persistent Fabric sandbox workflow](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/fabric-sandbox.yaml)
-has manual actions for the app. Select branch `master` when
-running the workflow, or use these commands from the repository:
+uses the same actions for both sandboxes. Select branch `master`,
+`sandbox=shiny`, and `action=start`, or use these commands from the repository:
 
 ```sh
 # Read the capacity state without changing anything.
-gh workflow run fabric-sandbox.yaml --ref master -f action=shiny-status
+gh workflow run fabric-sandbox.yaml --ref master -f sandbox=shiny -f action=status
 
 # Resume F2 for up to one hour and prepare the app's persistent data.
-gh workflow run fabric-sandbox.yaml --ref master -f action=shiny-start
+gh workflow run fabric-sandbox.yaml --ref master -f sandbox=shiny -f action=start
 ```
 
-`shiny-start` uses the existing `rpackagecap` F2 and creates a separate workspace,
+`start` uses the existing `rpackagecap` F2 and creates a separate workspace,
 `fabricqueryr-shiny-dhrkoning`. It seeds the Warehouse, Lakehouse, both DAX models,
 Eventhouse/KQL, OneLake files and Delta tables, mirrored table, and GraphQL source
 used by the app. The optional SQL Database and Warehouse snapshot are not
-included. The general `fabricqueryr-dev-dhrkoning` sandbox is managed separately
-by the workflow's existing `rebuild` and `teardown` actions.
+included. Choose `sandbox=development` for the full development fixtures in
+`fabricqueryr-dev-dhrkoning`, using exactly the same start/status/pause actions
+and one-hour shutdown. Both share F2; an active session must finish or be paused
+before starting the other sandbox or the integration suite.
 
 Wait for the workflow to finish successfully, then launch from R:
 
@@ -64,12 +66,12 @@ shiny::runApp("playground/shiny", port = 8100)
 ```
 
 Later starts reuse the workspace and its sample data. To reset the sample data,
-select `reseed` in the workflow form or add `-f reseed=true` to `shiny-start`.
-An interrupted first setup can be retried with another `shiny-start`.
+select `reseed` in the workflow form or add `-f reseed=true` to `start`.
+An interrupted first setup can be retried with another `start`.
 
 ### Automatic pause after one hour
 
-Every `shiny-start` arms a separate shutdown workflow before it can resume F2.
+Every `start` arms a separate shutdown workflow before it can resume F2.
 The deadline is one hour from arming, including setup time, and appears in the
 start run's summary with a link to its shutdown run. If shutdown cannot be armed,
 the start fails without resuming F2. This also works from a feature branch and
@@ -77,7 +79,7 @@ does not depend on a scheduled workflow on the default branch.
 
 The shutdown run continues after the setup run finishes or is cancelled. At its
 deadline, it signs in again and pauses F2, retaining the workspace and its data.
-Running `shiny-start` again while F2 is active keeps the original deadline. Once
+Running `start` again while F2 is active keeps the original deadline. Once
 F2 has paused, another start opens a new one-hour session. An old shutdown run
 checks the session identifier before acting, so it does not pause a newer session.
 
@@ -86,32 +88,33 @@ applies during provisioning; if it interrupts setup, the next start retries the
 incomplete fixtures. To finish earlier, pause manually:
 
 ```sh
-gh workflow run fabric-sandbox.yaml --ref master -f action=shiny-pause
+gh workflow run fabric-sandbox.yaml --ref master -f sandbox=shiny -f action=pause
 ```
 
 Starting F2 resumes capacity billing. Pausing affects every workspace assigned
 to that capacity, including any outside this playground. See Microsoft's
 [pause and resume documentation](https://learn.microsoft.com/en-us/fabric/enterprise/pause-resume)
 for billing behavior. Failed/cancelled setup still attempts an immediate pause
-of the session it resumed. Cancelling its shutdown run also attempts an immediate
+of its session, including an already active session reused by the start. Cancelling its shutdown run also attempts an immediate
 pause. Transient Azure HTTP errors are retried. GitHub runner loss, forced
 cancellation or Azure outages can prevent shutdown, so this is an automatic
 cost guard rather than a guaranteed billing cap. In those cases, check
-`shiny-status` and use `shiny-pause` or the Azure portal if necessary.
+`status` and use `pause` or the Azure portal if necessary.
 
-`shiny-test-shutdown` exercises the same independent timer with a two-minute
+`check-shutdown` exercises the same independent timer with a two-minute
 deadline on an already paused F2. It never requests resume and refuses to run
-on an active capacity. `shiny-watchdog`, `lease_id` and `guard_key` are internal
-workflow controls; leave those fields empty when using start, pause or status.
+on an active capacity. The internal timer now has its own **Fabric capacity
+shutdown (internal)** workflow, dispatched automatically. The sandbox form only
+asks for the sandbox, action, and optional reseed.
 
 ### Periodic backup check
 
-The separate [Pause expired Shiny F2 workflow](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/shiny-capacity-watchdog.yaml)
+The separate [Pause expired Fabric F2 workflow](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/shiny-capacity-watchdog.yaml)
 checks the existing capacity every five minutes. It is installed on `master`,
 where GitHub runs scheduled workflows, and can also be run manually. Its queue
 is independent of the setup and one-hour shutdown jobs.
 
-If F2 is active after this repository's recorded Shiny deadline, the check pauses
+If F2 is active after this repository's recorded session deadline, the check pauses
 it. It leaves paused capacities and sessions within their deadline alone. Invalid
 shutdown metadata on a capacity tagged for this repository also triggers a pause;
 an active capacity without that ownership tag reports an error for manual review.

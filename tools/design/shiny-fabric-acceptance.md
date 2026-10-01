@@ -204,6 +204,11 @@ browser checks above do not satisfy the delegated two-user gate below.
 
 ## Dedicated F2 workflow (1 October)
 
+The action names below describe the original implementation. The current
+[sandbox workflow](../../infra/fabric/README.md#persistent-interactive-sandbox)
+uses `sandbox=development|shiny` and `action=status|start|pause|check-shutdown`.
+Both profiles now reuse fixtures and use the same automatic F2 shutdown.
+
 The manual persistent-sandbox workflow now also accepts `shiny-status`,
 `shiny-start` and `shiny-pause`. The start action targets the existing paid F2
 and prepares only the main app fixtures in `fabricqueryr-shiny-dhrkoning`.

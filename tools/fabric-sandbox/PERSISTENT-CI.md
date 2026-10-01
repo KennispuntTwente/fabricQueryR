@@ -38,7 +38,7 @@ and [billing documentation](https://learn.microsoft.com/en-us/fabric/enterprise/
   before reuse. Retain baseline fixture tables and Delta history.
 - Prepare dependencies before activation wherever possible. Arm the independent
   shutdown run before resuming the existing F2. Never resize or create capacity.
-- Use a run-specific integration lease. Refuse to borrow an active Shiny or
+- Use a run-specific integration lease. Refuse to borrow an active development, Shiny or
   another integration session. Do not extend the one-hour deadline on retry.
 - Pause immediately after all test jobs settle, including failure. Cleanup
   failure must not prevent pause. The independent deadline job and the periodic
@@ -86,3 +86,30 @@ interrupted live test, and an actual Active-to-Paused transition. The independen
 timer targets one hour, while test processes reserve the final three minutes
 for cleanup. No live evidence yet establishes the full suite's elapsed time on
 this F2. Use a single lane first if bootstrap plus tests exceed the budget.
+
+## Unified interactive sandboxes (2 October 2026)
+
+The development and Shiny workspaces now use one manual sandbox selector and
+the same status/start/pause/check-shutdown actions. Start reuses the workspace;
+development fixture preparation shares the integration reconciliation engine
+without the CI scratch reset. The old Terraform rebuild path is removed from
+the workflow. Explicit reseed refreshes data, and deliberate workspace removal
+remains available through the ownership-checked CLI.
+
+Both interactive starts and integration runs dispatch
+`fabric-capacity-shutdown.yaml`. Internal timer inputs no longer appear in the
+sandbox form. Development, Shiny and integration leases cannot borrow another
+active session. Manual sandbox pause is also scoped to the selected session.
+The existing periodic guard understands all three through its unchanged tag keys.
+
+Local validation covers first creation, consecutive reuse, selective refresh,
+explicit reseed, old-trial capacity assignment without workspace replacement,
+ownership rejection, optional SQL Database limits, read-only status, deadline
+retention, and cross-session pause protection. The Python sandbox suite, separate
+watchdog tests, workflow lint, and R playground/local-runner tests pass. Real
+read-only calls for both sandbox profiles succeeded and verified F2 as Paused.
+
+Paid provisioning, actual data queries in the unified sandboxes, and an
+Active-to-Paused transition remain pending; no paid capacity was activated for
+this change. Use `action=check-shutdown` to exercise OIDC and the independent
+timer on an already paused F2.

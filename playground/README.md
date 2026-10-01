@@ -1,13 +1,33 @@
 # fabricQueryR playground
 
-These scripts connect to the persistent workspace created by the **Manage
+These scripts connect to the development workspace managed by the **Manage
 persistent Fabric sandbox** GitHub Actions workflow. The workspace is seeded
 with the same deterministic resources and data as the live integration suite,
 so examples do not need copied item IDs, SQL endpoints, or connection strings.
 
 ## Start a session
 
-For a Shiny interface to the same fixtures, run:
+Open [Manage persistent Fabric sandbox](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/fabric-sandbox.yaml),
+select `sandbox=development` and `action=start`, and wait for it to finish.
+This resumes the existing paid F2, prepares missing or changed fixtures, and
+leaves the workspace ready for interactive use. F2 pauses automatically one hour
+after startup was armed, including preparation time. Later starts reuse the
+workspace and unchanged data.
+
+The same workflow offers `status`, `start`, `pause`, and `check-shutdown` for
+both `development` and `shiny`. `status` is the default and never starts capacity.
+Use `pause` with the sandbox you started to finish early; all workspaces and data
+are retained. The shared capacity allows one sandbox or integration session at a
+time. Starting again keeps the original deadline.
+
+```sh
+gh workflow run fabric-sandbox.yaml --ref master -f sandbox=development -f action=start
+gh workflow run fabric-sandbox.yaml --ref master -f sandbox=development -f action=pause
+```
+
+For the dedicated Shiny app fixtures, select `sandbox=shiny`, then follow the
+[Shiny playground instructions](shiny/README.md). The app can also use the
+development sandbox by default:
 
 ```r
 shiny::runApp("playground/shiny", port = 8100)
@@ -17,9 +37,8 @@ The [Shiny playground](shiny/README.md) includes SQL, a DAX chart, KQL, OneLake,
 mirrored tables, GraphQL and discovery. It supports the existing sandbox
 connection and delegated user sign-in, with background query workers.
 
-Wait until the workflow finishes **seeding and discovery**, then start R from
-the repository root. A rebuild replaces the workspace: reconnect after it
-finishes, because objects from an earlier R session contain the old item IDs.
+Wait until startup finishes, then start R from the repository root. Reconnect
+after a new session starts so discovery reflects any repaired or updated items.
 
 Open [`tour.R`](tour.R) and run one section at a time for a guided introduction.
 It uses the package functions and R6 methods directly, shows expected fixture
@@ -145,8 +164,9 @@ The optional KQL ingestion snippet in `tour.R` similarly retains
 retrying the same example batch. The KQL export snippet removes its temporary
 OneLake directory after reading the Parquet files.
 
-Run the persistent workflow with `action = rebuild` to reset all resources and
-seed data from the repository.
+To refresh fixture data, select `sandbox=development`, `action=start`, and
+`reseed=true`. This retains the workspace and its infrastructure. Ordinary
+starts update fixtures only when their inputs changed or preparation was incomplete.
 
 ## Coverage and further experiments
 

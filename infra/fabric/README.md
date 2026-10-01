@@ -9,8 +9,8 @@ the workspaces. The developer and Shiny playground workspaces remain separate.
 
 See [the persistence and cost analysis](../../tools/fabric-sandbox/PERSISTENT-CI.md)
 for the lifecycle, safeguards and validation limits. Terraform remains available
-for an explicitly managed local sandbox or a manual development-sandbox rebuild;
-the ordinary integration workflow no longer uses ephemeral Terraform state.
+for explicitly managed local resources; the integration and interactive sandbox
+workflows use persistent Fabric resources without ephemeral Terraform state.
 
 ## Prerequisites
 
@@ -236,29 +236,81 @@ unless `--confirm` is supplied.
 
 ### Persistent interactive sandbox
 
-The manually dispatched **Manage persistent Fabric sandbox** workflow creates
-`fabricqueryr-dev-dhrkoning` from the same Terraform resources, item
-definitions, and seed fixtures as the persistent integration workflow. Choose
-`rebuild` to delete the repository-owned workspace with that exact name and
-recreate it from source, or `teardown` to delete it without rebuilding.
-The persistent sandbox uses Runtime 2.0 so one interactive workspace contains
-the complete advanced Delta fixture matrix. Its existing workflow input retains
-the legacy `preview` lane identifier.
+The [Manage persistent Fabric sandbox](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/fabric-sandbox.yaml)
+workflow has two selectors: **sandbox** and **action**. Both sandboxes use the
+same paid F2 session lifecycle.
+
+| Sandbox | Workspace | Fixtures |
+| --- | --- | --- |
+| `development` | `fabricqueryr-dev-dhrkoning` | Full development fixtures, jobs, Runtime 2.0 Delta matrix, Warehouse snapshot and optional SQL Database |
+| `shiny` | `fabricqueryr-shiny-dhrkoning` | App fixtures for SQL, DAX, KQL, OneLake, mirrored tables and GraphQL |
+
+| Action | Behavior for either sandbox |
+| --- | --- |
+| `status` (default) | Read capacity and workspace status; never resume F2 |
+| `start` | Arm shutdown, resume F2, create missing items and reuse prepared fixtures; leave the sandbox available for interactive use |
+| `pause` | Pause the selected sandbox's active session; retain workspaces and data |
+| `check-shutdown` | Exercise the independent timer for two minutes on an already paused F2, without resuming it |
+
+`reseed=true` refreshes fixture data during `start`. Normal starts preserve
+unchanged data. An incomplete setup can be retried; it does not delete and
+recreate the workspace. Development starts publish changed item definitions
+independently of data seeding, using the same reconciliation engine as CI, but
+without resetting test scratch resources. The optional SQL Database is omitted
+only if Fabric reports its per-capacity database limit; other errors fail setup.
+
+```sh
+gh workflow run fabric-sandbox.yaml --ref master -f sandbox=development -f action=start
+gh workflow run fabric-sandbox.yaml --ref master -f sandbox=development -f action=pause
+gh workflow run fabric-sandbox.yaml --ref master -f sandbox=shiny -f action=start
+```
+
+Each start verifies that the independent shutdown workflow is running before
+resuming F2. The deadline is one hour from arming, including preparation time.
+Preparation stops with three minutes left; failed/cancelled starts attempt an
+immediate pause using fresh OIDC credentials. Successful starts leave time for
+interactive use. The independent timer then pauses F2, backed by the existing
+five-minute watchdog. Repeating a start never extends its deadline.
+
+The capacity is shared. Only one development, Shiny, or integration session can
+own it at a time. To switch, pause the current sandbox before starting the other.
+A sandbox pause refuses to interrupt an integration session; that workflow has
+its own final pause. Pausing F2 affects every workspace assigned to it.
+Azure/GitHub delays can postpone shutdown, so the timers are not a billing ceiling.
+
+The timer's `lease_id` and `guard_key` inputs live in
+`fabric-capacity-shutdown.yaml`, separate from the sandbox form. It is
+automatically dispatched by either sandbox and by integration tests.
 
 The workflow grants the configured Entra user object ID the `Admin` workspace
-role. Fabric role assignments use the object ID and principal type (`User`), so
-the guest user principal name is not needed. A
-`fabricqueryr-persistent; ...` description marker records the repository,
-owner, managing workflow, rebuild time, and workflow run. Reset and teardown
-only delete a workspace when its exact name, repository, type, and complete
-ownership marker all match. The daily ephemeral-workspace janitor ignores this
-marker.
+role. A `fabricqueryr-persistent; ...` description records repository, owner,
+managing workflow and creation history. Existing markers from the old development
+workflow remain valid. If that owned workspace is still assigned to the old
+trial capacity, start [assigns it to F2](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/assign-to-capacity)
+and keeps its ID and items. The first preparation under this workflow can seed
+once to establish the fixture revision records.
 
-The persistent workflow intentionally has no final Terraform destroy step.
-Successful rebuilds leave the workspace available for interactive package
-testing, and the Actions job summary reports its name and ID. It shares the
-integration concurrency group so rebuild, teardown, persistent integration, and
-janitor runs cannot modify Fabric sandboxes concurrently.
+The daily ephemeral-workspace janitor ignores these sandboxes. Start operations
+share the integration concurrency group; manual pause and shutdown timers run
+independently so they can interrupt startup. The Actions summary reports the
+workspace, deadline, shutdown run and R launch command.
+
+The former `rebuild` and `teardown` actions are removed from the session form.
+For a data refresh, use `start` with `reseed=true`. Deliberate removal remains
+available through `fabric-sandbox remove-persistent`, which checks the exact
+workspace name and repository/owner/manager marker. For example, preview removal
+of the development workspace locally:
+
+```sh
+uv --directory tools/fabric-sandbox run fabric-sandbox remove-persistent \
+  --workspace-name fabricqueryr-dev-dhrkoning \
+  --owner-id 9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5 \
+  --managed-by .github/workflows/fabric-sandbox.yaml \
+  --repository KennispuntTwente/fabricQueryR
+```
+
+Add `--confirm` only to delete it. The next `start` creates missing resources.
+For the Shiny sandbox, substitute `fabricqueryr-shiny-dhrkoning`.
 
 #### Run the integration suite locally as the workspace admin
 
