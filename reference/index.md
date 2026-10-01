@@ -1,5 +1,16 @@
 # Package index
 
+## Shiny applications
+
+- [`fabric_shiny_config()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_shiny_config.md)
+  : Configure per-user Fabric access in a Shiny application
+- [`fabric_shiny_ui()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_shiny_ui.md)
+  : Wrap a Shiny UI for Microsoft Fabric sign-in
+- [`fabric_shiny_server()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_shiny_server.md)
+  : Use the signed-in visitor's Fabric access in a Shiny server
+- [`fabric_shiny_token_provider()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_shiny_token_provider.md)
+  : Use a shinyOAuth connection with Fabric functions
+
 ## Discovery
 
 Find Fabric workspaces, items, and workload-specific connection details
