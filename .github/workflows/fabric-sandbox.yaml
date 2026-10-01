@@ -5,13 +5,20 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: Rebuild the sandbox or tear it down
+        description: General sandbox rebuild/teardown, or Shiny status/start (paid F2)/pause
         required: true
         default: rebuild
         type: choice
         options:
           - rebuild
           - teardown
+          - shiny-status
+          - shiny-start
+          - shiny-pause
+      reseed:
+        description: Replace Shiny sample data during shiny-start (normally leave unchecked)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -23,6 +30,7 @@ concurrency:
 
 jobs:
   manage:
+    if: inputs.action == 'rebuild' || inputs.action == 'teardown'
     name: ${{ inputs.action }} persistent Fabric sandbox
     runs-on: ubuntu-latest
     environment: fabric-integration
@@ -210,3 +218,78 @@ jobs:
             echo "- Run it with **teardown** to remove it."
             echo "- From the repository root, source \`playground/sandbox.R\` and \`playground/playground.R\` to try the package features."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  shiny:
+    if: startsWith(inputs.action, 'shiny-')
+    name: ${{ inputs.action }} (paid F2)
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 110
+    env:
+      CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
+      CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
+      OWNER_ID: 9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5
+      RESEED: ${{ inputs.reseed }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+
+      - name: Install locked sandbox tools
+        run: uv --directory tools/fabric-sandbox sync --locked
+
+      - name: Verify the existing F2 resource and Fabric capacity ID
+        if: inputs.action != 'shiny-pause'
+        run: |
+          test -n "$CAPACITY_ID"
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.capacity status \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID"
+
+      - name: Install SQL driver before starting paid capacity
+        if: inputs.action == 'shiny-start'
+        run: |
+          ubuntu_version="$(. /etc/os-release && echo "$VERSION_ID")"
+          curl -fsSLO "https://packages.microsoft.com/config/ubuntu/${ubuntu_version}/packages-microsoft-prod.deb"
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
+      - name: Resume paid F2
+        id: capacity
+        if: inputs.action == 'shiny-start'
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.capacity resume \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID"
+
+      - name: Prepare persistent Shiny fixtures
+        if: inputs.action == 'shiny-start'
+        run: |
+          args=()
+          if [[ "$RESEED" == "true" ]]; then args+=(--reseed); fi
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.shiny_sandbox \
+            --capacity-id "$CAPACITY_ID" --owner-id "$OWNER_ID" "${args[@]}"
+
+      - name: Pause paid F2 and retain the workspace
+        if: inputs.action == 'shiny-pause'
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.capacity pause \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID"
+          echo 'F2 paused. The Shiny workspace and its data are retained.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pause a capacity resumed by an unsuccessful start
+        if: ${{ always() && inputs.action == 'shiny-start' && steps.capacity.outputs.resumed == 'true' && (failure() || cancelled()) }}
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.capacity pause \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID"
+          echo 'Start did not finish. The capacity resumed by this run has been paused.' >> "$GITHUB_STEP_SUMMARY"
