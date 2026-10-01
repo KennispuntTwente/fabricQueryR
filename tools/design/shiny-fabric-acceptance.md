@@ -327,8 +327,8 @@ passed its ten tests, Azure OIDC login and live capacity check, reporting
 scheduled invocation was not needed for this validation and has not been observed
 at the time of this record; GitHub's five-minute schedule is enabled.
 
-On 2 October, the backup schedule was reduced to hourly (`3 * * * *`). The
-independent one-hour session shutdown remains unchanged.
+On 2 October, the backup schedule was reduced to every six hours
+(`3 */6 * * *`). The independent one-hour session shutdown remains unchanged.
 
 ## Pending delegated/browser gate
 

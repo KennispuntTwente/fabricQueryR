@@ -215,8 +215,9 @@ that lease before resuming. An active Shiny session or another integration run
 is rejected; retries never extend a running lease. Test processes stop before
 the deadline to leave three minutes for cleanup. A final job pauses even when
 tests or cleanup fail. Cancellation/runner loss is also covered by the separate
-deadline job and the hourly default-branch watchdog. Azure/GitHub delays
-can postpone shutdown; the watchdog is a fallback, not a precise cost ceiling.
+deadline job and the default-branch watchdog, which runs every six hours.
+Azure/GitHub delays can postpone shutdown; the watchdog is a fallback, not a
+precise cost ceiling.
 The existing narrow [F2 controller role](shiny-capacity-role.json) applies to
 integration sessions too.
 
@@ -270,7 +271,7 @@ resuming F2. The deadline is one hour from arming, including preparation time.
 Preparation stops with three minutes left; failed/cancelled starts attempt an
 immediate pause using fresh OIDC credentials. Successful starts leave time for
 interactive use. The independent timer then pauses F2, backed by the existing
-hourly watchdog. Repeating a start never extends its deadline.
+watchdog running every six hours. Repeating a start never extends its deadline.
 
 The capacity is shared. Only one development, Shiny, or integration session can
 own it at a time. To switch, pause the current sandbox before starting the other.
