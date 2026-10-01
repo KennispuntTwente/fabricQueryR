@@ -71,7 +71,7 @@ def arm_lease(
     purpose="shiny",
     run="",
 ):
-    if purpose not in {"shiny", "integration"}:
+    if purpose not in {"development", "shiny", "integration"}:
         raise ValueError("Unknown capacity lease purpose")
     if purpose == "integration" and not run:
         raise ValueError("Integration activation requires a run identity")
@@ -89,7 +89,7 @@ def arm_lease(
         lease, deadline = read_lease(resource, repository)
         if not now() < deadline <= now() + MAX_SECONDS:
             raise RuntimeError(
-                "Shutdown lease expired or invalid; run shiny-pause first"
+                "Shutdown lease expired or invalid; run the sandbox pause action first"
             )
         return lease, deadline
     if state not in {"Paused", "Suspended"}:
@@ -108,7 +108,7 @@ def arm_lease(
                     OWNER_TAG: repository,
                     DEADLINE_TAG: str(deadline),
                     PURPOSE_TAG: purpose,
-                    RUN_TAG: run or "shiny",
+                    RUN_TAG: run or purpose,
                 }
             },
         },
@@ -166,20 +166,19 @@ class GitHubGuard:
 
     def arm(self, lease, *, attempts=36):
         key = str(uuid4())
-        workflow = "workflows/fabric-sandbox.yaml"
+        workflow = "workflows/fabric-capacity-shutdown.yaml"
         self.request(
             "POST",
             f"{workflow}/dispatches",
             json={
                 "ref": self.ref,
                 "inputs": {
-                    "action": "shiny-watchdog",
                     "lease_id": lease,
                     "guard_key": key,
                 },
             },
         )
-        title = f"Fabric sandbox - shiny-watchdog - {key}"
+        title = f"Fabric capacity shutdown - {key}"
         run_id = None
         for _ in range(attempts):
             if run_id is None:
@@ -268,6 +267,21 @@ def pause_lease(capacity, repository, lease, *, attempts=3, sleep=time.sleep):
             sleep(10)
 
 
+def pause_session(capacity, repository, purpose):
+    """Pause a selected sandbox without interrupting a different capacity user."""
+    resource = capacity.status()
+    if resource["properties"]["state"] in {"Paused", "Suspended"}:
+        print("F2 is already paused; workspace data retained", flush=True)
+        return False
+    tags = resource.get("tags") or {}
+    if tags.get(PURPOSE_TAG, "shiny") != purpose:
+        raise RuntimeError(
+            "F2 is in use by another session; select its sandbox to pause it"
+        )
+    lease, _ = read_lease(resource, repository)
+    return pause_lease(capacity, repository, lease)
+
+
 def wait_deadline(deadline, *, now=time.time, sleep=time.sleep):
     if deadline > now() + MAX_SECONDS + 5:
         raise ValueError("Refusing to wait longer than one hour")
@@ -279,13 +293,24 @@ def wait_deadline(deadline, *, now=time.time, sleep=time.sleep):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "action", choices=("start", "check", "verify", "verify-active", "wait", "pause")
+        "action",
+        choices=(
+            "start",
+            "check",
+            "verify",
+            "verify-active",
+            "wait",
+            "pause",
+            "pause-session",
+        ),
     )
     parser.add_argument("--resource-id")
     parser.add_argument("--capacity-id")
     parser.add_argument("--lease-id", type=lambda value: str(UUID(value)))
     parser.add_argument("--deadline", type=int)
-    parser.add_argument("--purpose", choices=("shiny", "integration"), default="shiny")
+    parser.add_argument(
+        "--purpose", choices=("development", "shiny", "integration"), default="shiny"
+    )
     parser.add_argument("--run", default="")
     args = parser.parse_args(argv)
     if args.action == "wait":
@@ -328,6 +353,8 @@ def main(argv=None):
             )
             output("deadline", deadline)
             print(f"Verified shutdown lease; pause at {deadline_text(deadline)}")
+        elif args.action == "pause-session":
+            pause_session(capacity, repository, args.purpose)
         else:
             pause_lease(capacity, repository, args.lease_id)
 

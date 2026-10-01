@@ -128,6 +128,10 @@ def test_repeated_start_reuses_deadline_without_tag_write_or_resume():
         ("shiny", "integration", "shiny", "123/1"),
         ("integration", "shiny", "123/1", ""),
         ("integration", "integration", "123/1", "123/2"),
+        ("development", "integration", "development", "123/1"),
+        ("integration", "development", "123/1", ""),
+        ("shiny", "development", "shiny", ""),
+        ("development", "shiny", "development", ""),
     ],
 )
 def test_active_session_cannot_be_borrowed(existing, requested, old_run, new_run):
@@ -146,18 +150,19 @@ def test_active_session_cannot_be_borrowed(existing, requested, old_run, new_run
     assert not azure.mutations()
 
 
-def test_integration_session_keeps_deadline_and_uses_existing_periodic_guard():
+@pytest.mark.parametrize("purpose", ["integration", "development", "shiny"])
+def test_session_keeps_deadline_and_uses_existing_periodic_guard(purpose):
     azure = Azure()
     now = int(time.time())
     with azure.client() as capacity:
         autopause.start(
-            capacity, Guard(azure), purpose="integration", run="123/1", now=lambda: now
+            capacity, Guard(azure), purpose=purpose, run="123/1", now=lambda: now
         )
         first = dict(azure.resource["tags"])
         autopause.start(
             capacity,
             Guard(azure),
-            purpose="integration",
+            purpose=purpose,
             run="123/1",
             now=lambda: now + 60,
         )
@@ -293,6 +298,40 @@ def test_shutdown_check_refuses_an_active_capacity():
     assert not azure.mutations()
 
 
+@pytest.mark.parametrize("purpose", ["development", "shiny"])
+def test_manual_pause_only_stops_the_selected_sandbox(purpose):
+    azure = Azure("Active", lease=LEASE, deadline=int(time.time()) + 1200)
+    azure.resource["tags"][autopause.PURPOSE_TAG] = purpose
+    with azure.client() as capacity:
+        assert autopause.pause_session(capacity, REPOSITORY, purpose) is True
+        assert autopause.pause_session(capacity, REPOSITORY, purpose) is False
+    assert azure.resource["properties"]["state"] == "Paused"
+    assert sum(r.method == "POST" for r in azure.requests) == 1
+
+
+@pytest.mark.parametrize("purpose", ["development", "shiny"])
+def test_manual_sandbox_pause_cannot_interrupt_integration(purpose):
+    azure = Azure("Active", lease=LEASE, deadline=int(time.time()) + 1200)
+    azure.resource["tags"][autopause.PURPOSE_TAG] = "integration"
+    with (
+        azure.client() as capacity,
+        pytest.raises(RuntimeError, match="another session"),
+    ):
+        autopause.pause_session(capacity, REPOSITORY, purpose)
+    assert not azure.mutations()
+
+
+def test_manual_pause_refuses_another_repository_even_with_matching_purpose():
+    azure = Azure("Active", lease=LEASE, deadline=int(time.time()) + 1200)
+    azure.resource["tags"][autopause.PURPOSE_TAG] = "development"
+    with (
+        azure.client() as capacity,
+        pytest.raises(RuntimeError, match="owned by this repository"),
+    ):
+        autopause.pause_session(capacity, "other/repository", "development")
+    assert not azure.mutations()
+
+
 def test_timer_uses_absolute_deadline_and_wakes_at_most_every_30_seconds():
     clock = [1000]
     sleeps = []
@@ -327,16 +366,18 @@ def test_github_dispatch_requires_verified_running_timer(result):
             body = json.loads(request.content)
             assert body["ref"] == "shiny-integration"
             inputs.update(body["inputs"])
-            assert inputs["action"] == "shiny-watchdog" and inputs["lease_id"] == LEASE
+            assert inputs["lease_id"] == LEASE
+            assert "action" not in inputs
+            assert path.endswith("/workflows/fabric-capacity-shutdown.yaml/dispatches")
             return httpx.Response(204)
-        if path.endswith("/workflows/fabric-sandbox.yaml/runs"):
+        if path.endswith("/workflows/fabric-capacity-shutdown.yaml/runs"):
             return httpx.Response(
                 200,
                 json={
                     "workflow_runs": [
                         {
                             "id": 123,
-                            "display_title": f"Fabric sandbox - shiny-watchdog - {inputs['guard_key']}",
+                            "display_title": f"Fabric capacity shutdown - {inputs['guard_key']}",
                         }
                     ]
                 },

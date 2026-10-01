@@ -1,0 +1,72 @@
+name: Fabric capacity shutdown (internal)
+run-name: Fabric capacity shutdown - ${{ inputs.guard_key }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      lease_id:
+        description: Internal capacity lease; dispatched automatically before F2 starts
+        required: true
+        type: string
+      guard_key:
+        description: Internal shutdown run identifier
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+# Never queue behind startup, integration tests, or another shutdown timer.
+concurrency:
+  group: fabric-shutdown-${{ github.repository }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  shutdown:
+    name: Independent Fabric shutdown
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 80
+    env:
+      CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
+      CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
+      LEASE_ID: ${{ inputs.lease_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+      - name: Install locked sandbox tools
+        run: uv --directory tools/fabric-sandbox sync --locked
+      - name: Sign in to verify shutdown lease
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify shutdown lease
+        id: lease
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause verify \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
+      - name: Wait for automatic pause
+        env:
+          DEADLINE: ${{ steps.lease.outputs.deadline }}
+        run: uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause wait --deadline "$DEADLINE"
+      # Acquire a fresh OIDC token after the hour-long wait. On cancellation or
+      # timer failure these steps pause early, rather than leaving F2 active.
+      - name: Sign in again for shutdown
+        id: shutdown_login
+        if: always() && steps.lease.outcome == 'success'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Pause only this capacity session
+        if: always() && steps.lease.outcome == 'success' && steps.shutdown_login.outcome == 'success'
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause pause \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
