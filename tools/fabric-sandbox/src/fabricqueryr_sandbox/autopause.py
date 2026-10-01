@@ -1,4 +1,4 @@
-"""Arm an independent GitHub shutdown run before resuming the Shiny F2."""
+"""Arm an independent GitHub shutdown run before resuming the shared F2."""
 
 from __future__ import annotations
 
@@ -18,6 +18,9 @@ from .fabric_api import FabricApi
 LEASE_TAG = "fabricqueryr-shiny-lease"
 OWNER_TAG = "fabricqueryr-shiny-repository"
 DEADLINE_TAG = "fabricqueryr-shiny-pause-at"
+# Keep the original lease keys compatible with the deployed periodic watchdog.
+PURPOSE_TAG = "fabricqueryr-capacity-purpose"
+RUN_TAG = "fabricqueryr-capacity-run"
 MAX_SECONDS = 3600
 VERIFY_STEP = "Verify shutdown lease"
 WAIT_STEP = "Wait for automatic pause"
@@ -54,12 +57,23 @@ def verify_lease(capacity, repository, lease):
     return deadline
 
 
-def arm_lease(capacity, repository, *, check=False, now=time.time):
+def arm_lease(
+    capacity, repository, *, check=False, now=time.time, purpose="shiny", run="",
+):
+    if purpose not in {"shiny", "integration"}:
+        raise ValueError("Unknown capacity lease purpose")
+    if purpose == "integration" and not run:
+        raise ValueError("Integration activation requires a run identity")
     resource = capacity.status()
     state = resource["properties"]["state"]
     if check and state not in {"Paused", "Suspended"}:
         raise RuntimeError("The shutdown check requires an already paused F2")
     if state == "Active":
+        tags = resource.get("tags") or {}
+        if tags.get(PURPOSE_TAG, "shiny") != purpose or (
+            purpose == "integration" and tags.get(RUN_TAG) != run
+        ):
+            raise RuntimeError("F2 is in use by another session; refusing to borrow it")
         # Starting again must not buy another hour of an existing session.
         lease, deadline = read_lease(resource, repository)
         if not now() < deadline <= now() + MAX_SECONDS:
@@ -82,6 +96,8 @@ def arm_lease(capacity, repository, *, check=False, now=time.time):
                     LEASE_TAG: lease,
                     OWNER_TAG: repository,
                     DEADLINE_TAG: str(deadline),
+                    PURPOSE_TAG: purpose,
+                    RUN_TAG: run or "shiny",
                 }
             },
         },
@@ -172,10 +188,13 @@ class GitHubGuard:
         raise TimeoutError("Shutdown job did not become ready; F2 will not be resumed")
 
 
-def start(capacity, guard, *, check=False, now=time.time):
-    lease, deadline = arm_lease(capacity, guard.repository, check=check, now=now)
-    run_id = guard.arm(lease)
+def start(capacity, guard, *, check=False, now=time.time, purpose="shiny", run=""):
+    lease, deadline = arm_lease(
+        capacity, guard.repository, check=check, now=now, purpose=purpose, run=run,
+    )
+    # Publish ownership before dispatch so failure cleanup also covers arm errors.
     output("lease_id", lease)
+    run_id = guard.arm(lease)
     output("guard_run_id", run_id)
     output("pause_at", deadline_text(deadline))
     print(f"Automatic pause: {deadline_text(deadline)}", flush=True)
@@ -248,6 +267,8 @@ def main(argv=None):
     parser.add_argument("--capacity-id")
     parser.add_argument("--lease-id", type=lambda value: str(UUID(value)))
     parser.add_argument("--deadline", type=int)
+    parser.add_argument("--purpose", choices=("shiny", "integration"), default="shiny")
+    parser.add_argument("--run", default="")
     args = parser.parse_args(argv)
     if args.action == "wait":
         if args.deadline is None:
@@ -273,7 +294,10 @@ def main(argv=None):
                 os.environ["GITHUB_REF_NAME"],
                 os.environ["GITHUB_SHA"],
             ) as guard:
-                start(capacity, guard, check=args.action == "check")
+                start(
+                    capacity, guard, check=args.action == "check",
+                    purpose=args.purpose, run=args.run,
+                )
         elif args.action == "verify":
             deadline = verify_lease(capacity, repository, args.lease_id)
             output("deadline", deadline)
