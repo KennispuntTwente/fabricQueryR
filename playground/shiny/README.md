@@ -104,6 +104,25 @@ deadline on an already paused F2. It never requests resume and refuses to run
 on an active capacity. `shiny-watchdog`, `lease_id` and `guard_key` are internal
 workflow controls; leave those fields empty when using start, pause or status.
 
+### Periodic backup check
+
+The separate [Pause expired Shiny F2 workflow](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/shiny-capacity-watchdog.yaml)
+checks the existing capacity every five minutes. It is installed on `master`,
+where GitHub runs scheduled workflows, and can also be run manually. Its queue
+is independent of the setup and one-hour shutdown jobs.
+
+If F2 is active after this repository's recorded Shiny deadline, the check pauses
+it. It leaves paused capacities and sessions within their deadline alone. Invalid
+shutdown metadata on a capacity tagged for this repository also triggers a pause;
+an active capacity without that ownership tag reports an error for manual review.
+The check rereads the session before pausing, retries transient request failures,
+and never resumes capacity or changes workspace data.
+
+This supplements the one-hour shutdown job. GitHub can delay scheduled runs and
+automatically disables schedules in public repositories after 60 days without
+repository activity, so the interval is not a strict maximum delay. See
+[GitHub's schedule behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
+
 ### GitHub configuration
 
 These actions use the existing `fabric-integration` environment and Azure OIDC

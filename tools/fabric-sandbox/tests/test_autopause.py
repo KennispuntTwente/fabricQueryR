@@ -1,5 +1,7 @@
 import json
+import runpy
 import time
+from pathlib import Path
 from uuid import uuid4
 
 import httpx
@@ -118,6 +120,20 @@ def test_repeated_start_reuses_deadline_without_tag_write_or_resume():
         autopause.start(capacity, Guard(azure))
     assert azure.resource["tags"][autopause.DEADLINE_TAG] == str(deadline)
     assert not azure.mutations()
+
+
+def test_periodic_guard_understands_the_startup_lease_without_extending_it():
+    watchdog = runpy.run_path(
+        str(Path(__file__).resolve().parents[2] / "ci/fabric_capacity_watchdog.py")
+    )
+    azure = Azure()
+    now = int(time.time())
+    with azure.client() as capacity:
+        lease, deadline = autopause.arm_lease(capacity, REPOSITORY, now=lambda: now)
+    fingerprint, expired, _ = watchdog["due"](azure.resource, REPOSITORY, now + 3599)
+    assert fingerprint[1] == lease
+    assert expired is False
+    assert watchdog["due"](azure.resource, REPOSITORY, deadline)[1] is True
 
 
 @pytest.mark.parametrize("offset", [-1, 7200, None])

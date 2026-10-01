@@ -288,6 +288,40 @@ while its timer was running cancelled the wait, then both fresh OIDC login and
 the pause step completed successfully before the deadline. Its overall
 `cancelled` conclusion is expected. F2 remained paused throughout both checks.
 
+## Periodic capacity backup (1 October)
+
+`shiny-capacity-watchdog.yaml` adds a pause-only check at minutes
+3, 8, 13, ..., 58 of each hour. It uses a separate concurrency group and the
+existing Azure OIDC identity. The workflow, standard-library controller and its
+unit tests are also installed on `master` so scheduling is active without merging
+the Shiny feature. No Fabric provisioning paths or permissions were changed.
+
+The controller only reads the exact configured Azure F2 and invokes suspend.
+It pauses expired sessions owned by this repository, also failing closed on
+invalid owned lease metadata. It leaves paused/unexpired sessions alone and
+reports an error for an active capacity without the repository's ownership tag.
+Before suspension and on retries, it rereads state and the session fingerprint.
+The independent one-hour shutdown remains the primary timer; GitHub's scheduled
+jobs can be delayed or disabled after public-repository inactivity.
+
+Validation passes locally:
+
+- All 285 Python tests across the sandbox and standalone watchdog, including
+  startup-lease compatibility, deadline boundaries, session replacement,
+  invalid metadata, transition handling and an accepted suspend with a lost
+  response. The ten standalone tests also pass in the isolated `master` checkout.
+- Python lint/format checks and `actionlint` for the new workflow.
+- The actual standalone controller executed through the cached Azure CLI login
+  and reported `F2 already paused`; no capacity state change was requested.
+
+The three standalone files were enabled on `master` in commit `2538827f`.
+GitHub lists the scheduled workflow as active. A manual execution of that exact
+workflow, [run 36921804752](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36921804752),
+passed its ten tests, Azure OIDC login and live capacity check, reporting
+`F2 already paused`. No paid capacity was started. The first automatically
+scheduled invocation was not needed for this validation and has not been observed
+at the time of this record; GitHub's five-minute schedule is enabled.
+
 ## Pending delegated/browser gate
 
 Use a dedicated Web registration and two restricted users in the target tenant.
