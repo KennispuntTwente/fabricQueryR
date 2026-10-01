@@ -206,7 +206,7 @@ def start(capacity, guard, *, check=False, now=time.time):
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with Path(summary).open("a", encoding="utf-8") as stream:
             stream.write(
-                f"Automatic F2 pause: **{deadline_text(deadline)}** (including setup time).\n\n"
+                f"Automatic F2 pause: {deadline_text(deadline)} (including setup time).\n\n"
                 f"[Independent shutdown run](https://github.com/{guard.repository}/actions/runs/{run_id})\n\n"
             )
 

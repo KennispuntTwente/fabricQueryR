@@ -38,14 +38,14 @@ unavailable Fabric service appears as an error for that source.
 ## Start the dedicated Shiny sandbox
 
 The [Manage persistent Fabric sandbox workflow](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/fabric-sandbox.yaml)
-has three manual actions for the app. Select branch `shiny-integration` when
+has manual actions for the app. Select branch `shiny-integration` when
 running the workflow, or use these commands from the repository:
 
 ```sh
 # Read the capacity state without changing anything.
 gh workflow run fabric-sandbox.yaml --ref shiny-integration -f action=shiny-status
 
-# Resume the existing paid F2 and prepare the app's persistent data.
+# Resume F2 for up to one hour and prepare the app's persistent data.
 gh workflow run fabric-sandbox.yaml --ref shiny-integration -f action=shiny-start
 ```
 
@@ -67,8 +67,23 @@ Later starts reuse the workspace and its sample data. To reset the sample data,
 select `reseed` in the workflow form or add `-f reseed=true` to `shiny-start`.
 An interrupted first setup can be retried with another `shiny-start`.
 
-The F2 remains active after a successful start; there is no automatic shutdown.
-When finished, pause it while keeping the workspace and its data:
+### Automatic pause after one hour
+
+Every `shiny-start` arms a separate shutdown workflow before it can resume F2.
+The deadline is one hour from arming, including setup time, and appears in the
+start run's summary with a link to its shutdown run. If shutdown cannot be armed,
+the start fails without resuming F2. This works from the feature branch and does
+not depend on a scheduled workflow on the default branch.
+
+The shutdown run continues after the setup run finishes or is cancelled. At its
+deadline, it signs in again and pauses F2, retaining the workspace and its data.
+Running `shiny-start` again while F2 is active keeps the original deadline. Once
+F2 has paused, another start opens a new one-hour session. An old shutdown run
+checks the session identifier before acting, so it does not pause a newer session.
+
+The first setup may use a substantial part of the hour. The deadline still
+applies during provisioning; if it interrupts setup, the next start retries the
+incomplete fixtures. To finish earlier, pause manually:
 
 ```sh
 gh workflow run fabric-sandbox.yaml --ref shiny-integration -f action=shiny-pause
@@ -77,9 +92,17 @@ gh workflow run fabric-sandbox.yaml --ref shiny-integration -f action=shiny-paus
 Starting F2 resumes capacity billing. Pausing affects every workspace assigned
 to that capacity, including any outside this playground. See Microsoft's
 [pause and resume documentation](https://learn.microsoft.com/en-us/fabric/enterprise/pause-resume)
-for billing behavior. If setup fails or is cancelled, the workflow attempts to
-pause a capacity that it resumed itself. After a runner interruption, use
-`shiny-status` and, if needed, `shiny-pause` to confirm the final state.
+for billing behavior. Failed/cancelled setup still attempts an immediate pause
+of the session it resumed. Cancelling its shutdown run also attempts an immediate
+pause. Transient Azure HTTP errors are retried. GitHub runner loss, forced
+cancellation or Azure outages can prevent shutdown, so this is an automatic
+cost guard rather than a guaranteed billing cap. In those cases, check
+`shiny-status` and use `shiny-pause` or the Azure portal if necessary.
+
+`shiny-test-shutdown` exercises the same independent timer with a two-minute
+deadline on an already paused F2. It never requests resume and refuses to run
+on an active capacity. `shiny-watchdog`, `lease_id` and `guard_key` are internal
+workflow controls; leave those fields empty when using start, pause or status.
 
 ### GitHub configuration
 
@@ -92,10 +115,28 @@ if needed. The workflow checks that the Azure resource and Fabric ID refer to
 the same F2 before starting it.
 
 The CI identity needs Azure permission to read, resume and suspend this capacity,
-plus the existing Fabric permissions to assign a workspace and create/seed its
+and merge its shutdown tags (`Microsoft.Resources/tags/write`).
+The startup job uses GitHub `actions: write` to dispatch the independent shutdown;
+no personal access token is required. It waits until that run has verified the
+lease and started its timer before resuming F2. The identity also needs
+the existing Fabric permissions to assign a workspace and create/seed its
 items. It grants the configured playground owner workspace Admin access. The
 app still uses the connection settings described under Setup; starting the
 workflow does not configure a delegated Web registration or host the Shiny app.
+
+For one-time Azure administrator setup, the repository includes a narrow
+[capacity role](../../infra/fabric/shiny-capacity-role.json) and a setup script:
+
+```powershell
+# Preview the role and target first, then apply it to the CI identity.
+./tools/fabric-sandbox/configure-shiny-capacity-role.ps1
+./tools/fabric-sandbox/configure-shiny-capacity-role.ps1 -Apply
+```
+
+The script reads the CI identity from the GitHub environment and assigns the
+role on the named F2 only. It permits reading, resuming, suspending and tagging
+that resource; it does not grant capacity creation, resizing, deletion or access
+management. Running the script does not start F2.
 
 ## Try the data sources
 

@@ -238,6 +238,56 @@ The prior browser evidence applies to the general sandbox's available JSON DAX
 model, not these newly defined fixtures. The delegated browser gate remains
 pending as previously agreed.
 
+## One-hour automatic shutdown (1 October)
+
+Shiny startup now records a one-hour shutdown lease on the existing Azure F2,
+dispatches an independent `shiny-watchdog` workflow, and waits for that run to
+verify the lease and enter its timer before resuming. A missing, failed or
+different-revision watchdog blocks resume. Repeated starts preserve an active
+session's deadline. Shutdown checks the lease identifier so an old run leaves a
+new session alone. Setup time counts toward the hour, including first provisioning.
+
+The independent run uses fresh Azure OIDC authentication after waiting and also
+attempts shutdown when its timer is cancelled or fails. Setup failure retains its
+immediate, lease-scoped cleanup. Shutdown retries transient HTTP errors after
+re-reading capacity state. Runner loss, forced cancellation and Azure/GitHub
+outages remain outside this guarantee; this is not an absolute billing cap.
+The previous section's manual-only shutdown behavior is superseded.
+
+Local validation:
+
+- All 274 sandbox Python tests pass, including dispatch/readiness, rejection
+  before resume, expiry, repeated starts, stale session isolation, cancellation
+  during resume, lost suspend responses and a no-resume shutdown check.
+- The timer also ran against the real local clock with a short deadline.
+- Python lint/format checks and workflow `actionlint` pass.
+
+The first live no-resume check found that the CI identity had only Azure Reader
+access: writing the expiry tags returned HTTP 403 before dispatch or resume.
+The checked-in `fabricqueryr-shiny-f2-controller` role now grants only capacity
+read/resume/suspend and resource tag read/write, assigned on `rpackagecap` itself.
+The administrator setup script was previewed, applied and previewed again; the
+assignment scope and five actions were verified. No capacity start was requested.
+
+After configuring that role, the live no-resume check
+[36919347243](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36919347243)
+passed. It wrote the lease through Azure's tag API and used the workflow's
+`GITHUB_TOKEN` to dispatch independent shutdown run
+[36919439399](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36919439399)
+from the feature branch. That run verified the lease, waited until the recorded
+two-minute test deadline, signed in again through OIDC and successfully ran the
+pause path against the already paused F2. It did not create a workspace, seed
+fixtures or request resume. Active-to-paused execution after a paid start remains
+untested; its state transitions and error handling are covered locally.
+
+A second check
+[36919735175](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36919735175)
+armed another shutdown run. Cancelling that run
+([36919795835](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36919795835))
+while its timer was running cancelled the wait, then both fresh OIDC login and
+the pause step completed successfully before the deadline. Its overall
+`cancelled` conclusion is expected. F2 remained paused throughout both checks.
+
 ## Pending delegated/browser gate
 
 Use a dedicated Web registration and two restricted users in the target tenant.
