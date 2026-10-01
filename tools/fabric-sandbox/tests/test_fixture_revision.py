@@ -256,6 +256,15 @@ def test_jobs_fixture_revision_excludes_unrelated_services(tmp_path):
     assert fixture_revision(settings, RUNTIME_CONTRACT, scope="jobs") == first
 
 
+@pytest.mark.parametrize("scope", ["all", "onelake", "jobs"])
+def test_discovery_and_publishing_changes_do_not_invalidate_fixture_data(tmp_path, scope):
+    settings = make_settings(tmp_path)
+    before = fixture_revision(settings, RUNTIME_CONTRACT, scope=scope)
+    package = settings.repository_root / "tools/fabric-sandbox/src/fabricqueryr_sandbox"
+    (package / "discover.py").write_text("new endpoint discovery")
+    (package / "deploy.py").write_text("new publishing retry behavior")
+    assert fixture_revision(settings, RUNTIME_CONTRACT, scope=scope) == before
+
 def test_onelake_fixture_revision_excludes_unrelated_services(tmp_path):
     settings = make_settings(tmp_path)
     first = fixture_revision(settings, RUNTIME_CONTRACT, scope="onelake")

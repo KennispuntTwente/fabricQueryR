@@ -1,5 +1,12 @@
 from pathlib import Path
 
+import yaml
+
+
+def integration_workflow():
+    path = Path(__file__).parents[3] / ".github/workflows/integration-fabric.yaml"
+    return yaml.load(path.read_text(), Loader=yaml.BaseLoader)
+
 
 INTEGRATION_GROUPS = {
     "auth-discovery",
@@ -30,7 +37,8 @@ def test_live_suite_is_split_into_feature_files():
         for group in INTEGRATION_GROUPS
     }
     unmatched = {
-        path.stem.removeprefix("test-integration-fabric-") for path in files
+        path.stem.removeprefix("test-integration-fabric-")
+        for path in files
         if not any(path in grouped for grouped in files_by_group.values())
     }
 
@@ -39,77 +47,36 @@ def test_live_suite_is_split_into_feature_files():
     assert not (test_directory / "test-integration-fabric.R").exists()
     assert all("test_that(" in path.read_text() for path in files)
     assert all(
-        path.read_text().startswith("# Fabric integration coverage:")
-        for path in files
+        path.read_text().startswith("# Fabric integration coverage:") for path in files
     )
 
 
-def test_live_workflow_provisions_one_sandbox_per_runtime_lane():
-    repository_root = Path(__file__).parents[3]
-    workflow = (
-        repository_root / ".github/workflows/integration-fabric.yaml"
-    ).read_text()
-
-    for group in INTEGRATION_GROUPS:
-        assert f"filter: integration-fabric-{group}" in workflow
-    assert "fail-fast: false" in workflow
-    assert "provision_core:" in workflow
-    assert "provision_preview:" in workflow
-    assert "integration_core:" in workflow
-    assert "integration_preview:" in workflow
-    assert "teardown_core:" in workflow
-    assert "teardown_preview:" in workflow
-    assert "steps: &provision_steps" in workflow
-    assert "steps: *provision_steps" in workflow
-    assert "steps: &integration_steps" in workflow
-    assert "steps: *integration_steps" in workflow
-    assert "steps: &teardown_steps" in workflow
-    assert "steps: *teardown_steps" in workflow
-    assert "FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}" in workflow
-    assert "FABRIC_SPARK_RUNTIME_VERSION: ${{ matrix.runtime }}" in workflow
-    assert "fabric-test-manifest-${{ matrix.lane }}" in workflow
-    assert "fabric-terraform-state-${{ matrix.lane }}" in workflow
-    assert "runtime: \"1.3\"" in workflow
-    assert "runtime: \"2.0\"" in workflow
-    assert "fixture_scope: all" in workflow
-    assert "fixture_scope: onelake" in workflow
-    assert "TF_VAR_fixture_scope: ${{ matrix.fixture_scope }}" in workflow
-    assert workflow.count("TF_VAR_fixture_scope: ${{ matrix.fixture_scope }}") == 2
-    assert 'deploy_args: "--item SeedFixtures.Notebook"' in workflow
-    assert "recreate_snapshot: true" in workflow
-    assert "recreate_snapshot: false" in workflow
-    assert "--scope ${{ matrix.fixture_scope }}" in workflow
-    assert "label: Delta on core runtime" in workflow
-    assert "label: Livy on preview runtime" in workflow
-    onelake = workflow.index("filter: integration-fabric-onelake")
-    assert workflow.index("lane: preview", onelake) > onelake
-    assert "name: fabric-test-manifest" in workflow
-    assert "name: fabric-terraform-state" in workflow
-    assert "actions/upload-artifact@v4" in workflow
-    assert "actions/download-artifact@v4" in workflow
-    assert workflow.count("Create workspace and test targets") == 1
-    export = workflow.split(
-        "- name: Export Terraform outputs", maxsplit=1
-    )[1].split("- name: Deploy Fabric item definitions", maxsplit=1)[0]
-    assert 'if [[ "${{ matrix.fixture_scope }}" == "all" ]]' in export
-    core_tests = workflow.split("\n  integration_core:", maxsplit=1)[1].split(
-        "\n  integration_preview:", maxsplit=1
-    )[0]
-    preview_tests = workflow.split(
-        "\n  integration_preview:", maxsplit=1
-    )[1].split("\n  teardown_core:", maxsplit=1)[0]
-    assert "- provision_core" in core_tests
-    assert "- provision_preview" not in core_tests
-    assert "lane: preview" not in core_tests
-    assert "- provision_preview" in preview_tests
-    assert "- provision_core" not in preview_tests
-    assert "lane: core" not in preview_tests
-    assert workflow.index("Share Fabric test manifest") < workflow.index(
-        "Download Fabric test manifest"
-    )
-    assert workflow.index("Restore Terraform state") < workflow.rindex(
-        "Destroy Fabric sandbox"
-    )
+def test_live_workflow_reuses_both_runtime_workspaces_and_keeps_all_test_groups():
+    workflow = integration_workflow()
+    jobs = workflow["jobs"]
+    filters = {
+        entry["filter"].removeprefix("integration-fabric-")
+        for lane in ("core", "preview")
+        for entry in jobs[f"integration_{lane}"]["strategy"]["matrix"]["include"]
+    }
+    assert filters == INTEGRATION_GROUPS
+    for lane in ("core", "preview"):
+        tests = jobs[f"integration_{lane}"]
+        assert f"provision_{lane}" in tests["needs"]
+        assert "activate" in tests["needs"]
+        assert tests["strategy"]["fail-fast"] == "false"
+        provision = jobs[f"provision_{lane}"]
+        assert provision["needs"] == "activate"
+        assert any(
+            "persistent_ci prepare" in step.get("run", "")
+            for step in provision["steps"]
+        )
+        assert all(
+            "terraform" not in step.get("run", "") for step in provision["steps"]
+        )
+    assert jobs["provision_core"]["steps"] == jobs["provision_preview"]["steps"]
+    assert jobs["integration_core"]["steps"] == jobs["integration_preview"]["steps"]
+    assert not any(name.startswith("teardown") for name in jobs)
 
 
 def test_shared_r_runtime_is_writable_and_smoke_checked_before_upload():
@@ -118,36 +85,29 @@ def test_shared_r_runtime_is_writable_and_smoke_checked_before_upload():
         repository_root / ".github/workflows/integration-fabric.yaml"
     ).read_text()
 
-    bundle = workflow.split(
-        "- name: Bundle R runtime and package library", maxsplit=1
-    )[1].split("- name: Share R runtime", maxsplit=1)[0]
+    bundle = workflow.split("- name: Bundle R runtime and package library", maxsplit=1)[
+        1
+    ].split("- name: Share R runtime", maxsplit=1)[0]
     assert 'sudo install -d -o "$(id -u)" -g "$(id -g)" "$system_library"' in bundle
     assert 'test -s "$archive"' in bundle
     assert 'grep -Fx "$runtime_path/bin/R"' in bundle
-    assert (
-        'grep -Fx "$runtime_path/lib/R/site-library/testthat/DESCRIPTION"'
-        in bundle
-    )
+    assert 'grep -Fx "$runtime_path/lib/R/site-library/testthat/DESCRIPTION"' in bundle
     assert bundle.index("sudo install -d") < bundle.index("sudo tar --zstd -C")
     assert bundle.index("test -s") > bundle.index("sudo tar --zstd -C")
 
 
-def test_live_workflow_gates_package_changes_at_the_test_revision():
-    repository_root = Path(__file__).parents[3]
-    workflow = (
-        repository_root / ".github/workflows/integration-fabric.yaml"
-    ).read_text()
-
-    assert "push:" in workflow
-    assert "pull_request:" in workflow
-    assert workflow.count("- R/**") == 2
-    assert workflow.count("tests/testthat/helper-*.R") == 2
-    assert workflow.count("tests/fixtures/**") == 2
-    assert "tests/testthat/test-delta-rs-oracle.R" in workflow
-    assert workflow.count("tests/testthat/test-integration-fabric-*.R") == 2
-    assert "infra/fabric/**" in workflow
-    assert "github.event.pull_request.head.repo.full_name" in workflow
-    assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in workflow
+def test_pushes_and_pull_requests_only_run_offline_checks():
+    workflow = integration_workflow()
+    triggers = workflow["on"]
+    assert triggers["push"]["paths"] == triggers["pull_request"]["paths"]
+    assert "R/**" in triggers["push"]["paths"]
+    assert "tests/testthat/test-integration-fabric-*.R" in triggers["push"]["paths"]
+    assert "schedule" not in triggers
+    jobs = workflow["jobs"]
+    assert "environment" not in jobs["tooling"]
+    assert "github.event_name == 'workflow_dispatch'" in jobs["activate"]["if"]
+    assert set(jobs["activate"]["needs"]) == {"tooling", "prepare_r"}
+    assert jobs["activate"]["permissions"]["actions"] == "write"
 
 
 def test_user_function_lane_accepts_optional_live_fixture_urls():
@@ -156,8 +116,7 @@ def test_user_function_lane_accepts_optional_live_fixture_urls():
         repository_root / ".github/workflows/integration-fabric.yaml"
     ).read_text()
     function_tests = (
-        repository_root
-        / "tests/testthat/test-integration-fabric-functions.R"
+        repository_root / "tests/testthat/test-integration-fabric-functions.R"
     ).read_text()
 
     variables = {
@@ -175,23 +134,28 @@ def test_user_function_lane_accepts_optional_live_fixture_urls():
     assert "fabric_test_required_environment(" not in function_tests
 
 
-def test_live_workflow_skips_protected_teardown_for_fork_pull_requests():
-    repository_root = Path(__file__).parents[3]
-    workflow = (
-        repository_root / ".github/workflows/integration-fabric.yaml"
-    ).read_text()
-
-    for lane in ("core", "preview"):
-        teardown = workflow.split(
-            f"\n  teardown_{lane}:", maxsplit=1
-        )[1]
-        assert (
-            f"if: always() && needs.provision_{lane}.result != 'skipped'"
-            in teardown
-        )
-        assert teardown.index("if: always()") < teardown.index(
-            "environment: fabric-integration"
-        )
+def test_pause_survives_failure_skips_and_cleanup_timeout():
+    jobs = integration_workflow()["jobs"]
+    pause = jobs["pause"]
+    assert pause["if"] == "always() && needs.activate.outputs.lease_id != ''"
+    assert set(pause["needs"]) == {
+        "activate",
+        "provision_core",
+        "provision_preview",
+        "integration_core",
+        "integration_preview",
+    }
+    steps = {step.get("name"): step for step in pause["steps"]}
+    assert (
+        steps["Stop test schedules and compute before pausing"]["timeout-minutes"]
+        == "2"
+    )
+    assert steps["Sign in again for pause even if cleanup failed"]["if"] == "always()"
+    shutdown = steps["Pause only this integration session"]
+    assert shutdown["if"] == "always()"
+    assert "autopause pause" in shutdown["run"]
+    assert '--lease-id "$LEASE_ID"' in shutdown["run"]
+    assert "continue-on-error" not in shutdown
 
 
 def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
@@ -199,13 +163,9 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     integration = (
         repository_root / ".github/workflows/integration-fabric.yaml"
     ).read_text()
-    persistent = (
-        repository_root / ".github/workflows/fabric-sandbox.yaml"
-    ).read_text()
+    persistent = (repository_root / ".github/workflows/fabric-sandbox.yaml").read_text()
     provision = integration.split("\n  prepare_r:", maxsplit=1)[0]
-    assert provision.index("Sign in to Azure with OIDC") < provision.index(
-        "Seed test data"
-    )
+    assert provision.index("azure/login@v3") < provision.index("persistent_ci prepare")
     assert "Acquire sandbox access tokens" not in provision
     assert "FABRIC_SANDBOX_USE_ENV_TOKENS" not in provision
 
@@ -225,7 +185,6 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
 def test_provisioning_retries_only_transient_provider_timeouts():
     repository_root = Path(__file__).parents[3]
     workflows = [
-        repository_root / ".github/workflows/integration-fabric.yaml",
         repository_root / ".github/workflows/fabric-sandbox.yaml",
     ]
 
@@ -244,36 +203,29 @@ def test_provisioning_retries_only_transient_provider_timeouts():
         assert 'exit "$apply_status"' in provision
 
 
-def test_core_provisioning_falls_back_only_for_sql_database_capacity():
-    repository_root = Path(__file__).parents[3]
-    workflow = (
-        repository_root / ".github/workflows/integration-fabric.yaml"
-    ).read_text()
-    provision = workflow.split(
-        "- name: Create workspace and test targets", maxsplit=1
-    )[1].split("- name: Export Terraform outputs", maxsplit=1)[0]
-
-    assert "SqlDatabasePerCapacityLimitReached" in provision
-    assert '[[ "$TF_VAR_fixture_scope" == "all" ]]' in provision
-    assert "export TF_VAR_provision_sql_database=false" in provision
-    assert 'echo "TF_VAR_provision_sql_database=false"' in provision
-    assert "TF_VAR_provision_sql_database: \"true\"" in workflow
-    assert '[[ "$TF_VAR_provision_sql_database" == "true" ]]' in workflow
+def test_optional_sql_database_selection_is_explicit_and_defaults_on():
+    workflow = integration_workflow()
+    assert (
+        workflow["on"]["workflow_dispatch"]["inputs"]["sql_database"]["default"]
+        == "true"
+    )
+    assert (
+        "inputs.sql_database"
+        in workflow["jobs"]["provision_core"]["env"]["TF_VAR_provision_sql_database"]
+    )
 
 
 def test_persistent_provisioning_falls_back_only_for_sql_database_capacity():
     repository_root = Path(__file__).parents[3]
-    workflow = (
-        repository_root / ".github/workflows/fabric-sandbox.yaml"
-    ).read_text()
-    provision = workflow.split(
-        "- name: Create workspace and test targets", maxsplit=1
-    )[1].split("- name: Export Terraform outputs", maxsplit=1)[0]
+    workflow = (repository_root / ".github/workflows/fabric-sandbox.yaml").read_text()
+    provision = workflow.split("- name: Create workspace and test targets", maxsplit=1)[
+        1
+    ].split("- name: Export Terraform outputs", maxsplit=1)[0]
 
     assert "SqlDatabasePerCapacityLimitReached" in provision
     assert "export TF_VAR_provision_sql_database=false" in provision
     assert 'echo "TF_VAR_provision_sql_database=false"' in provision
-    assert "TF_VAR_provision_sql_database: \"true\"" in workflow
+    assert 'TF_VAR_provision_sql_database: "true"' in workflow
     assert '[[ "$TF_VAR_provision_sql_database" == "true" ]]' in workflow
     assert "SQL Database fixture: omitted" in workflow
 
@@ -281,7 +233,6 @@ def test_persistent_provisioning_falls_back_only_for_sql_database_capacity():
 def test_warehouse_snapshot_is_recreated_after_seeded_objects():
     repository_root = Path(__file__).parents[3]
     workflows = [
-        repository_root / ".github/workflows/integration-fabric.yaml",
         repository_root / ".github/workflows/fabric-sandbox.yaml",
     ]
 
@@ -305,8 +256,7 @@ def test_auth_lane_acquires_an_optional_least_privilege_identity():
         repository_root / ".github/workflows/integration-fabric.yaml"
     ).read_text()
     auth_tests = (
-        repository_root
-        / "tests/testthat/test-integration-fabric-auth-discovery.R"
+        repository_root / "tests/testthat/test-integration-fabric-auth-discovery.R"
     ).read_text()
 
     assert "Acquire least-privilege Fabric token" in workflow
@@ -320,8 +270,7 @@ def test_auth_lane_acquires_an_optional_least_privilege_identity():
 def test_live_lro_suite_requires_a_regional_power_bi_route():
     repository_root = Path(__file__).parents[3]
     auth_tests = (
-        repository_root
-        / "tests/testthat/test-integration-fabric-auth-discovery.R"
+        repository_root / "tests/testthat/test-integration-fabric-auth-discovery.R"
     ).read_text()
 
     lro_test = auth_tests.split(
@@ -337,10 +286,11 @@ def test_delta_matrices_install_the_locked_delta_rs_oracle():
         repository_root / ".github/workflows/integration-fabric.yaml"
     ).read_text()
 
-    assert (
-        "if: matrix.adbc || "
-        "matrix.filter == 'integration-fabric-onelake'"
-    ) in workflow
+    steps = integration_workflow()["jobs"]["integration_core"]["steps"]
+    setup_uv = next(
+        step for step in steps if step.get("uses") == "astral-sh/setup-uv@v6"
+    )
+    assert "if" not in setup_uv  # Every lane verifies its capacity lease in Python.
     assert "|| matrix.delta" in workflow
     assert "Install locked delta-rs runtime environment" in workflow
     assert "Select the locked delta-rs Python environment" in workflow
@@ -349,13 +299,12 @@ def test_delta_matrices_install_the_locked_delta_rs_oracle():
 
 def test_locked_delta_bridge_runs_on_every_release_platform():
     repository_root = Path(__file__).parents[3]
-    workflow = (
-        repository_root / ".github/workflows/R-CMD-check.yaml"
-    ).read_text()
+    workflow = (repository_root / ".github/workflows/R-CMD-check.yaml").read_text()
 
     delta_steps = workflow[
-        workflow.index("- name: Set up uv for delta-rs runtime tests") :
-        workflow.index("R-4-1-compatibility:")
+        workflow.index("- name: Set up uv for delta-rs runtime tests") : workflow.index(
+            "R-4-1-compatibility:"
+        )
     ]
 
     assert "matrix.config.os == 'ubuntu-latest'" not in delta_steps
@@ -369,11 +318,9 @@ def test_locked_delta_bridge_runs_on_every_release_platform():
 
 def test_unit_coverage_has_an_enforced_ci_floor():
     repository_root = Path(__file__).parents[3]
-    workflow = (
-        repository_root / ".github/workflows/test-coverage.yaml"
-    ).read_text()
+    workflow = (repository_root / ".github/workflows/test-coverage.yaml").read_text()
 
-    assert "covr::package_coverage(type = \"tests\"" in workflow
+    assert 'covr::package_coverage(type = "tests"' in workflow
     assert "covr::percent_coverage(coverage)" in workflow
     assert "if (percent < 88.5)" in workflow
     assert "needs: coverage" in workflow
@@ -382,16 +329,10 @@ def test_unit_coverage_has_an_enforced_ci_floor():
 
 def test_r_4_1_lane_avoids_incompatible_suggested_dependencies():
     repository_root = Path(__file__).parents[3]
-    workflow = (
-        repository_root / ".github/workflows/R-CMD-check.yaml"
-    ).read_text()
+    workflow = (repository_root / ".github/workflows/R-CMD-check.yaml").read_text()
 
-    compatibility = workflow.split(
-        "\n  R-4-1-compatibility:", maxsplit=1
-    )[1]
-    check_matrix = workflow.split(
-        "\n  R-4-1-compatibility:", maxsplit=1
-    )[0]
+    compatibility = workflow.split("\n  R-4-1-compatibility:", maxsplit=1)[1]
+    check_matrix = workflow.split("\n  R-4-1-compatibility:", maxsplit=1)[0]
 
     assert "r: '4.1'" not in check_matrix
     assert "r-version: '4.1'" in compatibility
@@ -400,7 +341,7 @@ def test_r_4_1_lane_avoids_incompatible_suggested_dependencies():
     assert "install-pandoc: false" in compatibility
     assert "install-quarto: false" in compatibility
     assert "R CMD INSTALL ." in compatibility
-    assert 'getFromNamespace(' in compatibility
+    assert "getFromNamespace(" in compatibility
     assert '".fabric_job_parameters"' in compatibility
     assert 'inherits(scalar, "POSIXlt")' in compatibility
     assert "length(as.POSIXct(scalar)) == 1L" in compatibility
@@ -417,16 +358,15 @@ def test_live_sql_matrix_installs_required_client_drivers():
     assert 'uvx dbc==0.3.0 install "mssql>=1.5,<2"' in workflow
     assert "if: matrix.odbc" in workflow
     assert "if: matrix.adbc" in workflow
-    assert workflow.index(
-        "Install Microsoft SQL Server ADBC driver"
-    ) < workflow.index("Run Fabric integration tests")
+    assert workflow.index("Install Microsoft SQL Server ADBC driver") < workflow.index(
+        "Run Fabric integration tests"
+    )
 
 
 def test_parallel_sql_reads_ignore_graphql_mutation_sentinel():
     repository_root = Path(__file__).parents[3]
     sql_fixtures = (
-        repository_root
-        / "tests/testthat/helper-test-fixtures.R"
+        repository_root / "tests/testthat/helper-test-fixtures.R"
     ).read_text()
 
     assert sql_fixtures.count('"WHERE id > 0"') == 2
@@ -435,8 +375,7 @@ def test_parallel_sql_reads_ignore_graphql_mutation_sentinel():
 def test_live_power_bi_suite_cancels_an_enhanced_refresh():
     repository_root = Path(__file__).parents[3]
     tests = (
-        repository_root
-        / "tests/testthat/test-integration-fabric-power-bi.R"
+        repository_root / "tests/testthat/test-integration-fabric-power-bi.R"
     ).read_text()
 
     assert 'mode = "enhanced"' in tests
@@ -447,17 +386,14 @@ def test_live_power_bi_suite_cancels_an_enhanced_refresh():
 def test_delegated_power_bi_suite_requires_a_personal_dataset():
     repository_root = Path(__file__).parents[3]
     tests = (
-        repository_root
-        / "tests/testthat/test-integration-fabric-power-bi.R"
+        repository_root / "tests/testthat/test-integration-fabric-power-bi.R"
     ).read_text()
 
     required_dataset = (
-        'fabric_test_required_environment(\n'
-        '    "FABRIC_TEST_PERSONAL_DATASET_ID"'
+        'fabric_test_required_environment(\n    "FABRIC_TEST_PERSONAL_DATASET_ID"'
     )
     optional_dataset = (
-        'fabric_test_optional_environment(\n'
-        '    "FABRIC_TEST_PERSONAL_DATASET_ID"'
+        'fabric_test_optional_environment(\n    "FABRIC_TEST_PERSONAL_DATASET_ID"'
     )
     assert tests.count(required_dataset) == 2
     assert optional_dataset not in tests
@@ -465,9 +401,7 @@ def test_delegated_power_bi_suite_requires_a_personal_dataset():
 
 def test_persistent_sandbox_workflow_is_idempotent_and_manually_removed():
     repository_root = Path(__file__).parents[3]
-    workflow = (
-        repository_root / ".github/workflows/fabric-sandbox.yaml"
-    ).read_text()
+    workflow = (repository_root / ".github/workflows/fabric-sandbox.yaml").read_text()
 
     assert "workflow_dispatch:" in workflow
     assert "- rebuild" in workflow
@@ -475,12 +409,12 @@ def test_persistent_sandbox_workflow_is_idempotent_and_manually_removed():
     assert "fabricqueryr-dev-dhrkoning" in workflow
     assert "fabricqueryr-persistent;" in workflow
     assert "remove-persistent" in workflow
-    assert workflow.index(
-        "Remove existing persistent sandbox"
-    ) < workflow.index("Create workspace and test targets")
+    assert workflow.index("Remove existing persistent sandbox") < workflow.index(
+        "Create workspace and test targets"
+    )
     assert "TF_VAR_test_principal_type: User" in workflow
     assert "TF_VAR_test_principal_role: Admin" in workflow
     assert "FABRIC_SPARK_RUNTIME_LANE: preview" in workflow
     assert 'FABRIC_SPARK_RUNTIME_VERSION: "2.0"' in workflow
     assert "9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5" in workflow
-    assert "terraform -chdir=\"$TF_DIR\" destroy" not in workflow
+    assert 'terraform -chdir="$TF_DIR" destroy' not in workflow

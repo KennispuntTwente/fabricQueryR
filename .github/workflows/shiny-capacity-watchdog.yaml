@@ -1,4 +1,4 @@
-name: Pause expired Shiny F2
+name: Pause expired Fabric F2
 
 on:
   schedule:
@@ -31,5 +31,5 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Pause F2 if its Shiny deadline expired
+      - name: Pause F2 if its integration or Shiny deadline expired
         run: python3 tools/ci/fabric_capacity_watchdog.py --resource-id "$CAPACITY_RESOURCE_ID"

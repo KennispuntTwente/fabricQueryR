@@ -7,7 +7,7 @@ import textwrap
 import pytest
 
 
-WORKFLOWS = ["integration-fabric.yaml", "fabric-sandbox.yaml"]
+WORKFLOWS = ["fabric-sandbox.yaml"]
 WORKFLOW_DIR = Path(__file__).parents[3] / ".github/workflows"
 MIRROR_TIMEOUT = (
     "Error: unknown error\n"
@@ -161,13 +161,3 @@ def test_sql_capacity_fallback_still_uses_an_ordinary_apply(tmp_path, workflow):
     assert (tmp_path / "github-env").read_text().strip() == (
         "TF_VAR_provision_sql_database=false"
     )
-
-
-def test_teardown_deletes_saved_resources_without_a_readiness_refresh(tmp_path):
-    workflow = (WORKFLOW_DIR / "integration-fabric.yaml").read_text()
-    step = workflow.split("- name: Destroy Fabric sandbox", maxsplit=1)[1]
-    script = step.split("run: ", maxsplit=1)[1].splitlines()[0]
-    result, calls = run_step(tmp_path, script)
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert len(calls) == 1
-    assert calls[0][1] == "destroy"

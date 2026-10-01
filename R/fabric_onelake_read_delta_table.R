@@ -232,6 +232,12 @@ fabric_onelake_read_delta_table <- function(
     auth_args = auth_args
   )
   table_uri <- fabric_delta_target_uri(resolved$target)
+  fabric_require_trusted_credential_endpoint(
+    resolved$target$dfs_base,
+    credential,
+    .fabric_audience$storage,
+    "dfs_base"
+  )
   storage_endpoint <- fabric_delta_storage_endpoint(resolved$target)
   inform(verbose, "Opening Delta table {.path {resolved$table_dir}}")
 

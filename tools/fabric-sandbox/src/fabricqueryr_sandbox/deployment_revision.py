@@ -71,12 +71,12 @@ def record_deployments(
         )
 
 
-def verify_deployments(
-    settings, workspace_id, lakehouse_id, *, service_client=None, scope="all",
+def stale_deployments(
+    settings, workspace_id, lakehouse_id, *, service_client=None, scope="all", items=None,
 ):
-    items = deployment_items(settings, scope=scope)
+    items = deployment_items(settings, scope=scope) if items is None else items
     if not items:
-        return
+        return []
     service = _service(service_client)
     stale = []
     for item in items:
@@ -87,6 +87,15 @@ def verify_deployments(
             contract = None
         if not isinstance(contract, dict) or contract.get("revision") != deployment_revision(settings, item):
             stale.append(item)
+    return stale
+
+
+def verify_deployments(
+    settings, workspace_id, lakehouse_id, *, service_client=None, scope="all",
+):
+    stale = stale_deployments(
+        settings, workspace_id, lakehouse_id, service_client=service_client, scope=scope,
+    )
     if stale:
         raise RuntimeError(
             "Fabric item definitions need deployment: " + ", ".join(stale)

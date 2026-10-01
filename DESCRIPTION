@@ -1,6 +1,6 @@
 Package: fabricQueryR
 Title: Access and Manage 'Microsoft Fabric'
-Version: 1.0.1
+Version: 1.0.1.9000
 Authors@R: 
     c(person(given = "Luka",
              family = "Koning",
@@ -20,14 +20,22 @@ Suggests:
     adbcdrivermanager,
     adbi,
     arrow (>= 17.0.0),
+    bslib (>= 0.7.0),
     DBI (>= 1.2.0),
     dplyr,
+    future,
     knitr,
+    later,
     lifecycle,
+    mirai,
     odbc,
+    parallelly,
     processx,
+    promises (>= 1.3.0),
     purrr,
     rmarkdown,
+    shiny (>= 1.8.1),
+    shinyOAuth,
     testthat (>= 3.2.0),
     waldo,
     webfakes,

@@ -376,6 +376,12 @@ fabric_sql_connect <- function(
     auth_args = auth_args
   )
   backend_label <- toupper(backend)
+  fabric_require_trusted_credential_endpoint(
+    paste0("https://", info$server),
+    credential,
+    .fabric_audience$sql,
+    "server"
+  )
   message <- if (is.null(info$database)) {
     "Opening {backend_label} connection to {info$server} / Fabric master context"
   } else {
@@ -684,6 +690,12 @@ fabric_sql_query <- function(
     auth_args = auth_args
   )
   params <- .fabric_sql_normalize_params(params)
+  fabric_require_trusted_credential_endpoint(
+    paste0("https://", endpoint$server),
+    credential,
+    .fabric_audience$sql,
+    "server"
+  )
   adbc_params <- identical(backend, "adbc") && !is.null(params)
   query_sql <- if (adbc_params) {
     fabric_sql_adbc_parameter_sql(sql, params)
@@ -742,6 +754,10 @@ fabric_sql_query <- function(
         )
       }
     })
+    attr(
+      connect_args$token,
+      "fabric_endpoint_policy"
+    ) <- credential$endpoint_policy
 
     # Keep connection cleanup paired with the query attempt
     con <- NULL

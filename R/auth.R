@@ -102,7 +102,8 @@ fabric_credential <- function(
           provider = function(audience, force_refresh = FALSE) token,
           refreshable = FALSE,
           type = "static",
-          audience_ref = audience_ref
+          audience_ref = audience_ref,
+          endpoint_policy = attr(token, "fabric_endpoint_policy", exact = TRUE)
         ),
         class = "fabric_credential"
       ))
@@ -118,7 +119,8 @@ fabric_credential <- function(
             )
           },
           refreshable = TRUE,
-          type = "callback"
+          type = "callback",
+          endpoint_policy = attr(token, "fabric_endpoint_policy", exact = TRUE)
         ),
         class = "fabric_credential"
       ))
@@ -269,6 +271,16 @@ fabric_require_trusted_credential_endpoint <- function(
   audience,
   argument = "request endpoint"
 ) {
+  if (
+    inherits(credential, "fabric_credential") &&
+      !is.null(credential$endpoint_policy)
+  ) {
+    return(fabric_check_endpoint_policy(
+      endpoint,
+      credential$endpoint_policy,
+      audience
+    ))
+  }
   if (
     is.null(credential) ||
       !inherits(credential, "fabric_credential") ||
@@ -596,6 +608,9 @@ fabric_call_token_provider <- function(provider, audience, force_refresh) {
 fabric_get_token <- function(credential, audience, force_refresh = FALSE) {
   if (!inherits(credential, "fabric_credential")) {
     .fabric_abort("Invalid Fabric credential")
+  }
+  if (!is.null(credential$endpoint_policy)) {
+    fabric_shiny_route(audience, credential$endpoint_policy)
   }
   fabric_bind_fixed_credential_audience(credential, audience)
   token <- credential$provider(audience, force_refresh = force_refresh)

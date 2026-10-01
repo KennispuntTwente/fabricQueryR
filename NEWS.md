@@ -1,3 +1,25 @@
+# fabricQueryR (development version)
+
+* The repository's `playground/shiny` app queries the persistent Fabric sandbox
+with background workers, SQL and DAX controls, and shared or delegated access.
+
+* `fabric_shiny_config()` configures explicit delegated Fabric, SQL, DAX, KQL,
+OneLake and GraphQL permissions using shinyOAuth token targets, with Shiny
+dependencies optional. DAX and GraphQL share a Power BI target when both are used.
+
+* `fabric_shiny_server()` and `fabric_shiny_ui()` provide session-scoped sign-in,
+resource preparation and existing R6 discovery objects. Token refresh preserves
+authorization identity; logout and account replacement invalidate old objects.
+Its `access_token()` helper can acquire a service token asynchronously for
+nonblocking queries with Shiny's `ExtendedTask` and background R workers.
+The complete Shiny example includes a DAX dashboard, Warehouse and Lakehouse
+SQL, Eventhouse KQL, OneLake files and Delta tables, and GraphQL queries.
+It uses mirai when installed, with `promises::future_promise()` as a fallback.
+
+* `fabric_shiny_token_provider()` adapts an existing shinyOAuth connection for
+Fabric functions, with synchronous refresh, declared audience routing and
+endpoint restrictions retained through HTTP, SQL and Delta transports.
+
 # fabricQueryR 1.0.1
 
 * Fix a GraphQL numeric round-trip test on R builds without long-double support

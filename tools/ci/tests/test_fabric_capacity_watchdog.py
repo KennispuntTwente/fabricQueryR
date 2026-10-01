@@ -96,7 +96,7 @@ class WatchdogTests(unittest.TestCase):
         item = resource()
         item["tags"] = {}
         capacity = Capacity(item)
-        with self.assertRaisesRegex(RuntimeError, "no matching Shiny owner"):
+        with self.assertRaisesRegex(RuntimeError, "no matching repository owner"):
             self.check(capacity)
         self.assertEqual(capacity.posts, 0)
 

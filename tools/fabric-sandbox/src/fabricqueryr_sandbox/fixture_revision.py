@@ -83,8 +83,6 @@ def _fixture_inputs(
         / "fabricqueryr_sandbox"
     )
     fixed = [
-        package_dir / "deploy.py",
-        package_dir / "discover.py",
         package_dir / "fixture_revision.py",
         package_dir / "graphql_api.py",
         package_dir / "kusto_api.py",
@@ -116,8 +114,6 @@ def _fixture_inputs(
     else:
         if scope == "onelake":
             fixed = [
-                package_dir / "deploy.py",
-                package_dir / "discover.py",
                 package_dir / "fixture_revision.py",
                 package_dir / "open_mirroring.py",
                 package_dir / "seed.py",

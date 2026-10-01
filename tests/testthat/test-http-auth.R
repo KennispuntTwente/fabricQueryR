@@ -521,7 +521,7 @@ test_that("all exported authenticated functions share auth arguments", {
       args <- names(formals(value))
       any(c("tenant_id", "client_id") %in% args)
     },
-    exports
+    setdiff(exports, "fabric_shiny_config")
   )
   expected <- c(
     "tenant_id",
