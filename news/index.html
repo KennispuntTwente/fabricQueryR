@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">fabricQueryR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,9 +30,16 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/kennispunttwente/fabricQueryR/blob/v1.0.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/kennispunttwente/fabricQueryR/blob/master/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="fabricqueryr-development-version">fabricQueryR (development version)<a class="anchor" aria-label="anchor" href="#fabricqueryr-development-version"></a></h2>
+<ul><li><p>The repository’s <code>playground/shiny</code> app queries the persistent Fabric sandbox with background workers, SQL and DAX controls, and shared or delegated access.</p></li>
+<li><p><code><a href="../reference/fabric_shiny_config.html">fabric_shiny_config()</a></code> configures explicit delegated Fabric, SQL, DAX, KQL, OneLake and GraphQL permissions using shinyOAuth token targets, with Shiny dependencies optional. DAX and GraphQL share a Power BI target when both are used.</p></li>
+<li><p><code><a href="../reference/fabric_shiny_server.html">fabric_shiny_server()</a></code> and <code><a href="../reference/fabric_shiny_ui.html">fabric_shiny_ui()</a></code> provide session-scoped sign-in, resource preparation and existing R6 discovery objects. Token refresh preserves authorization identity; logout and account replacement invalidate old objects. Its <code>access_token()</code> helper can acquire a service token asynchronously for nonblocking queries with Shiny’s <code>ExtendedTask</code> and background R workers. The complete Shiny example includes a DAX dashboard, Warehouse and Lakehouse SQL, Eventhouse KQL, OneLake files and Delta tables, and GraphQL queries. It uses mirai when installed, with <code><a href="https://rstudio.github.io/promises/reference/future_promise.html" class="external-link">promises::future_promise()</a></code> as a fallback.</p></li>
+<li><p><code><a href="../reference/fabric_shiny_token_provider.html">fabric_shiny_token_provider()</a></code> adapts an existing shinyOAuth connection for Fabric functions, with synchronous refresh, declared audience routing and endpoint restrictions retained through HTTP, SQL and Delta transports.</p></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.1" id="fabricqueryr-101">fabricQueryR 1.0.1<a class="anchor" aria-label="anchor" href="#fabricqueryr-101"></a></h2><p class="text-muted">CRAN release: 2026-09-30</p>
 <ul><li>Fix a GraphQL numeric round-trip test on R builds without long-double support (CRAN’s <code>noLD</code> check). Package behavior is unchanged.</li>

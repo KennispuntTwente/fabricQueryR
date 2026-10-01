@@ -12,6 +12,7 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/onelake-and-lakehouse.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/reading-data.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/semantic-model-refresh.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/shiny-integration.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/user-data-functions.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/articles/warehouse.html</loc></url>
@@ -59,6 +60,10 @@
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_operation_status.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_dax_query.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_pbi_refresh.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_shiny_config.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_shiny_server.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_shiny_token_provider.html</loc></url>
+<url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_shiny_ui.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connect.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_connection_info.html</loc></url>
 <url><loc>https://kennispunttwente.github.io/fabricQueryR/reference/fabric_sql_query.html</loc></url>
