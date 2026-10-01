@@ -230,10 +230,10 @@ gh workflow run integration-fabric.yaml --ref master \
 
 The manifests remain one-day workflow artifacts, but workspace identity and
 fixture revisions live in Fabric. Losing an Actions artifact no longer loses
-persistent infrastructure state. The old daily janitor only deletes workspaces
-with both the `fabricqueryr-ci-` prefix and `fabricqueryr-ci;` marker, so it leaves
-these persistent workspaces alone. `fabric-sandbox cleanup` is still a dry run
-unless `--confirm` is supplied.
+persistent infrastructure state. There is no scheduled workspace deletion.
+For leftovers from the former temporary CI setup, `fabric-sandbox cleanup`
+lists workspaces with both the `fabricqueryr-ci-` prefix and `fabricqueryr-ci;`
+marker. It remains a dry run unless `--confirm` is supplied.
 
 ### Persistent interactive sandbox
 
@@ -291,8 +291,7 @@ trial capacity, start [assigns it to F2](https://learn.microsoft.com/en-us/rest/
 and keeps its ID and items. The first preparation under this workflow can seed
 once to establish the fixture revision records.
 
-The daily ephemeral-workspace janitor ignores these sandboxes. Start operations
-share the integration concurrency group; manual pause and shutdown timers run
+Start operations share the integration concurrency group; manual pause and shutdown timers run
 independently so they can interrupt startup. The Actions summary reports the
 workspace, deadline, shutdown run and R launch command.
 
