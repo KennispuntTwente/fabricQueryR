@@ -1,0 +1,16 @@
+{
+  "Name": "fabricqueryr-shiny-f2-controller",
+  "IsCustom": true,
+  "Description": "Read, resume, suspend and tag the existing Shiny F2; no create, resize, delete or access-management permissions.",
+  "Actions": [
+    "Microsoft.Fabric/capacities/read",
+    "Microsoft.Fabric/capacities/resume/action",
+    "Microsoft.Fabric/capacities/suspend/action",
+    "Microsoft.Resources/tags/read",
+    "Microsoft.Resources/tags/write"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": []
+}
