@@ -319,7 +319,7 @@ fabric_shiny_session <- function(auth, profiles, min_valid_for) {
       if (
         !is.list(query) ||
           (length(query) &&
-            (is.null(names(query)) || any(!nzchar(names(query)))))
+            (is.null(names(query)) || !all(nzchar(names(query)))))
       ) {
         fabric_shiny_error("query must be a named list.")
       }

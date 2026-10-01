@@ -48,7 +48,7 @@ fabric_shiny_token_provider <- function(
     if (
       !is.character(targets) ||
         anyNA(targets) ||
-        any(!nzchar(targets)) ||
+        !all(nzchar(targets)) ||
         is.null(names(targets)) ||
         anyDuplicated(names(targets)) ||
         !all(names(targets) %in% services)

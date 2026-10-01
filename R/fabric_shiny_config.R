@@ -245,7 +245,7 @@ fabric_shiny_profiles <- function(
       !is.character(selected) ||
         !length(selected) ||
         anyNA(selected) ||
-        any(!nzchar(selected)) ||
+        !all(nzchar(selected)) ||
         any(grepl("[[:space:]?#]", selected))
     ) {
       fabric_shiny_error(
@@ -259,7 +259,7 @@ fabric_shiny_profiles <- function(
       substring(selected, nchar(prefix) + 1L),
       selected
     )
-    if (any(!grepl("^[A-Za-z][A-Za-z0-9_.]*$", short))) {
+    if (!all(grepl("^[A-Za-z][A-Za-z0-9_.]*$", short))) {
       fabric_shiny_error(
         "Scopes must belong to their service and use explicit permissions, not .default."
       )
@@ -279,7 +279,7 @@ fabric_shiny_profiles <- function(
     if (
       !is.character(extra_hosts) ||
         anyNA(extra_hosts) ||
-        any(!grepl("^[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*$", extra_hosts))
+        !all(grepl("^[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*$", extra_hosts))
     ) {
       fabric_shiny_error(
         "endpoint_hosts entries must be exact hostnames without schemes, paths or wildcards."
