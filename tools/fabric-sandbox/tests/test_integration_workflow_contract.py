@@ -170,7 +170,7 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     assert "FABRIC_SANDBOX_USE_ENV_TOKENS" not in provision
 
     assert persistent.index("Sign in to Azure with OIDC") < persistent.index(
-        "Seed test data"
+        "persistent_sandbox prepare"
     )
     assert "Acquire sandbox access tokens" not in persistent
     assert "FABRIC_SANDBOX_USE_ENV_TOKENS" not in persistent
@@ -180,27 +180,6 @@ def test_provisioning_uses_refreshable_login_and_tests_get_fresh_tokens():
     run = integration.split("- name: Run Fabric integration tests", maxsplit=1)[1]
     assert "FABRIC_TEST_AUTH_CLIENT_SECRET:" in run
     assert "run_fabric_ci_integration()" in run
-
-
-def test_provisioning_retries_only_transient_provider_timeouts():
-    repository_root = Path(__file__).parents[3]
-    workflows = [
-        repository_root / ".github/workflows/fabric-sandbox.yaml",
-    ]
-
-    for path in workflows:
-        workflow = path.read_text()
-        provision = workflow.split(
-            "- name: Create workspace and test targets", maxsplit=1
-        )[1].split("- name: Export Terraform outputs", maxsplit=1)[0]
-
-        assert "-parallelism=4" in provision
-        assert provision.count('"${terraform_apply[@]}"') == 3
-        assert "context deadline exceeded" in provision
-        assert "Provider returned invalid result object after apply" in provision
-        assert "state show -no-color" in provision
-        assert "fabric_mirrored_database.test" in provision
-        assert 'exit "$apply_status"' in provision
 
 
 def test_optional_sql_database_selection_is_explicit_and_defaults_on():
@@ -213,41 +192,6 @@ def test_optional_sql_database_selection_is_explicit_and_defaults_on():
         "inputs.sql_database"
         in workflow["jobs"]["provision_core"]["env"]["TF_VAR_provision_sql_database"]
     )
-
-
-def test_persistent_provisioning_falls_back_only_for_sql_database_capacity():
-    repository_root = Path(__file__).parents[3]
-    workflow = (repository_root / ".github/workflows/fabric-sandbox.yaml").read_text()
-    provision = workflow.split("- name: Create workspace and test targets", maxsplit=1)[
-        1
-    ].split("- name: Export Terraform outputs", maxsplit=1)[0]
-
-    assert "SqlDatabasePerCapacityLimitReached" in provision
-    assert "export TF_VAR_provision_sql_database=false" in provision
-    assert 'echo "TF_VAR_provision_sql_database=false"' in provision
-    assert 'TF_VAR_provision_sql_database: "true"' in workflow
-    assert '[[ "$TF_VAR_provision_sql_database" == "true" ]]' in workflow
-    assert "SQL Database fixture: omitted" in workflow
-
-
-def test_warehouse_snapshot_is_recreated_after_seeded_objects():
-    repository_root = Path(__file__).parents[3]
-    workflows = [
-        repository_root / ".github/workflows/fabric-sandbox.yaml",
-    ]
-
-    for path in workflows:
-        workflow = path.read_text()
-        seed = workflow.index("Seed test data")
-        snapshot = workflow.index("Recreate Warehouse snapshot after seeding")
-        discover = workflow.index("Discover Fabric endpoints")
-        snapshot_step = workflow[snapshot:discover]
-
-        assert seed < snapshot < discover
-        assert "'-replace=fabric_warehouse_snapshot.test[0]'" in snapshot_step
-        assert "FABRIC_WAREHOUSE_SNAPSHOT_ID=" in snapshot_step
-        if path.name == "integration-fabric.yaml":
-            assert "if: matrix.recreate_snapshot" in snapshot_step
 
 
 def test_auth_lane_acquires_an_optional_least_privilege_identity():
@@ -397,24 +341,3 @@ def test_delegated_power_bi_suite_requires_a_personal_dataset():
     )
     assert tests.count(required_dataset) == 2
     assert optional_dataset not in tests
-
-
-def test_persistent_sandbox_workflow_is_idempotent_and_manually_removed():
-    repository_root = Path(__file__).parents[3]
-    workflow = (repository_root / ".github/workflows/fabric-sandbox.yaml").read_text()
-
-    assert "workflow_dispatch:" in workflow
-    assert "- rebuild" in workflow
-    assert "- teardown" in workflow
-    assert "fabricqueryr-dev-dhrkoning" in workflow
-    assert "fabricqueryr-persistent;" in workflow
-    assert "remove-persistent" in workflow
-    assert workflow.index("Remove existing persistent sandbox") < workflow.index(
-        "Create workspace and test targets"
-    )
-    assert "TF_VAR_test_principal_type: User" in workflow
-    assert "TF_VAR_test_principal_role: Admin" in workflow
-    assert "FABRIC_SPARK_RUNTIME_LANE: preview" in workflow
-    assert 'FABRIC_SPARK_RUNTIME_VERSION: "2.0"' in workflow
-    assert "9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5" in workflow
-    assert 'terraform -chdir="$TF_DIR" destroy' not in workflow

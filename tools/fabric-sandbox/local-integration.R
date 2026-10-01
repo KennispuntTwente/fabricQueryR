@@ -904,7 +904,7 @@ run_fabric_integration_tests <- function(
       paste(
         "Persistent workspace",
         shQuote(workspace_name),
-        "was not found. Run the GitHub workflow with action=rebuild first."
+        "was not found. Run the GitHub workflow with sandbox=development and action=start first."
       ),
       call. = FALSE
     )

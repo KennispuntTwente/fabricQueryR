@@ -9,17 +9,17 @@ import time
 from dataclasses import replace
 from hashlib import sha256
 
+import pyodbc
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.storage.filedatalake import DataLakeServiceClient
-import pyodbc
 
 from .credentials import CachedTokenCredential, get_credential
+from .deploy import deploy
 from .deployment_revision import (
     deployment_items,
     deployment_revision,
     stale_deployments,
 )
-from .deploy import deploy
 from .discover import discover, discover_onelake
 from .fabric_api import FabricApi
 from .fixture_revision import (
@@ -35,13 +35,13 @@ from .power_bi_api import (
 )
 from .seed import seed
 from .settings import SandboxSettings
-from .sql_api import SQL_AUDIENCE, _odbc_connection_settings
 from .shiny_sandbox import (
     complete_operation,
     definition_part,
     ensure_item,
     wait_active_capacity,
 )
+from .sql_api import SQL_AUDIENCE, _odbc_connection_settings
 
 MANAGER = ".github/workflows/integration-fabric.yaml"
 SNAPSHOT_MAX_AGE = 24 * 60 * 60
@@ -234,6 +234,11 @@ def prepare(api, credential, service, settings, repository, *, reseed=False):
     settings = replace(
         settings, workspace_id=workspace["id"], workspace_name=workspace["displayName"]
     )
+    return reconcile(api, credential, service, settings, scope=scope, reseed=reseed)
+
+
+def reconcile(api, credential, service, settings, *, scope="all", reseed=False):
+    """Reuse fixtures in a workspace whose ownership the caller has verified."""
     items = api.list_items(settings.workspace_id)
     targets, configurations = ensure_targets(api, settings, items, scope)
     settings = replace(
@@ -366,7 +371,10 @@ def prepare(api, credential, service, settings, repository, *, reseed=False):
             },
         )
     (discover if scope == "all" else discover_onelake)(settings)
-    print(f"Persistent {lane} manifest: {settings.manifest_path}", flush=True)
+    print(
+        f"Persistent {settings.workspace_name} manifest: {settings.manifest_path}",
+        flush=True,
+    )
     return settings
 
 

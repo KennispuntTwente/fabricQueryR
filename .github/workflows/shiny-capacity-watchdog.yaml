@@ -31,5 +31,5 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Pause F2 if its integration or Shiny deadline expired
+      - name: Pause F2 if its sandbox or integration deadline expired
         run: python3 tools/ci/fabric_capacity_watchdog.py --resource-id "$CAPACITY_RESOURCE_ID"

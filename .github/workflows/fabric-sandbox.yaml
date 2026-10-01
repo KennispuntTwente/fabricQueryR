@@ -1,276 +1,82 @@
 name: Manage persistent Fabric sandbox
-run-name: Fabric sandbox - ${{ inputs.action }}${{ inputs.guard_key && format(' - {0}', inputs.guard_key) || '' }}
+run-name: Fabric sandbox - ${{ inputs.sandbox }} - ${{ inputs.action }}
 
 on:
   workflow_dispatch:
     inputs:
-      action:
-        description: General sandbox rebuild/teardown, or Shiny status/start (paid F2)/pause
+      sandbox:
+        description: Interactive sandbox to use
         required: true
-        default: rebuild
         type: choice
-        options:
-          - rebuild
-          - teardown
-          - shiny-status
-          - shiny-start
-          - shiny-pause
-          - shiny-test-shutdown
-          - shiny-watchdog
+        default: development
+        options: [development, shiny]
+      action:
+        description: Start uses paid F2 for at most one hour; status and check-shutdown never resume it
+        required: true
+        type: choice
+        default: status
+        options: [status, start, pause, check-shutdown]
       reseed:
-        description: Replace Shiny sample data during shiny-start (normally leave unchecked)
+        description: Refresh fixture data during start (normally reuse unchanged data)
         type: boolean
         default: false
-      lease_id:
-        description: Internal shutdown lease (leave empty for start/status/pause)
-        type: string
-      guard_key:
-        description: Internal shutdown run identifier (leave empty)
-        type: string
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
-  # Shutdown must not queue behind the setup that it may need to interrupt.
-  group: ${{ inputs.action == 'shiny-watchdog' && format('fabric-shutdown-{0}-{1}', github.repository, github.run_id) || inputs.action == 'shiny-pause' && format('fabric-pause-{0}', github.repository) || format('fabric-integration-{0}', github.repository) }}
+  # Manual pause must be able to interrupt a sandbox that is still preparing.
+  group: ${{ inputs.action == 'pause' && format('fabric-pause-{0}', github.repository) || inputs.action == 'status' && format('fabric-status-{0}-{1}', github.repository, github.run_id) || format('fabric-integration-{0}', github.repository) }}
   cancel-in-progress: false
 
 jobs:
   manage:
-    if: inputs.action == 'rebuild' || inputs.action == 'teardown'
-    name: ${{ inputs.action }} persistent Fabric sandbox
-    runs-on: ubuntu-latest
-    environment: fabric-integration
-    timeout-minutes: 110
-    env:
-      TF_IN_AUTOMATION: "true"
-      TF_DIR: infra/fabric/terraform
-      PERSISTENT_WORKSPACE_NAME: fabricqueryr-dev-dhrkoning
-      TF_VAR_workspace_name: fabricqueryr-dev-dhrkoning
-      TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
-      TF_VAR_provision_sql_database: "true"
-      TF_VAR_test_principal_id: 9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5
-      TF_VAR_test_principal_type: User
-      TF_VAR_test_principal_role: Admin
-      FABRIC_WORKSPACE_NAME: fabricqueryr-dev-dhrkoning
-      FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
-      FABRIC_SPARK_RUNTIME_LANE: preview
-      FABRIC_SPARK_RUNTIME_VERSION: "2.0"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Mark persistent workspace ownership
-        if: inputs.action == 'rebuild'
-        run: |
-          rebuilt="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          marker="fabricqueryr-persistent; repo=${GITHUB_REPOSITORY}; owner=${TF_VAR_test_principal_id}; managed-by=.github/workflows/fabric-sandbox.yaml; rebuilt=${rebuilt}; run=${run_url}"
-          echo "TF_VAR_workspace_description=${marker}" >> "$GITHUB_ENV"
-
-      - name: Sign in to Azure with OIDC
-        uses: azure/login@v3
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          cache-dependency-glob: tools/fabric-sandbox/uv.lock
-
-      - name: Install locked sandbox environment
-        run: uv --directory tools/fabric-sandbox sync --locked
-
-      - name: Remove existing persistent sandbox
-        run: |
-          uv --directory tools/fabric-sandbox run fabric-sandbox remove-persistent \
-            --workspace-name "$PERSISTENT_WORKSPACE_NAME" \
-            --owner-id "$TF_VAR_test_principal_id" \
-            --managed-by ".github/workflows/fabric-sandbox.yaml" \
-            --confirm
-
-      - name: Confirm teardown
-        if: inputs.action == 'teardown'
-        run: |
-          {
-            echo "### Persistent Fabric sandbox removed"
-            echo ""
-            echo "Workspace: \`$PERSISTENT_WORKSPACE_NAME\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Set up Terraform
-        if: inputs.action == 'rebuild'
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.12.2"
-          terraform_wrapper: false
-
-      - name: Check Terraform formatting
-        if: inputs.action == 'rebuild'
-        run: terraform -chdir="$TF_DIR" fmt -check -recursive
-
-      - name: Initialize Terraform
-        if: inputs.action == 'rebuild'
-        run: terraform -chdir="$TF_DIR" init -input=false
-
-      - name: Validate Terraform
-        if: inputs.action == 'rebuild'
-        run: terraform -chdir="$TF_DIR" validate
-
-      - name: Create workspace and test targets
-        if: inputs.action == 'rebuild'
-        run: |
-          apply_log="$RUNNER_TEMP/fabric-terraform-apply.log"
-          terraform_apply=(
-            terraform "-chdir=$TF_DIR" apply -auto-approve -input=false
-            -no-color -parallelism=4
-          )
-          set +e
-          "${terraform_apply[@]}" 2>&1 | tee "$apply_log"
-          apply_status="${PIPESTATUS[0]}"
-          set -e
-          if [ "$apply_status" -eq 0 ]; then
-            exit 0
-          fi
-          if grep -Fq "SqlDatabasePerCapacityLimitReached" "$apply_log"; then
-            echo "::warning::Fabric capacity cannot add a SQL Database; continuing without that optional target"
-            export TF_VAR_provision_sql_database=false
-            echo "TF_VAR_provision_sql_database=false" >> "$GITHUB_ENV"
-            "${terraform_apply[@]}"
-            exit 0
-          fi
-          if ! grep -Eq \
-            "context deadline exceeded|Provider returned invalid result object after apply" \
-            "$apply_log"; then
-            exit "$apply_status"
-          fi
-          if ! grep -Fq "with fabric_mirrored_database.test," "$apply_log"; then
-            exit "$apply_status"
-          fi
-          if ! terraform "-chdir=$TF_DIR" state show -no-color \
-            fabric_mirrored_database.test >/dev/null 2>&1; then
-            exit "$apply_status"
-          fi
-          # Rebuild removed the old workspace; this replacement precedes seeding.
-          # A normal refresh waits on the same stuck SQL endpoint before replacement.
-          echo "::warning::Replacing the unseeded mirrored database after its provisioning timeout"
-          "${terraform_apply[@]}" -refresh=false -replace=fabric_mirrored_database.test
-
-      - name: Export Terraform outputs
-        if: inputs.action == 'rebuild'
-        run: |
-          echo "FABRIC_WORKSPACE_ID=$(terraform -chdir="$TF_DIR" output -raw workspace_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_NON_SCHEMA_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw non_schema_lakehouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_MIRRORED_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw mirrored_database_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
-          if [[ "$TF_VAR_provision_sql_database" == "true" ]]; then
-            echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
-          fi
-
-      - name: Install Microsoft ODBC driver
-        if: inputs.action == 'rebuild'
-        run: |
-          ubuntu_version="$(. /etc/os-release && echo "$VERSION_ID")"
-          curl -fsSLO "https://packages.microsoft.com/config/ubuntu/${ubuntu_version}/packages-microsoft-prod.deb"
-          sudo dpkg -i packages-microsoft-prod.deb
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
-
-      - name: Validate local sandbox configuration
-        if: inputs.action == 'rebuild'
-        run: uv --directory tools/fabric-sandbox run fabric-sandbox doctor
-
-      - name: Deploy Fabric item definitions
-        if: inputs.action == 'rebuild'
-        run: uv --directory tools/fabric-sandbox run fabric-sandbox deploy
-
-      - name: Seed test data
-        if: inputs.action == 'rebuild'
-        run: uv --directory tools/fabric-sandbox run fabric-sandbox seed
-
-      - name: Recreate Warehouse snapshot after seeding
-        if: inputs.action == 'rebuild'
-        run: |
-          terraform -chdir="$TF_DIR" apply -auto-approve -input=false \
-            '-replace=fabric_warehouse_snapshot.test[0]'
-          echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
-
-      - name: Discover Fabric endpoints
-        if: inputs.action == 'rebuild'
-        run: uv --directory tools/fabric-sandbox run fabric-sandbox discover
-
-      - name: Summarize persistent sandbox
-        if: inputs.action == 'rebuild'
-        run: |
-          {
-            echo "### Persistent Fabric sandbox ready"
-            echo ""
-            echo "- Workspace: \`$FABRIC_WORKSPACE_NAME\`"
-            echo "- Workspace ID: \`$FABRIC_WORKSPACE_ID\`"
-            echo "- Interactive admin object ID: \`$TF_VAR_test_principal_id\`"
-            if [[ "$TF_VAR_provision_sql_database" == "true" ]]; then
-              echo "- SQL Database fixture: provisioned"
-            else
-              echo "- SQL Database fixture: omitted because the Fabric capacity limit was reached"
-            fi
-            echo "- Re-run this workflow with **rebuild** to reset it from source."
-            echo "- Run it with **teardown** to remove it."
-            echo "- From the repository root, source \`playground/sandbox.R\` and \`playground/playground.R\` to try the package features."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  shiny:
-    if: startsWith(inputs.action, 'shiny-') && inputs.action != 'shiny-watchdog'
-    name: ${{ inputs.action }} (paid F2)
+    name: ${{ inputs.action }} ${{ inputs.sandbox }} sandbox
     runs-on: ubuntu-latest
     environment: fabric-integration
     permissions:
       contents: read
       id-token: write
       actions: write
-    timeout-minutes: 110
+    timeout-minutes: 80
     env:
+      SANDBOX: ${{ inputs.sandbox }}
       CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
       CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
       OWNER_ID: 9b7dcb13-8485-4429-8b4f-7f1f6ce6ebf5
       RESEED: ${{ inputs.reseed }}
+      FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Sign in to Azure with OIDC
-        uses: azure/login@v3
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: tools/fabric-sandbox/uv.lock
-
       - name: Install locked sandbox tools
         run: uv --directory tools/fabric-sandbox sync --locked
 
-      - name: Verify the existing F2 resource and Fabric capacity ID
-        if: inputs.action != 'shiny-pause'
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v3
+        with: &azure_login
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Check F2 status without resuming it
+        if: inputs.action != 'pause'
         run: |
-          test -n "$CAPACITY_ID"
           uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.capacity status \
             --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID"
 
+      - name: Inspect the selected workspace before starting capacity
+        if: inputs.action == 'status' || inputs.action == 'start'
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.persistent_sandbox status \
+            --sandbox "$SANDBOX" --capacity-id "$CAPACITY_ID" --owner-id "$OWNER_ID"
+
       - name: Install SQL driver before starting paid capacity
-        if: inputs.action == 'shiny-start'
+        if: inputs.action == 'start'
         run: |
           ubuntu_version="$(. /etc/os-release && echo "$VERSION_ID")"
           curl -fsSLO "https://packages.microsoft.com/config/ubuntu/${ubuntu_version}/packages-microsoft-prod.deb"
@@ -280,82 +86,56 @@ jobs:
 
       - name: Arm independent shutdown before resuming paid F2
         id: capacity
-        if: inputs.action == 'shiny-start' || inputs.action == 'shiny-test-shutdown'
+        if: inputs.action == 'start' || inputs.action == 'check-shutdown'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          SHUTDOWN_ACTION: ${{ inputs.action == 'shiny-start' && 'start' || 'check' }}
+          SHUTDOWN_ACTION: ${{ inputs.action == 'start' && 'start' || 'check' }}
         run: |
           uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause "$SHUTDOWN_ACTION" \
-            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID"
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --purpose "$SANDBOX"
 
-      - name: Prepare persistent Shiny fixtures
-        if: inputs.action == 'shiny-start'
+      - name: Verify active session before preparing data
+        id: session
+        if: inputs.action == 'start'
+        env:
+          LEASE_ID: ${{ steps.capacity.outputs.lease_id }}
         run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause verify-active \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
+
+      - name: Prepare or reuse the selected sandbox within its deadline
+        if: inputs.action == 'start'
+        env:
+          DEADLINE: ${{ steps.session.outputs.deadline }}
+        run: |
+          budget=$((DEADLINE - $(date +%s) - 180))
+          if (( budget <= 0 )); then
+            echo "::error::The capacity session has no preparation time remaining"
+            exit 1
+          fi
           args=()
           if [[ "$RESEED" == "true" ]]; then args+=(--reseed); fi
-          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.shiny_sandbox \
-            --capacity-id "$CAPACITY_ID" --owner-id "$OWNER_ID" "${args[@]}"
+          timeout --signal=TERM --kill-after=30s "${budget}s" \
+            uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.persistent_sandbox prepare \
+              --sandbox "$SANDBOX" --capacity-id "$CAPACITY_ID" --owner-id "$OWNER_ID" "${args[@]}"
 
-      - name: Pause paid F2 and retain the workspace
-        if: inputs.action == 'shiny-pause'
+      - name: Pause the selected sandbox session and retain its data
+        if: inputs.action == 'pause'
         run: |
-          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.capacity pause \
-            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID"
-          echo 'F2 paused. The Shiny workspace and its data are retained.' >> "$GITHUB_STEP_SUMMARY"
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause pause-session \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --purpose "$SANDBOX"
+          echo 'F2 is paused. Both persistent workspaces and their data are retained.' >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Pause a capacity resumed by an unsuccessful start
-        if: ${{ always() && inputs.action == 'shiny-start' && steps.capacity.outputs.resumed == 'true' && (failure() || cancelled()) }}
-        run: |
-          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause pause \
-            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" \
-            --lease-id "${{ steps.capacity.outputs.lease_id }}"
-          echo 'Start did not finish. The capacity resumed by this run has been paused.' >> "$GITHUB_STEP_SUMMARY"
-
-  shutdown:
-    if: inputs.action == 'shiny-watchdog'
-    name: Independent Shiny shutdown
-    runs-on: ubuntu-latest
-    environment: fabric-integration
-    timeout-minutes: 80
-    env:
-      CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
-      CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
-      LEASE_ID: ${{ inputs.lease_id }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          cache-dependency-glob: tools/fabric-sandbox/uv.lock
-      - name: Install locked sandbox tools
-        run: uv --directory tools/fabric-sandbox sync --locked
-      - name: Sign in to verify shutdown lease
+      - name: Sign in again if startup failed or was cancelled
+        id: cleanup_login
+        if: always() && steps.capacity.outputs.lease_id != '' && (failure() || cancelled())
         uses: azure/login@v3
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Verify shutdown lease
-        id: lease
-        run: |
-          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause verify \
-            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
-      - name: Wait for automatic pause
+        with: *azure_login
+
+      - name: Pause the unsuccessful capacity session
+        if: always() && steps.capacity.outputs.lease_id != '' && steps.cleanup_login.outcome == 'success'
         env:
-          DEADLINE: ${{ steps.lease.outputs.deadline }}
-        run: uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause wait --deadline "$DEADLINE"
-      # Acquire a fresh OIDC token after the hour-long wait. On cancellation or
-      # timer failure these steps pause early, rather than leaving F2 active.
-      - name: Sign in again for shutdown
-        id: shutdown_login
-        if: always() && steps.lease.outcome == 'success'
-        uses: azure/login@v3
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Pause only this Shiny session
-        if: always() && steps.lease.outcome == 'success' && steps.shutdown_login.outcome == 'success'
+          LEASE_ID: ${{ steps.capacity.outputs.lease_id }}
         run: |
           uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause pause \
             --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"

@@ -217,6 +217,16 @@ def start(capacity, guard, *, check=False, now=time.time, purpose="shiny", run="
         f"Shutdown run: https://github.com/{guard.repository}/actions/runs/{run_id}",
         flush=True,
     )
+    if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+        with Path(summary).open("a", encoding="utf-8") as stream:
+            stream.write(
+                f"Session: `{purpose}`. Shutdown deadline: {deadline_text(deadline)} (including setup time).\n\n"
+                f"[Independent shutdown run](https://github.com/{guard.repository}/actions/runs/{run_id})\n\n"
+            )
+            if check:
+                stream.write(
+                    "Two-minute shutdown check on paused F2; no resume requested.\n\n"
+                )
     if check:
         print("Shutdown check armed on paused F2; no resume requested", flush=True)
         return
@@ -237,12 +247,6 @@ def start(capacity, guard, *, check=False, now=time.time, purpose="shiny", run="
     except Exception:
         pause_lease(capacity, guard.repository, lease)
         raise
-    if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
-        with Path(summary).open("a", encoding="utf-8") as stream:
-            stream.write(
-                f"Automatic F2 pause: {deadline_text(deadline)} (including setup time).\n\n"
-                f"[Independent shutdown run](https://github.com/{guard.repository}/actions/runs/{run_id})\n\n"
-            )
 
 
 def pause_lease(capacity, repository, lease, *, attempts=3, sleep=time.sleep):

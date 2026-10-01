@@ -254,11 +254,23 @@ def test_expired_guard_pauses_only_its_own_session(replaced):
     assert azure.resource["properties"]["state"] == ("Active" if replaced else "Paused")
 
 
-def test_shutdown_check_runs_a_short_timer_without_any_capacity_post():
+@pytest.mark.parametrize("purpose", ["development", "shiny", "integration"])
+def test_shutdown_check_runs_a_short_timer_without_any_capacity_post(
+    tmp_path, monkeypatch, purpose
+):
     azure = Azure()
     now = int(time.time())
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
     with azure.client() as capacity:
-        autopause.start(capacity, Guard(azure), check=True, now=lambda: now)
+        autopause.start(
+            capacity,
+            Guard(azure),
+            check=True,
+            now=lambda: now,
+            purpose=purpose,
+            run="123/1",
+        )
         assert (
             autopause.pause_lease(
                 capacity, REPOSITORY, azure.resource["tags"][autopause.LEASE_TAG]
@@ -267,6 +279,12 @@ def test_shutdown_check_runs_a_short_timer_without_any_capacity_post():
         )
     assert azure.resource["tags"][autopause.DEADLINE_TAG] == str(now + 120)
     assert not any(request.method == "POST" for request in azure.requests)
+    assert "no resume requested" in summary.read_text()
+    assert f"Session: `{purpose}`" in summary.read_text()
+    assert (
+        "https://github.com/example/fabricQueryR/actions/runs/123"
+        in summary.read_text()
+    )
 
 
 def test_shutdown_recovers_from_an_accepted_post_with_a_lost_response():

@@ -237,28 +237,3 @@ def test_lakehouse_uploads_typed_fixture_and_waits_for_the_real_load_operation(
         )
         == 1
     )
-
-
-def test_workflow_keeps_paid_actions_manual_and_separate_from_the_general_sandbox():
-    workflow = (ROOT / ".github/workflows/fabric-sandbox.yaml").read_text()
-    assert "  push:" not in workflow and "  schedule:" not in workflow
-    assert "if: inputs.action == 'rebuild' || inputs.action == 'teardown'" in workflow
-    assert "if: startsWith(inputs.action, 'shiny-')" in workflow
-    assert "vars.FABRIC_CAPACITY_ID__PAID" in workflow
-    assert (
-        "steps.capacity.outputs.resumed == 'true' && (failure() || cancelled())"
-        in workflow
-    )
-    assert workflow.index(
-        "Install SQL driver before starting paid capacity"
-    ) < workflow.index("name: Arm independent shutdown before resuming paid F2")
-    shiny_job = workflow.split("\n  shiny:", 1)[1]
-    assert "remove-persistent" not in shiny_job
-    assert "terraform" not in shiny_job
-    assert "actions: write" in shiny_job
-    assert "fabricqueryr_sandbox.capacity resume" not in workflow
-    assert "fabric-shutdown-{0}-{1}" in workflow
-    assert "steps.lease.outcome == 'success'" in workflow
-    assert workflow.index("name: Wait for automatic pause") < workflow.index(
-        "name: Sign in again for shutdown"
-    )

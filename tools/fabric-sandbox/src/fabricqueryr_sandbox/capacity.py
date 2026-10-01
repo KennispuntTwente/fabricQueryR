@@ -174,6 +174,12 @@ def main(argv=None):
                 stream.write(
                     f"F2 capacity `{resource['name']}`: {resource['properties']['state']}.\n\n"
                 )
+                tags = resource.get("tags") or {}
+                purpose = tags.get("fabricqueryr-capacity-purpose")
+                if resource["properties"]["state"] == "Active" and purpose:
+                    stream.write(
+                        f"Current session: `{purpose}`. F2 is shared by all sandboxes.\n\n"
+                    )
 
 
 if __name__ == "__main__":

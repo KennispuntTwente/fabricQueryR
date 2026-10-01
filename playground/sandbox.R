@@ -238,8 +238,8 @@ connect_playground_sandbox <- function(
         "{length(matches)}"
       ),
       "i" = paste0(
-        "Wait for the {.strong Manage persistent Fabric sandbox} workflow ",
-        "to finish before connecting; its rebuild replaces the workspace"
+        "Run the {.strong Manage persistent Fabric sandbox} workflow ",
+        "with sandbox=development and action=start; reconnect after it finishes"
       )
     ))
   }

@@ -13,6 +13,7 @@ from uuid import UUID
 from azure.core.exceptions import ResourceExistsError
 from azure.storage.filedatalake import DataLakeServiceClient
 
+from . import persistent_workspace
 from .cleanup import parse_persistent_description
 from .credentials import CachedTokenCredential, get_credential
 from .discover import _wait_for_kql_properties, _wait_for_sql_properties
@@ -59,7 +60,7 @@ def wait_active_capacity(api, capacity_id, *, attempts=60):
         ]
         if len(matches) != 1 or matches[0].get("sku") != "F2":
             raise RuntimeError(
-                "The Shiny sandbox requires the configured, accessible F2 capacity"
+                "The sandbox requires the configured, accessible F2 capacity"
             )
         if matches[0].get("state") == "Active":
             return
@@ -78,41 +79,9 @@ def workspace_marker(repository, owner, *, ready=False):
 
 
 def ensure_workspace(api, capacity_id, repository, owner):
-    matches = [
-        workspace
-        for workspace in api.list_workspaces()
-        if workspace.get("displayName") == WORKSPACE_NAME
-    ]
-    if len(matches) > 1:
-        raise RuntimeError("The Shiny workspace name is ambiguous")
-    if matches:
-        workspace = api.request("GET", f"/workspaces/{matches[0]['id']}").json()
-        marker = parse_persistent_description(workspace.get("description"))
-        if not marker or any(
-            marker[key].casefold() != value.casefold()
-            for key, value in {
-                "repo": repository,
-                "owner": owner,
-                "managed-by": MANAGER,
-            }.items()
-        ):
-            raise RuntimeError(
-                "Refusing to modify a workspace without matching Shiny ownership"
-            )
-        if workspace.get("capacityId", "").casefold() != capacity_id.casefold():
-            raise RuntimeError(
-                "The Shiny workspace is not assigned to the configured F2"
-            )
-        return workspace
-    return api.request(
-        "POST",
-        "/workspaces",
-        json={
-            "displayName": WORKSPACE_NAME,
-            "capacityId": capacity_id,
-            "description": workspace_marker(repository, owner),
-        },
-    ).json()
+    return persistent_workspace.ensure_workspace(
+        api, WORKSPACE_NAME, capacity_id, repository, owner
+    )
 
 
 def ensure_owner(api, workspace_id, owner):
@@ -388,6 +357,15 @@ def seed_targets(api, credential, workspace_id, targets, root):
 def prepare(api, credential, capacity_id, repository, owner, root, *, reseed=False):
     wait_active_capacity(api, capacity_id)
     workspace = ensure_workspace(api, capacity_id, repository, owner)
+    return prepare_workspace(
+        api, credential, workspace, repository, owner, root, reseed=reseed
+    )
+
+
+def prepare_workspace(
+    api, credential, workspace, repository, owner, root, *, reseed=False
+):
+    """Reuse the app fixtures after the caller verifies workspace ownership."""
     workspace_id = workspace["id"]
     ensure_owner(api, workspace_id, owner)
     items = api.list_items(workspace_id)
@@ -446,7 +424,7 @@ def main(argv=None):
                 "```r\nSys.setenv(FABRIC_SHINY_WORKSPACE = 'fabricqueryr-shiny-dhrkoning')\n"
                 "shiny::runApp('playground/shiny', port = 8100)\n```\n\n"
                 "F2 pauses automatically one hour after the start was armed, including setup time. "
-                "Run `shiny-pause` to finish earlier; the workspace and data are retained.\n"
+                "Select `sandbox=shiny, action=pause` to finish earlier; the workspace and data are retained.\n"
             )
 
 

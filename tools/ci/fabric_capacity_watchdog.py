@@ -1,4 +1,4 @@
-"""Pause an overdue integration or Shiny F2 without its startup workflow."""
+"""Pause an overdue sandbox or integration F2 without its startup workflow."""
 
 from __future__ import annotations
 
