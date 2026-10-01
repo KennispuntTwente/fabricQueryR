@@ -1,4 +1,4 @@
-"""Pause an overdue Shiny F2 without depending on its startup workflow."""
+"""Pause an overdue integration or Shiny F2 without its startup workflow."""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def due(resource, repository, now):
     tags = resource.get("tags") or {}
     if tags.get(OWNER_TAG, "").casefold() != repository.casefold():
         raise RuntimeError(
-            "Active F2 has no matching Shiny owner tag; inspect it manually"
+            "Active F2 has no matching repository owner tag; inspect it manually"
         )
     fingerprint = tuple(tags.get(key) for key in (OWNER_TAG, LEASE_TAG, DEADLINE_TAG))
     try:
@@ -116,14 +116,14 @@ def check_capacity(
                 )
             fingerprint, expired, reason = due(resource, repository, now())
             if not expired:
-                return "Current Shiny session is still within its deadline"
+                return "Current capacity session is still within its deadline"
             if observed is None:
                 # Read again immediately before deciding to suspend. A new session
                 # or updated deadline must not inherit an older run's decision.
                 observed = fingerprint
                 continue
             if fingerprint != observed:
-                return "Shiny session changed during this check; leaving it alone"
+                return "Capacity session changed during this check; leaving it alone"
             if state == "Active" and not submitted:
                 print(f"Pausing F2: {reason}", flush=True)
                 capacity.suspend()

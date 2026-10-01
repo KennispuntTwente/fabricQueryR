@@ -1,15 +1,16 @@
 # Fabric integration sandbox
 
-This directory contains the real-service test environment for 'fabricQueryR'.
-Terraform owns the ephemeral workspace, schema-enabled Lakehouse, Warehouse,
-Warehouse snapshot, SQL Database, open mirrored database, Eventhouse, KQL
-database, GraphQL API, and access assignments. `fabric-cicd`
-publishes the source-controlled seed notebook. The Python package uploads fixture
-files, runs the notebook, seeds the KQL database, and writes the manifest
-consumed by R.
+This directory contains the real-service test fixtures for 'fabricQueryR'.
+The integration workflow reuses two dedicated workspaces and pauses the existing
+F2 after testing. Fabric REST APIs create missing infrastructure, `fabric-cicd`
+publishes changed definitions, and revision markers in OneLake determine whether
+fixture data needs seeding. Ordinary package changes do not rebuild or reseed
+the workspaces. The developer and Shiny playground workspaces remain separate.
 
-An existing paid Fabric capacity is required. Trial-capacity lifecycle is not
-supported by the Microsoft Fabric Terraform provider.
+See [the persistence and cost analysis](../../tools/fabric-sandbox/PERSISTENT-CI.md)
+for the lifecycle, safeguards and validation limits. Terraform remains available
+for an explicitly managed local sandbox or a manual development-sandbox rebuild;
+the ordinary integration workflow no longer uses ephemeral Terraform state.
 
 ## Prerequisites
 
@@ -31,11 +32,11 @@ supported by the Microsoft Fabric Terraform provider.
   and execute semantic-model queries
 - Capacity permissions that allow the identity to assign the workspace
 
-For local development, authenticate with `az login --tenant <tenant-id>`. CI uses
-Microsoft Entra workload identity federation and `azure/login`, with no client
-secret.
+For local development, authenticate with `az login --tenant <tenant-id>`. CI provisioning uses Microsoft Entra workload identity federation and
+`azure/login`; the R authentication tests use the application secret described
+below.
 
-## Local lifecycle
+## Optional Terraform lifecycle
 
 Create a local variables file from `terraform/terraform.tfvars.example`.
 
@@ -125,7 +126,9 @@ denial through the global endpoint. Regional/private host construction is unit
 tested, but security-policy enforcement and private-network connectivity must
 be validated by deployments that configure those tenant and network resources.
 
-Always remove the workspace after testing:
+For an intentionally disposable Terraform sandbox, remove it when finished.
+Keep persistent sandbox data between test runs and pause its capacity separately.
+Deleting a workspace does not pause the capacity:
 
 ```bash
 terraform -chdir=infra/fabric/terraform destroy
@@ -145,10 +148,13 @@ environment or repository variables:
 | `AZURE_CLIENT_ID` | Entra application/client ID with a GitHub OIDC federated credential |
 | `AZURE_TENANT_ID` | Fabric tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription used by `azure/login` |
-| `FABRIC_CAPACITY_ID` | Existing paid Fabric capacity assigned to ephemeral workspaces |
+| `FABRIC_CAPACITY_ID__PAID` | Existing F2 Fabric capacity GUID used by integration and Shiny sessions |
+| `FABRIC_F2_RESOURCE_GROUP` | Azure resource group; defaults to `fabric-rg` |
+| `FABRIC_F2_NAME` | Existing F2 resource name; defaults to `rpackagecap` |
+| `FABRIC_CAPACITY_ID` | Capacity for the separate manual Terraform development sandbox |
 
 The workflow requests `id-token: write`, logs in with `azure/login`, and uses the
-resulting Azure CLI session for Terraform and `fabric-cicd`. The Entra application
+resulting Azure CLI session for Fabric APIs and `fabric-cicd`. The Entra application
 must be permitted by the Fabric tenant settings, be allowed to create workspaces,
 and have sufficient access to assign the configured capacity. The sandbox itself
 does not require a client secret for provisioning.
@@ -158,49 +164,78 @@ in addition to the service tests that use short-lived Azure CLI tokens, define t
 environment secret `FABRIC_TEST_AUTH_CLIENT_SECRET`. The smoke test
 uses it with `AZURE_TENANT_ID` and `AZURE_CLIENT_ID` in a client-credentials
 flow, disables the 'AzureAuth' token cache, and verifies that the application can
-discover the ephemeral workspace. Required CI fails when the secret is absent;
+discover the integration workspace. Required CI fails when the secret is absent;
 optional local runs skip only this authentication smoke test. Use a dedicated,
 short-lived test secret; the federated workflow login remains responsible for
 sandbox provisioning.
 
-The workflow provisions and seeds two isolated workspaces: a Runtime 1.3 `core`
-workspace for authentication/discovery, KQL/GraphQL, SQL, Livy, item jobs, and
-Power BI, plus a Runtime 2.0 GA workspace for OneLake/Delta compatibility and
-Livy coverage. The Runtime 2.0 lane deploys only the seed notebook, uses the
-focused OneLake seed contract, and skips the unused Warehouse snapshot rebuild.
-Existing workflow artifacts retain the legacy `preview` lane identifier. Each
-feature job downloads its lane's generated manifest, acquires its own
-short-lived tokens, and uses independent R sessions. The core and preview test
-matrices depend only on their matching provisioner, so either lane can begin
-testing and teardown without waiting for the other lane. Terraform state is
-retained as a one-day workflow artifact and
-consumed by a final teardown job after every matrix leg succeeds, fails, or is
-skipped.
+Live tests are manual by default. Pushes and pull requests run the sandbox
+tooling checks; the regular R package workflows also remain automatic. Dispatch
+**Fabric integration** with `action=test` to activate paid F2 for a bounded test
+session. While these changes are on a feature branch, select that branch in
+the workflow UI or use `--ref persistent-integration`:
 
-If initial provisioning times out on the open mirrored database's SQL endpoint,
-the workflows replace that unseeded database once using its saved Terraform state.
-The recovery skips refresh because the provider otherwise waits on the same
-endpoint before it can replace the resource. Other errors and a failed replacement
-still stop provisioning. CI teardown also uses saved state without refreshing
-item readiness, so an unavailable SQL endpoint cannot block resource deletion.
+```bash
+gh workflow run integration-fabric.yaml --ref persistent-integration \
+  -f action=test -f lane=all
+```
 
-A repository-wide concurrency group ensures only one sandbox consumes the test
-capacity at a time. The workflow runs weekly and can also be dispatched
-manually. CI enables required integration mode, so missing core manifests,
-tokens, dependencies, and dedicated User Data Function URLs fail instead of
-silently skipping their named live lanes. Delegated-identity and
-least-privilege scenarios remain explicitly opt-in.
-Because canceling the entire workflow cannot guarantee the teardown job runs, a
-daily janitor uses the same concurrency group and removes only workspaces
-carrying both the `fabricqueryr-ci-` name prefix and `fabricqueryr-ci;`
-description marker. `fabric-sandbox cleanup` is a dry run unless `--confirm` is
-supplied.
+The `core` lane uses Runtime 1.3 for authentication/discovery, KQL/GraphQL, SQL,
+Livy, item jobs, Power BI and core Delta compatibility. `preview` is the retained
+identifier for Runtime 2.0 GA OneLake/Delta and Livy coverage. Choose `lane=core`
+or `lane=preview` for a focused session; `all` keeps both existing test matrices.
+The workspaces are named `fabricqueryr-integration-<repository-hash>-<lane>` and
+have exact repository/lane ownership markers. A changed creation configuration
+fails with an explicit migration message instead of destroying an existing item.
+
+Preparation deletes interrupted test schedules and stops remaining jobs and
+Livy sessions before resetting scratch data. It removes temporary notebooks,
+test shortcuts/staged files, temporary SQL/KQL tables and the GraphQL mutation
+sentinel; it empties the ingestion test table. Fixed Lakehouse load-test tables
+are retained and overwritten by their tests. Baseline fixture tables, Delta
+history and unchanged definitions remain intact. Data seeding runs only for a
+missing/incomplete/stale lane fixture contract, a missing data target, or an
+explicit `reseed=true`. The preview seed remains focused on OneLake; a stale
+core data contract currently reseeds the full core data scope. Job-definition
+changes publish separately without a data reseed. The Warehouse snapshot is
+replaced after data changes, not on ordinary test runs.
+
+`sql_database=true` includes the optional SQL Database target. If the capacity
+cannot host it, explicitly dispatch with `sql_database=false`; unexpected API
+errors fail preparation instead of silently changing coverage. This does not
+delete an existing database. Required feature gates still determine which
+unavailable services count as a failure.
+
+R dependencies are prepared before activation. The start job writes a one-hour
+lease to the existing F2 and waits for an independent shutdown job to verify
+that lease before resuming. An active Shiny session or another integration run
+is rejected; retries never extend a running lease. Test processes stop before
+the deadline to leave three minutes for cleanup. A final job pauses even when
+tests or cleanup fail. Cancellation/runner loss is also covered by the separate
+deadline job and the five-minute default-branch watchdog. Azure/GitHub delays
+can postpone shutdown; the watchdog is a fallback, not a precise cost ceiling.
+The existing narrow [F2 controller role](shiny-capacity-role.json) applies to
+integration sessions too.
+
+To exercise OIDC, tags, dispatch and shutdown while keeping F2 paused:
+
+```bash
+gh workflow run integration-fabric.yaml --ref persistent-integration \
+  -f action=check-shutdown
+```
+
+The manifests remain one-day workflow artifacts, but workspace identity and
+fixture revisions live in Fabric. Losing an Actions artifact no longer loses
+persistent infrastructure state. The old daily janitor only deletes workspaces
+with both the `fabricqueryr-ci-` prefix and `fabricqueryr-ci;` marker, so it leaves
+these persistent workspaces alone. `fabric-sandbox cleanup` is still a dry run
+unless `--confirm` is supplied.
 
 ### Persistent interactive sandbox
 
 The manually dispatched **Manage persistent Fabric sandbox** workflow creates
 `fabricqueryr-dev-dhrkoning` from the same Terraform resources, item
-definitions, and seed fixtures as the ephemeral integration workflow. Choose
+definitions, and seed fixtures as the persistent integration workflow. Choose
 `rebuild` to delete the repository-owned workspace with that exact name and
 recreate it from source, or `teardown` to delete it without rebuilding.
 The persistent sandbox uses Runtime 2.0 so one interactive workspace contains
@@ -219,7 +254,7 @@ marker.
 The persistent workflow intentionally has no final Terraform destroy step.
 Successful rebuilds leave the workspace available for interactive package
 testing, and the Actions job summary reports its name and ID. It shares the
-integration concurrency group so rebuild, teardown, ephemeral integration, and
+integration concurrency group so rebuild, teardown, persistent integration, and
 janitor runs cannot modify Fabric sandboxes concurrently.
 
 #### Run the integration suite locally as the workspace admin
