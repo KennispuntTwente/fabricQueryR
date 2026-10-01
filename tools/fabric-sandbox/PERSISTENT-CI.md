@@ -113,3 +113,22 @@ Paid provisioning, actual data queries in the unified sandboxes, and an
 Active-to-Paused transition remain pending; no paid capacity was activated for
 this change. Use `action=check-shutdown` to exercise OIDC and the independent
 timer on an already paused F2.
+
+GitHub validation on commit `7e44a74c`:
+
+- [Push checks](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36935640926):
+  323 sandbox tests and 10 watchdog tests passed; paid activation, provisioning,
+  and live R tests were skipped.
+- Read-only status passed for both
+  [development](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36935722970)
+  and [Shiny](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36935727404).
+  The CI identity found the existing owned development workspace on its former
+  capacity; the next start can assign it to F2 without recreating it.
+- The [development check](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36935667399)
+  and its [independent timer](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36935778248)
+  passed, followed by the
+  [Shiny check](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36936029721)
+  and its [independent timer](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36936079795).
+  Both timers verified the lease, waited for their deadline, signed in again,
+  and confirmed pause. Neither requested resume. A final ARM read confirmed F2
+  remained Paused.
