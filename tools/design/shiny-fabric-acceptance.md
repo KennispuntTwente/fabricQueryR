@@ -202,6 +202,42 @@ Launch and delegated-mode instructions are in
 [`playground/shiny/README.md`](../../playground/shiny/README.md). Shared-identity
 browser checks above do not satisfy the delegated two-user gate below.
 
+## Dedicated F2 workflow (1 October)
+
+The manual persistent-sandbox workflow now also accepts `shiny-status`,
+`shiny-start` and `shiny-pause`. The start action targets the existing paid F2
+and prepares only the main app fixtures in `fabricqueryr-shiny-dhrkoning`.
+It reuses completed fixtures on later starts; an explicit `reseed` resets their
+sample data. Pause retains the workspace. General sandbox rebuild and teardown
+remain separate actions and do not run for these Shiny operations.
+
+The controller verifies the Azure resource's F2 SKU and matching Fabric identity
+before resuming. Failed/cancelled starts attempt to pause only a capacity resumed
+by that run. A successful start leaves F2 active until `shiny-pause` is requested.
+The app selects this workspace through `FABRIC_SHINY_WORKSPACE`; its existing
+default and authentication modes are unchanged.
+
+Local validation passes:
+
+- All 255 sandbox Python tests, including capacity transitions, repeated starts,
+  interrupted setup, ownership checks and failure handling.
+- The Lakehouse fixture test writes and reads real typed Parquet bytes, exercises
+  the load operation's HTTP polling and verifies SQL metadata refresh/readiness.
+- Focused R playground tests, R formatting, Python lint/format checks and
+  `actionlint` for the modified workflow.
+- A live read-only controller call confirms the configured Azure F2 and Fabric
+  capacity match and reports `Paused`.
+- GitHub Actions [run 36917306894](https://github.com/KennispuntTwente/fabricQueryR/actions/runs/36917306894)
+  successfully dispatched `shiny-status` from `shiny-integration`, authenticated
+  through OIDC and verified the F2 resource and Fabric ID. All paid mutation
+  steps and the general sandbox job were skipped.
+
+Paid activation and live provisioning of the new workspace have not been run.
+The user requested the action; its paid start is left for an explicit dispatch.
+The prior browser evidence applies to the general sandbox's available JSON DAX
+model, not these newly defined fixtures. The delegated browser gate remains
+pending as previously agreed.
+
 ## Pending delegated/browser gate
 
 Use a dedicated Web registration and two restricted users in the target tenant.

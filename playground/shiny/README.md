@@ -10,6 +10,7 @@ The app connects to the persistent `fabricqueryr-dev-dhrkoning` sandbox and
 discovers its current items and endpoints. It loads this checkout in both the
 Shiny process and its query workers, so you can try changes without reinstalling
 fabricQueryR. No copied workspace IDs or connection strings are needed.
+Set `FABRIC_SHINY_WORKSPACE` to use the dedicated Shiny sandbox described below.
 
 ## Setup
 
@@ -33,6 +34,68 @@ SQL through ODBC needs the odbc package and Microsoft ODBC Driver 18 for SQL
 Server. The alternative ADBC selector uses the installed MSSQL ADBC driver.
 Delta reads use the package's Python deltalake reader. A missing driver or
 unavailable Fabric service appears as an error for that source.
+
+## Start the dedicated Shiny sandbox
+
+The [Manage persistent Fabric sandbox workflow](https://github.com/KennispuntTwente/fabricQueryR/actions/workflows/fabric-sandbox.yaml)
+has three manual actions for the app. Select branch `shiny-integration` when
+running the workflow, or use these commands from the repository:
+
+```sh
+# Read the capacity state without changing anything.
+gh workflow run fabric-sandbox.yaml --ref shiny-integration -f action=shiny-status
+
+# Resume the existing paid F2 and prepare the app's persistent data.
+gh workflow run fabric-sandbox.yaml --ref shiny-integration -f action=shiny-start
+```
+
+`shiny-start` uses the existing `rpackagecap` F2 and creates a separate workspace,
+`fabricqueryr-shiny-dhrkoning`. It seeds the Warehouse, Lakehouse, both DAX models,
+Eventhouse/KQL, OneLake files and Delta tables, mirrored table, and GraphQL source
+used by the app. The optional SQL Database and Warehouse snapshot are not
+included. The general `fabricqueryr-dev-dhrkoning` sandbox is managed separately
+by the workflow's existing `rebuild` and `teardown` actions.
+
+Wait for the workflow to finish successfully, then launch from R:
+
+```r
+Sys.setenv(FABRIC_SHINY_WORKSPACE = "fabricqueryr-shiny-dhrkoning")
+shiny::runApp("playground/shiny", port = 8100)
+```
+
+Later starts reuse the workspace and its sample data. To reset the sample data,
+select `reseed` in the workflow form or add `-f reseed=true` to `shiny-start`.
+An interrupted first setup can be retried with another `shiny-start`.
+
+The F2 remains active after a successful start; there is no automatic shutdown.
+When finished, pause it while keeping the workspace and its data:
+
+```sh
+gh workflow run fabric-sandbox.yaml --ref shiny-integration -f action=shiny-pause
+```
+
+Starting F2 resumes capacity billing. Pausing affects every workspace assigned
+to that capacity, including any outside this playground. See Microsoft's
+[pause and resume documentation](https://learn.microsoft.com/en-us/fabric/enterprise/pause-resume)
+for billing behavior. If setup fails or is cancelled, the workflow attempts to
+pause a capacity that it resumed itself. After a runner interruption, use
+`shiny-status` and, if needed, `shiny-pause` to confirm the final state.
+
+### GitHub configuration
+
+These actions use the existing `fabric-integration` environment and Azure OIDC
+login. `FABRIC_CAPACITY_ID__PAID` identifies the Fabric F2 capacity;
+`AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID` and `AZURE_CLIENT_ID` configure Azure
+access. The Azure resource defaults to resource group `fabric-rg` and capacity
+`rpackagecap`; override them with `FABRIC_F2_RESOURCE_GROUP` and `FABRIC_F2_NAME`
+if needed. The workflow checks that the Azure resource and Fabric ID refer to
+the same F2 before starting it.
+
+The CI identity needs Azure permission to read, resume and suspend this capacity,
+plus the existing Fabric permissions to assign a workspace and create/seed its
+items. It grants the configured playground owner workspace Admin access. The
+app still uses the connection settings described under Setup; starting the
+workflow does not configure a delegated Web registration or host the Shiny app.
 
 ## Try the data sources
 
