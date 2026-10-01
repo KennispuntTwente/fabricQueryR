@@ -122,17 +122,26 @@ def test_repeated_start_reuses_deadline_without_tag_write_or_resume():
     assert not azure.mutations()
 
 
-@pytest.mark.parametrize("existing,requested,old_run,new_run", [
-    ("shiny", "integration", "shiny", "123/1"),
-    ("integration", "shiny", "123/1", ""),
-    ("integration", "integration", "123/1", "123/2"),
-])
+@pytest.mark.parametrize(
+    "existing,requested,old_run,new_run",
+    [
+        ("shiny", "integration", "shiny", "123/1"),
+        ("integration", "shiny", "123/1", ""),
+        ("integration", "integration", "123/1", "123/2"),
+    ],
+)
 def test_active_session_cannot_be_borrowed(existing, requested, old_run, new_run):
     azure = Azure("Active", lease=LEASE, deadline=int(time.time()) + 1200)
-    azure.resource["tags"].update({
-        autopause.PURPOSE_TAG: existing, autopause.RUN_TAG: old_run,
-    })
-    with azure.client() as capacity, pytest.raises(RuntimeError, match="another session"):
+    azure.resource["tags"].update(
+        {
+            autopause.PURPOSE_TAG: existing,
+            autopause.RUN_TAG: old_run,
+        }
+    )
+    with (
+        azure.client() as capacity,
+        pytest.raises(RuntimeError, match="another session"),
+    ):
         autopause.start(capacity, Guard(azure), purpose=requested, run=new_run)
     assert not azure.mutations()
 
@@ -141,11 +150,21 @@ def test_integration_session_keeps_deadline_and_uses_existing_periodic_guard():
     azure = Azure()
     now = int(time.time())
     with azure.client() as capacity:
-        autopause.start(capacity, Guard(azure), purpose="integration", run="123/1", now=lambda: now)
+        autopause.start(
+            capacity, Guard(azure), purpose="integration", run="123/1", now=lambda: now
+        )
         first = dict(azure.resource["tags"])
-        autopause.start(capacity, Guard(azure), purpose="integration", run="123/1", now=lambda: now + 60)
+        autopause.start(
+            capacity,
+            Guard(azure),
+            purpose="integration",
+            run="123/1",
+            now=lambda: now + 60,
+        )
     assert azure.resource["tags"] == first
-    watchdog = runpy.run_path(str(Path(__file__).resolve().parents[2] / "ci/fabric_capacity_watchdog.py"))
+    watchdog = runpy.run_path(
+        str(Path(__file__).resolve().parents[2] / "ci/fabric_capacity_watchdog.py")
+    )
     assert not watchdog["due"](azure.resource, REPOSITORY, now + 3599)[1]
     assert watchdog["due"](azure.resource, REPOSITORY, now + 3600)[1]
 
@@ -154,6 +173,24 @@ def test_integration_activation_requires_run_identity():
     azure = Azure()
     with azure.client() as capacity, pytest.raises(ValueError, match="run identity"):
         autopause.start(capacity, Guard(azure), purpose="integration")
+    assert not azure.mutations()
+
+
+@pytest.mark.parametrize(
+    "state,offset,allowed",
+    [("Active", 120, True), ("Active", -1, False), ("Paused", 120, False)],
+)
+def test_queued_work_cannot_start_after_capacity_session_ends(state, offset, allowed):
+    azure = Azure(state, lease=LEASE, deadline=int(time.time()) + offset)
+    with azure.client() as capacity:
+        if allowed:
+            assert (
+                autopause.verify_lease(capacity, REPOSITORY, LEASE, require_active=True)
+                > time.time()
+            )
+        else:
+            with pytest.raises(RuntimeError, match="session has ended"):
+                autopause.verify_lease(capacity, REPOSITORY, LEASE, require_active=True)
     assert not azure.mutations()
 
 

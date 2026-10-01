@@ -3,7 +3,7 @@ name: Fabric integration
 on:
   push:
     branches: [main, master]
-    paths:
+    paths: &paths
       - R/**
       - tests/testthat/helper-*.R
       - tests/fixtures/**
@@ -11,25 +11,31 @@ on:
       - tests/testthat/test-integration-fabric-*.R
       - infra/fabric/**
       - tools/fabric-sandbox/**
+      - tools/ci/**
       - DESCRIPTION
       - .github/workflows/integration-fabric.yaml
   pull_request:
-    paths:
-      - R/**
-      - tests/testthat/helper-*.R
-      - tests/fixtures/**
-      - tests/testthat/test-delta-rs-oracle.R
-      - tests/testthat/test-integration-fabric-*.R
-      - infra/fabric/**
-      - tools/fabric-sandbox/**
-      - DESCRIPTION
-      - .github/workflows/integration-fabric.yaml
-  schedule:
-    - cron: "0 4 * * 1"
-    # Repeat configured feature lanes around European DST weekends.
-    - cron: "0 4 * 3,10 0"
+    paths: *paths
   workflow_dispatch:
     inputs:
+      action:
+        description: "test resumes paid F2 for at most one hour; check-shutdown never resumes it"
+        type: choice
+        options: [test, check-shutdown]
+        default: test
+      lane:
+        description: "Persistent runtime workspaces to test"
+        type: choice
+        options: [all, core, preview]
+        default: all
+      reseed:
+        description: "Force fixture data to be seeded again (normally stale inputs are detected)"
+        type: boolean
+        default: false
+      sql_database:
+        description: "Include the optional Fabric SQL Database target"
+        type: boolean
+        default: true
       required_features:
         description: "Comma-separated required feature lanes (see tests/fixtures/feature-lanes.md)"
         type: string
@@ -37,88 +43,109 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   NOT_CRAN: "true"
 
+# Shared with manual sandbox setup. Shutdown jobs use independent groups.
 concurrency:
   group: fabric-integration-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
-  provision_core:
-    name: Provision ${{ matrix.lane }} runtime sandbox
+  tooling:
+    name: Check sandbox tooling without starting Fabric
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+      - run: uv --directory tools/fabric-sandbox sync --locked
+      - run: uv --directory tools/fabric-sandbox run pytest
+      - run: python3 -m unittest discover -s tools/ci/tests -v
+
+  activate:
+    name: Arm shutdown and start a bounded integration session
+    needs: [tooling, prepare_r]
     if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      always() && github.event_name == 'workflow_dispatch' &&
+      needs.tooling.result == 'success' &&
+      (needs.prepare_r.result == 'success' || inputs.action == 'check-shutdown')
     runs-on: ubuntu-latest
     environment: fabric-integration
-    timeout-minutes: 110
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write
+      id-token: write
+    outputs:
+      lease_id: ${{ steps.capacity.outputs.lease_id }}
+    env:
+      CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
+      CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+      - run: uv --directory tools/fabric-sandbox sync --locked
+      - uses: azure/login@v3
+        with: &azure_login
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Arm independent shutdown before resuming paid F2
+        id: capacity
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SHUTDOWN_ACTION: ${{ inputs.action == 'test' && 'start' || 'check' }}
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause "$SHUTDOWN_ACTION" \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" \
+            --purpose integration --run "$GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT"
+      - name: Pause immediately if activation failed or was cancelled
+        if: always() && steps.capacity.outputs.lease_id != '' && steps.capacity.outcome != 'success'
+        env:
+          LEASE_ID: ${{ steps.capacity.outputs.lease_id }}
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause pause \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
+
+  provision_core:
+    name: Prepare persistent ${{ matrix.lane }} fixtures
+    needs: activate
+    if: inputs.action == 'test' && inputs.lane != 'preview'
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 45
+    permissions: &fabric_permissions
+      contents: read
+      id-token: write
     strategy:
-      fail-fast: false
       matrix:
         include:
           - lane: core
             runtime: "1.3"
-            fixture_scope: all
-            deploy_args: ""
-            recreate_snapshot: true
     env: &provision_env
-      TF_IN_AUTOMATION: "true"
-      TF_DIR: infra/fabric/terraform
-      TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
-      TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
-      TF_VAR_fixture_scope: ${{ matrix.fixture_scope }}
-      TF_VAR_provision_sql_database: "true"
-      FABRIC_WORKSPACE_NAME: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
+      FABRIC_CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
       FABRIC_TEST_MANIFEST: ${{ github.workspace }}/.fabric-test-manifest.json
       FABRIC_SPARK_RUNTIME_LANE: ${{ matrix.lane }}
       FABRIC_SPARK_RUNTIME_VERSION: ${{ matrix.runtime }}
-
+      TF_VAR_provision_sql_database: ${{ inputs.sql_database && 'true' || 'false' }}
+      LEASE_ID: ${{ needs.activate.outputs.lease_id }}
+      CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
+      CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
     steps: &provision_steps
       - uses: actions/checkout@v4
-
-      - name: Verify tested revision
-        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-
-      - name: Mark workspace ownership and creation time
-        run: |
-          created="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          echo "TF_VAR_workspace_description=fabricqueryr-ci; repo=${GITHUB_REPOSITORY}; created=${created}; run=${run_url}" >> "$GITHUB_ENV"
-
-      - name: Sign in to Azure with OIDC
-        uses: azure/login@v3
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.12.2"
-          terraform_wrapper: false
-
-      - name: Check Terraform formatting
-        run: terraform -chdir="$TF_DIR" fmt -check -recursive
-
-      - name: Initialize Terraform
-        id: terraform_init
-        run: |
-          terraform -chdir="$TF_DIR" init -input=false
-          echo "initialized=true" >> "$GITHUB_OUTPUT"
-
-      - name: Validate Terraform
-        run: terraform -chdir="$TF_DIR" validate
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: tools/fabric-sandbox/uv.lock
-
+      - run: uv --directory tools/fabric-sandbox sync --locked
       - name: Install Microsoft ODBC driver
         run: |
           ubuntu_version="$(. /etc/os-release && echo "$VERSION_ID")"
@@ -126,96 +153,25 @@ jobs:
           sudo dpkg -i packages-microsoft-prod.deb
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
-
-      - name: Install locked sandbox environment
-        run: uv --directory tools/fabric-sandbox sync --locked
-
-      - name: Test sandbox tooling
-        run: uv --directory tools/fabric-sandbox run pytest
-
-      - name: Validate local sandbox configuration
-        run: uv --directory tools/fabric-sandbox run fabric-sandbox doctor
-
-      - name: Create workspace and test targets
+      - uses: azure/login@v3
+        with: *azure_login
+      - name: Verify active session before touching persistent fixtures
+        id: active
         run: |
-          apply_log="$RUNNER_TEMP/fabric-terraform-apply.log"
-          terraform_apply=(
-            terraform "-chdir=$TF_DIR" apply -auto-approve -input=false
-            -no-color -parallelism=4
-          )
-          set +e
-          "${terraform_apply[@]}" 2>&1 | tee "$apply_log"
-          apply_status="${PIPESTATUS[0]}"
-          set -e
-          if [ "$apply_status" -eq 0 ]; then
-            exit 0
-          fi
-          if [[ "$TF_VAR_fixture_scope" == "all" ]] && grep -Fq \
-            "SqlDatabasePerCapacityLimitReached" "$apply_log"; then
-            echo "::warning::Fabric capacity cannot add a SQL Database; continuing without that optional target"
-            export TF_VAR_provision_sql_database=false
-            echo "TF_VAR_provision_sql_database=false" >> "$GITHUB_ENV"
-            "${terraform_apply[@]}"
-            exit 0
-          fi
-          if ! grep -Eq \
-            "context deadline exceeded|Provider returned invalid result object after apply" \
-            "$apply_log"; then
-            exit "$apply_status"
-          fi
-          if ! grep -Fq "with fabric_mirrored_database.test," "$apply_log"; then
-            exit "$apply_status"
-          fi
-          if ! terraform "-chdir=$TF_DIR" state show -no-color \
-            fabric_mirrored_database.test >/dev/null 2>&1; then
-            exit "$apply_status"
-          fi
-          # This workflow has just created the workspace; no fixtures are seeded yet.
-          # A normal refresh waits on the same stuck SQL endpoint before replacement.
-          echo "::warning::Replacing the unseeded mirrored database after its provisioning timeout"
-          "${terraform_apply[@]}" -refresh=false -replace=fabric_mirrored_database.test
-
-      - name: Export Terraform outputs
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause verify-active \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
+      - name: Reset scratch resources and prepare only stale fixtures
+        env:
+          RESEED: ${{ inputs.reseed }}
+          DEADLINE: ${{ steps.active.outputs.deadline }}
         run: |
-          echo "FABRIC_WORKSPACE_ID=$(terraform -chdir="$TF_DIR" output -raw workspace_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw lakehouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_NON_SCHEMA_LAKEHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw non_schema_lakehouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_WAREHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_id)" >> "$GITHUB_ENV"
-          echo "FABRIC_MIRRORED_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw mirrored_database_id)" >> "$GITHUB_ENV"
-          if [[ "${{ matrix.fixture_scope }}" == "all" ]]; then
-            echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
-            echo "FABRIC_EVENTHOUSE_ID=$(terraform -chdir="$TF_DIR" output -raw eventhouse_id)" >> "$GITHUB_ENV"
-            echo "FABRIC_KQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw kql_database_id)" >> "$GITHUB_ENV"
-            echo "FABRIC_GRAPHQL_API_ID=$(terraform -chdir="$TF_DIR" output -raw graphql_api_id)" >> "$GITHUB_ENV"
-            if [[ "$TF_VAR_provision_sql_database" == "true" ]]; then
-              echo "FABRIC_SQL_DATABASE_ID=$(terraform -chdir="$TF_DIR" output -raw sql_database_id)" >> "$GITHUB_ENV"
-            fi
-          fi
-
-      - name: Deploy Fabric item definitions
-        run: >-
-          uv --directory tools/fabric-sandbox run fabric-sandbox deploy
-          ${{ matrix.deploy_args }}
-
-      - name: Seed test data
-        run: >-
-          uv --directory tools/fabric-sandbox run fabric-sandbox seed
-          --scope ${{ matrix.fixture_scope }}
-
-      - name: Recreate Warehouse snapshot after seeding
-        if: matrix.recreate_snapshot
-        run: |
-          terraform -chdir="$TF_DIR" apply -auto-approve -input=false \
-            '-replace=fabric_warehouse_snapshot.test[0]'
-          echo "FABRIC_WAREHOUSE_SNAPSHOT_ID=$(terraform -chdir="$TF_DIR" output -raw warehouse_snapshot_id)" >> "$GITHUB_ENV"
-
-      - name: Discover Fabric endpoints
-        run: >-
-          uv --directory tools/fabric-sandbox run fabric-sandbox discover
-          --scope ${{ matrix.fixture_scope }}
-
-      - name: Share Fabric test manifest
-        uses: actions/upload-artifact@v4
+          args=()
+          if [[ "$RESEED" == "true" ]]; then args+=(--reseed); fi
+          remaining=$((DEADLINE - $(date +%s) - 180))
+          test "$remaining" -gt 0
+          timeout --signal=TERM --kill-after=20s "${remaining}s" \
+            uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.persistent_ci prepare "${args[@]}"
+      - uses: actions/upload-artifact@v4
         with:
           name: fabric-test-manifest-${{ matrix.lane }}
           path: .fabric-test-manifest.json
@@ -223,40 +179,25 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - name: Preserve Terraform state for teardown
-        if: always() && steps.terraform_init.outputs.initialized == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: fabric-terraform-state-${{ matrix.lane }}
-          path: infra/fabric/terraform/terraform.tfstate
-          if-no-files-found: ignore
-          retention-days: 1
-
   provision_preview:
-    name: Provision ${{ matrix.lane }} runtime sandbox
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+    name: Prepare persistent ${{ matrix.lane }} fixtures
+    needs: activate
+    if: inputs.action == 'test' && inputs.lane != 'core'
     runs-on: ubuntu-latest
     environment: fabric-integration
-    timeout-minutes: 110
+    timeout-minutes: 45
+    permissions: *fabric_permissions
     strategy:
-      fail-fast: false
       matrix:
         include:
           - lane: preview
             runtime: "2.0"
-            fixture_scope: onelake
-            deploy_args: "--item SeedFixtures.Notebook"
-            recreate_snapshot: false
     env: *provision_env
     steps: *provision_steps
 
   prepare_r:
     name: Prepare shared R runtime
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'test'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -355,9 +296,11 @@ jobs:
     needs:
       - provision_core
       - prepare_r
+      - activate
     runs-on: ubuntu-latest
     environment: fabric-integration
-    timeout-minutes: 110
+    permissions: *fabric_permissions
+    timeout-minutes: 55
     strategy:
       fail-fast: false
       matrix:
@@ -483,7 +426,6 @@ jobs:
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
 
       - name: Set up uv
-        if: matrix.adbc || matrix.filter == 'integration-fabric-onelake' || matrix.delta
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -494,7 +436,6 @@ jobs:
         run: uvx dbc==0.3.0 install "mssql>=1.5,<2"
 
       - name: Install locked delta-rs runtime environment
-        if: matrix.filter == 'integration-fabric-onelake' || matrix.delta
         run: uv --directory tools/fabric-sandbox sync --locked
 
       - name: Select the locked delta-rs Python environment
@@ -529,20 +470,37 @@ jobs:
           echo "::add-mask::$limited_token"
           echo "FABRIC_TEST_LIMITED_API_TOKEN=$limited_token" >> "$GITHUB_ENV"
 
+      - name: Verify this run still owns an active capacity session
+        id: active
+        env:
+          LEASE_ID: ${{ needs.activate.outputs.lease_id }}
+          CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
+          CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause verify-active \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
+
       - name: Run Fabric integration tests
         env:
           FABRIC_TEST_AUTH_CLIENT_SECRET: ${{ secrets.FABRIC_TEST_AUTH_CLIENT_SECRET }}
           FABRIC_TEST_FILTER: ${{ matrix.filter }}
-        run: Rscript -e 'source("tools/fabric-sandbox/ci-integration.R"); run_fabric_ci_integration()'
+          DEADLINE: ${{ steps.active.outputs.deadline }}
+        run: |
+          remaining=$((DEADLINE - $(date +%s) - 180))
+          test "$remaining" -gt 0
+          timeout --signal=INT --kill-after=20s "${remaining}s" \
+            Rscript -e 'source("tools/fabric-sandbox/ci-integration.R"); run_fabric_ci_integration()'
 
   integration_preview:
     name: Test ${{ matrix.label }}
     needs:
       - provision_preview
       - prepare_r
+      - activate
     runs-on: ubuntu-latest
     environment: fabric-integration
-    timeout-minutes: 110
+    permissions: *fabric_permissions
+    timeout-minutes: 55
     strategy:
       fail-fast: false
       matrix:
@@ -564,74 +522,54 @@ jobs:
     env: *integration_env
     steps: *integration_steps
 
-  teardown_core:
-    name: Destroy ${{ matrix.lane }} runtime sandbox
-    needs:
-      - provision_core
-      - integration_core
-    if: always() && needs.provision_core.result != 'skipped'
+  pause:
+    name: Pause F2 and retain integration fixtures
+    needs: [activate, provision_core, provision_preview, integration_core, integration_preview]
+    if: always() && needs.activate.outputs.lease_id != ''
     runs-on: ubuntu-latest
     environment: fabric-integration
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - lane: core
-            fixture_scope: all
-    env: &teardown_env
-      TF_IN_AUTOMATION: "true"
-      TF_DIR: infra/fabric/terraform
-      TF_VAR_workspace_name: fabricqueryr-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
-      TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
-      TF_VAR_fixture_scope: ${{ matrix.fixture_scope }}
-
-    steps: &teardown_steps
+    timeout-minutes: 10
+    permissions: *fabric_permissions
+    env:
+      CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
+      CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
+      FABRIC_CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
+      LEASE_ID: ${{ needs.activate.outputs.lease_id }}
+    steps:
       - uses: actions/checkout@v4
-
-      - name: Sign in to Azure with OIDC
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+      - run: uv --directory tools/fabric-sandbox sync --locked
+      - name: Sign in for cleanup
         uses: azure/login@v3
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.12.2"
-          terraform_wrapper: false
-
-      - name: Restore Terraform state
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: fabric-terraform-state-${{ matrix.lane }}
-          path: infra/fabric/terraform
-
-      - name: Initialize Terraform
-        if: hashFiles('infra/fabric/terraform/terraform.tfstate') != ''
-        run: terraform -chdir="$TF_DIR" init -input=false
-
-      - name: Destroy Fabric sandbox
-        if: hashFiles('infra/fabric/terraform/terraform.tfstate') != ''
-        # Delete the resources recorded by this run even if SQL readiness is stuck.
-        run: terraform -chdir="$TF_DIR" destroy -auto-approve -input=false -refresh=false
-
-  teardown_preview:
-    name: Destroy ${{ matrix.lane }} runtime sandbox
-    needs:
-      - provision_preview
-      - integration_preview
-    if: always() && needs.provision_preview.result != 'skipped'
-    runs-on: ubuntu-latest
-    environment: fabric-integration
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - lane: preview
-            fixture_scope: onelake
-    env: *teardown_env
-    steps: *teardown_steps
+        with: *azure_login
+      - name: Stop test schedules and compute before pausing
+        if: inputs.action == 'test'
+        timeout-minutes: 2
+        env:
+          TEST_LANE: ${{ inputs.lane }}
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause verify-active \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
+          status=0
+          if [[ "$TEST_LANE" != "preview" ]]; then
+            FABRIC_SPARK_RUNTIME_LANE=core FABRIC_SPARK_RUNTIME_VERSION=1.3 \
+              uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.persistent_ci clean || status=1
+          fi
+          if [[ "$TEST_LANE" != "core" ]]; then
+            FABRIC_SPARK_RUNTIME_LANE=preview FABRIC_SPARK_RUNTIME_VERSION=2.0 \
+              uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.persistent_ci clean || status=1
+          fi
+          exit "$status"
+      - name: Sign in again for pause even if cleanup failed
+        if: always()
+        uses: azure/login@v3
+        with: *azure_login
+      - name: Pause only this integration session
+        if: always()
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause pause \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
+          echo 'F2 paused; persistent workspaces, fixtures and Delta history retained.' >> "$GITHUB_STEP_SUMMARY"

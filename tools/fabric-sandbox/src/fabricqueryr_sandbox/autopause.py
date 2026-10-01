@@ -48,17 +48,28 @@ def read_lease(resource, repository):
     return lease, deadline
 
 
-def verify_lease(capacity, repository, lease):
-    current, deadline = read_lease(capacity.status(), repository)
+def verify_lease(capacity, repository, lease, *, require_active=False):
+    resource = capacity.status()
+    current, deadline = read_lease(resource, repository)
     if current != lease:
         raise RuntimeError("Capacity now belongs to a different shutdown lease")
     if deadline > time.time() + MAX_SECONDS + 5:
         raise RuntimeError("Shutdown deadline exceeds the one-hour limit")
+    if require_active and (
+        deadline <= time.time() or resource["properties"]["state"] != "Active"
+    ):
+        raise RuntimeError("Capacity session has ended; refusing to start more work")
     return deadline
 
 
 def arm_lease(
-    capacity, repository, *, check=False, now=time.time, purpose="shiny", run="",
+    capacity,
+    repository,
+    *,
+    check=False,
+    now=time.time,
+    purpose="shiny",
+    run="",
 ):
     if purpose not in {"shiny", "integration"}:
         raise ValueError("Unknown capacity lease purpose")
@@ -190,7 +201,12 @@ class GitHubGuard:
 
 def start(capacity, guard, *, check=False, now=time.time, purpose="shiny", run=""):
     lease, deadline = arm_lease(
-        capacity, guard.repository, check=check, now=now, purpose=purpose, run=run,
+        capacity,
+        guard.repository,
+        check=check,
+        now=now,
+        purpose=purpose,
+        run=run,
     )
     # Publish ownership before dispatch so failure cleanup also covers arm errors.
     output("lease_id", lease)
@@ -262,7 +278,9 @@ def wait_deadline(deadline, *, now=time.time, sleep=time.sleep):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("start", "check", "verify", "wait", "pause"))
+    parser.add_argument(
+        "action", choices=("start", "check", "verify", "verify-active", "wait", "pause")
+    )
     parser.add_argument("--resource-id")
     parser.add_argument("--capacity-id")
     parser.add_argument("--lease-id", type=lambda value: str(UUID(value)))
@@ -278,7 +296,7 @@ def main(argv=None):
     repository = os.environ.get("GITHUB_REPOSITORY")
     if not repository or not args.resource_id or not args.capacity_id:
         parser.error("GITHUB_REPOSITORY, --resource-id and --capacity-id are required")
-    if args.action in {"verify", "pause"} and not args.lease_id:
+    if args.action in {"verify", "verify-active", "pause"} and not args.lease_id:
         parser.error("--lease-id is required")
     credential = get_credential()
     with F2Capacity(args.resource_id, args.capacity_id, credential) as capacity:
@@ -295,11 +313,19 @@ def main(argv=None):
                 os.environ["GITHUB_SHA"],
             ) as guard:
                 start(
-                    capacity, guard, check=args.action == "check",
-                    purpose=args.purpose, run=args.run,
+                    capacity,
+                    guard,
+                    check=args.action == "check",
+                    purpose=args.purpose,
+                    run=args.run,
                 )
-        elif args.action == "verify":
-            deadline = verify_lease(capacity, repository, args.lease_id)
+        elif args.action in {"verify", "verify-active"}:
+            deadline = verify_lease(
+                capacity,
+                repository,
+                args.lease_id,
+                require_active=args.action == "verify-active",
+            )
             output("deadline", deadline)
             print(f"Verified shutdown lease; pause at {deadline_text(deadline)}")
         else:
