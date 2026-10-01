@@ -1,5 +1,5 @@
 name: Manage persistent Fabric sandbox
-run-name: Fabric sandbox - ${{ inputs.action }}
+run-name: Fabric sandbox - ${{ inputs.action }}${{ inputs.guard_key && format(' - {0}', inputs.guard_key) || '' }}
 
 on:
   workflow_dispatch:
@@ -15,17 +15,26 @@ on:
           - shiny-status
           - shiny-start
           - shiny-pause
+          - shiny-test-shutdown
+          - shiny-watchdog
       reseed:
         description: Replace Shiny sample data during shiny-start (normally leave unchecked)
         type: boolean
         default: false
+      lease_id:
+        description: Internal shutdown lease (leave empty for start/status/pause)
+        type: string
+      guard_key:
+        description: Internal shutdown run identifier (leave empty)
+        type: string
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: fabric-integration-${{ github.repository }}
+  # Shutdown must not queue behind the setup that it may need to interrupt.
+  group: ${{ inputs.action == 'shiny-watchdog' && format('fabric-shutdown-{0}-{1}', github.repository, github.run_id) || inputs.action == 'shiny-pause' && format('fabric-pause-{0}', github.repository) || format('fabric-integration-{0}', github.repository) }}
   cancel-in-progress: false
 
 jobs:
@@ -220,10 +229,14 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   shiny:
-    if: startsWith(inputs.action, 'shiny-')
+    if: startsWith(inputs.action, 'shiny-') && inputs.action != 'shiny-watchdog'
     name: ${{ inputs.action }} (paid F2)
     runs-on: ubuntu-latest
     environment: fabric-integration
+    permissions:
+      contents: read
+      id-token: write
+      actions: write
     timeout-minutes: 110
     env:
       CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
@@ -265,11 +278,14 @@ jobs:
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
 
-      - name: Resume paid F2
+      - name: Arm independent shutdown before resuming paid F2
         id: capacity
-        if: inputs.action == 'shiny-start'
+        if: inputs.action == 'shiny-start' || inputs.action == 'shiny-test-shutdown'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SHUTDOWN_ACTION: ${{ inputs.action == 'shiny-start' && 'start' || 'check' }}
         run: |
-          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.capacity resume \
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause "$SHUTDOWN_ACTION" \
             --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID"
 
       - name: Prepare persistent Shiny fixtures
@@ -290,6 +306,56 @@ jobs:
       - name: Pause a capacity resumed by an unsuccessful start
         if: ${{ always() && inputs.action == 'shiny-start' && steps.capacity.outputs.resumed == 'true' && (failure() || cancelled()) }}
         run: |
-          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.capacity pause \
-            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID"
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause pause \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" \
+            --lease-id "${{ steps.capacity.outputs.lease_id }}"
           echo 'Start did not finish. The capacity resumed by this run has been paused.' >> "$GITHUB_STEP_SUMMARY"
+
+  shutdown:
+    if: inputs.action == 'shiny-watchdog'
+    name: Independent Shiny shutdown
+    runs-on: ubuntu-latest
+    environment: fabric-integration
+    timeout-minutes: 80
+    env:
+      CAPACITY_ID: ${{ vars.FABRIC_CAPACITY_ID__PAID }}
+      CAPACITY_RESOURCE_ID: /subscriptions/${{ vars.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ vars.FABRIC_F2_RESOURCE_GROUP || 'fabric-rg' }}/providers/Microsoft.Fabric/capacities/${{ vars.FABRIC_F2_NAME || 'rpackagecap' }}
+      LEASE_ID: ${{ inputs.lease_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/fabric-sandbox/uv.lock
+      - name: Install locked sandbox tools
+        run: uv --directory tools/fabric-sandbox sync --locked
+      - name: Sign in to verify shutdown lease
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify shutdown lease
+        id: lease
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause verify \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"
+      - name: Wait for automatic pause
+        env:
+          DEADLINE: ${{ steps.lease.outputs.deadline }}
+        run: uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause wait --deadline "$DEADLINE"
+      # Acquire a fresh OIDC token after the hour-long wait. On cancellation or
+      # timer failure these steps pause early, rather than leaving F2 active.
+      - name: Sign in again for shutdown
+        id: shutdown_login
+        if: always() && steps.lease.outcome == 'success'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Pause only this Shiny session
+        if: always() && steps.lease.outcome == 'success' && steps.shutdown_login.outcome == 'success'
+        run: |
+          uv --directory tools/fabric-sandbox run python -m fabricqueryr_sandbox.autopause pause \
+            --resource-id "$CAPACITY_RESOURCE_ID" --capacity-id "$CAPACITY_ID" --lease-id "$LEASE_ID"

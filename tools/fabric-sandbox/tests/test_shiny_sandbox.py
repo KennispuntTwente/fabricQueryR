@@ -251,7 +251,14 @@ def test_workflow_keeps_paid_actions_manual_and_separate_from_the_general_sandbo
     )
     assert workflow.index(
         "Install SQL driver before starting paid capacity"
-    ) < workflow.index("name: Resume paid F2")
+    ) < workflow.index("name: Arm independent shutdown before resuming paid F2")
     shiny_job = workflow.split("\n  shiny:", 1)[1]
     assert "remove-persistent" not in shiny_job
     assert "terraform" not in shiny_job
+    assert "actions: write" in shiny_job
+    assert "fabricqueryr_sandbox.capacity resume" not in workflow
+    assert "fabric-shutdown-{0}-{1}" in workflow
+    assert "steps.lease.outcome == 'success'" in workflow
+    assert workflow.index("name: Wait for automatic pause") < workflow.index(
+        "name: Sign in again for shutdown"
+    )

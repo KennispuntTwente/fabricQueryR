@@ -51,14 +51,15 @@ class F2Capacity:
     def __exit__(self, *_):
         self.client.close()
 
-    def request(self, method, suffix=""):
+    def request(self, method, suffix="", *, api_version=ARM_VERSION, **kwargs):
         response = self.client.request(
             method,
             self.resource_id + suffix,
-            params={"api-version": ARM_VERSION},
+            params={"api-version": api_version},
             headers={
                 "Authorization": f"Bearer {self.credential.get_token(ARM_SCOPE).token}"
             },
+            **kwargs,
         )
         response.raise_for_status()
         return response
@@ -138,6 +139,10 @@ def main(argv=None):
     parser.add_argument("--resource-id", required=True)
     parser.add_argument("--capacity-id", required=True)
     args = parser.parse_args(argv)
+    if args.action == "resume":
+        parser.error(
+            "Use fabricqueryr_sandbox.autopause start to arm shutdown before resume"
+        )
     credential = get_credential()
 
     def mark_resumed():

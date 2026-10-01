@@ -445,7 +445,8 @@ def main(argv=None):
                 f"[Open workspace](https://app.fabric.microsoft.com/groups/{workspace_id}/list)\n\n"
                 "```r\nSys.setenv(FABRIC_SHINY_WORKSPACE = 'fabricqueryr-shiny-dhrkoning')\n"
                 "shiny::runApp('playground/shiny', port = 8100)\n```\n\n"
-                "The F2 remains active. Run this workflow with `shiny-pause` when finished.\n"
+                "F2 pauses automatically one hour after the start was armed, including setup time. "
+                "Run `shiny-pause` to finish earlier; the workspace and data are retained.\n"
             )
 
 
