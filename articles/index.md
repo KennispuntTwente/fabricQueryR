@@ -6,8 +6,6 @@
   'fabricQueryR'](https://kennispunttwente.github.io/fabricQueryR/articles/getting-started.md):
 - [Get started with Microsoft Fabric
   authentication](https://kennispunttwente.github.io/fabricQueryR/articles/authentication.md):
-- [Shiny apps using each visitor's Fabric
-  access](https://kennispunttwente.github.io/fabricQueryR/articles/shiny-integration.md):
 
 ### Read and write data
 
