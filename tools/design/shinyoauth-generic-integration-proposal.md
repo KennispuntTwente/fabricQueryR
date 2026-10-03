@@ -1,5 +1,9 @@
 # Generic shinyOAuth improvements for integration with other R packages
 
+> Historical design, superseded by shinyOAuthDB. OAuth/Shiny integration and the
+> integrated app live in that package; fabricQueryR retains its ordinary token
+> string and callback APIs. The material below records the earlier proposal.
+
 Design proposal, 20 September 2026. No implementation.
 
 **Recommendation:** make shinyOAuth easier to use as the owner of a user's

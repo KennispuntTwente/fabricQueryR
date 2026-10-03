@@ -754,10 +754,6 @@ fabric_sql_query <- function(
         )
       }
     })
-    attr(
-      connect_args$token,
-      "fabric_endpoint_policy"
-    ) <- credential$endpoint_policy
 
     # Keep connection cleanup paired with the query attempt
     con <- NULL

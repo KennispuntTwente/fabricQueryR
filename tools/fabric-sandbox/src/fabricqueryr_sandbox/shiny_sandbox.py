@@ -1,4 +1,4 @@
-"""Provision only the persistent data fixtures used by playground/shiny."""
+"""Provision the persistent fixtures used by shinyOAuthDB/playground/fabric."""
 
 from __future__ import annotations
 
@@ -173,7 +173,6 @@ def ensure_targets(api, workspace_id, items, root):
         "MirroredDatabase",
         "mirroredDatabases",
         definition={
-            "format": "Default",
             "parts": [
                 definition_part(
                     "mirroring.json",
@@ -421,8 +420,9 @@ def main(argv=None):
             stream.write(
                 f"## Shiny sandbox ready\n\nWorkspace: `{WORKSPACE_NAME}`\n\n"
                 f"[Open workspace](https://app.fabric.microsoft.com/groups/{workspace_id}/list)\n\n"
-                "```r\nSys.setenv(FABRIC_SHINY_WORKSPACE = 'fabricqueryr-shiny-dhrkoning')\n"
-                "shiny::runApp('playground/shiny', port = 8100)\n```\n\n"
+                "From the fabricQueryR checkout, with shinyOAuthDB alongside it:\n\n"
+                "```r\npkgload::load_all('.')\npkgload::load_all('../shinyOAuthDB')\n"
+                "shiny::runApp('../shinyOAuthDB/playground/fabric', port = 8100)\n```\n\n"
                 "F2 pauses automatically one hour after the start was armed, including setup time. "
                 "Select `sandbox=shiny, action=pause` to finish earlier; the workspace and data are retained.\n"
             )

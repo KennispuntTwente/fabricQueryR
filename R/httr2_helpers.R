@@ -216,9 +216,6 @@
 
     retry_after <- NULL
     attempt_req <- req
-    if (!is.null(credential$endpoint_policy)) {
-      attempt_req <- httr2::req_options(attempt_req, followlocation = FALSE)
-    }
 
     # Read a fresh token when authentication is managed by a credential
     if (!is.null(credential)) {
@@ -282,14 +279,6 @@
       }
     } else {
       status <- httr2::resp_status(response)
-      if (
-        !is.null(credential$endpoint_policy) && status >= 300L && status < 400L
-      ) {
-        fabric_shiny_error(
-          "HTTP redirects are not supported for Shiny credentials; configure the final service endpoint.",
-          "untrusted_redirect"
-        )
-      }
       if (status < 400L || status %in% accepted_status) {
         return(response)
       }

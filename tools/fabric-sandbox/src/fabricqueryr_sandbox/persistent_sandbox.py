@@ -113,8 +113,9 @@ def summary(sandbox, workspace, capacity_id, *, ready=False):
         ]
     if ready:
         launch = (
-            "Sys.setenv(FABRIC_SHINY_WORKSPACE = 'fabricqueryr-shiny-dhrkoning')\n"
-            "shiny::runApp('playground/shiny', port = 8100)"
+            "# From fabricQueryR, with shinyOAuthDB checked out alongside it:\n"
+            "pkgload::load_all('.')\npkgload::load_all('../shinyOAuthDB')\n"
+            "shiny::runApp('../shinyOAuthDB/playground/fabric', port = 8100)"
             if sandbox == "shiny"
             else 'source("playground/sandbox.R")\nsandbox <- connect_playground_sandbox()'
         )

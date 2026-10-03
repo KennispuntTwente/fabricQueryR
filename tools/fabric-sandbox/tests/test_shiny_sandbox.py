@@ -161,6 +161,10 @@ def test_target_creation_uses_schema_lakehouse_parent_eventhouse_and_real_model_
         assert len(requests) == count
     bodies = {path.rsplit("/", 1)[1]: body for path, body in requests}
     assert bodies["lakehouses"]["creationPayload"] == {"enableSchemas": True}
+    # The mirrored-database REST API rejects the Terraform-specific "Default"
+    # format value. Its documented request supplies definition parts directly.
+    assert "format" not in bodies["mirroredDatabases"]["definition"]
+    assert bodies["mirroredDatabases"]["definition"]["parts"][0]["path"] == "mirroring.json"
     assert (
         bodies["kqlDatabases"]["creationPayload"]["parentEventhouseItemId"]
         == "eventhouses"

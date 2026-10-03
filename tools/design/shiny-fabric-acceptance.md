@@ -1,5 +1,9 @@
 # Shiny integration acceptance
 
+> Historical design, superseded by shinyOAuthDB. OAuth/Shiny integration and the
+> integrated app live in that package; fabricQueryR retains its ordinary token
+> string and callback APIs. The material below records the earlier proposal.
+
 Implementation: 29 September 2026. Scope: explicit delegated Fabric discovery,
 SQL and GraphQL; one fixed tenant; session retention; synchronous calls.
 Updated 30 September 2026 with asynchronous token acquisition and query workers

@@ -1,5 +1,9 @@
 # Shiny applications using each user's Microsoft Fabric access
 
+> Historical design, superseded by shinyOAuthDB. OAuth/Shiny integration and the
+> integrated app live in that package; fabricQueryR retains its ordinary token
+> string and callback APIs. The material below records the earlier proposal.
+
 Design draft, 20 September 2026. No implementation in this change.
 
 Implementation started 29 September 2026. The sibling shinyOAuth checkout now

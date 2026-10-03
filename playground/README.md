@@ -31,16 +31,10 @@ gh workflow run fabric-sandbox.yaml --ref master -f sandbox=development -f actio
 ```
 
 For the dedicated Shiny app fixtures, select `sandbox=shiny`, then follow the
-[Shiny playground instructions](shiny/README.md). The app can also use the
-development sandbox by default:
-
-```r
-shiny::runApp("playground/shiny", port = 8100)
-```
-
-The [Shiny playground](shiny/README.md) includes SQL, a DAX chart, KQL, OneLake,
-mirrored tables, GraphQL and discovery. It supports the existing sandbox
-connection and delegated user sign-in, with background query workers.
+[sandbox instructions](shiny/README.md). The integrated app now lives in
+[shinyOAuthDB](https://github.com/lukakoning/shinyOAuthDB/tree/main/playground/fabric).
+It covers SQL, a DAX chart, KQL, OneLake, mirrored tables, GraphQL and discovery,
+using either the existing sandbox connection or delegated visitor sign-in.
 
 Wait until startup finishes, then start R from the repository root. Reconnect
 after a new session starts so discovery reflects any repaired or updated items.

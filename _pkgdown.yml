@@ -7,7 +7,6 @@ articles:
     contents:
       - getting-started
       - authentication
-      - shiny-integration
   - title: Read and write data
     contents:
       - reading-data
@@ -24,13 +23,6 @@ articles:
       - user-data-functions
 
 reference:
-  - title: Shiny applications
-    contents:
-      - fabric_shiny_config
-      - fabric_shiny_ui
-      - fabric_shiny_server
-      - fabric_shiny_token_provider
-
   - title: Discovery
     desc: Find Fabric workspaces, items, and workload-specific connection details
     contents:
