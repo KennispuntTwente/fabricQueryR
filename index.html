@@ -80,7 +80,7 @@
 <span><span class="co"># Optional, if your tenant does not permit the public Azure CLI client ID:</span></span>
 <span><span class="co"># Sys.setenv(FABRICQUERYR_CLIENT_ID = "your-app-client-id")</span></span></code></pre></div>
 <p>The <a href="https://kennispunttwente.github.io/fabricQueryR/articles/authentication.html">authentication vignette</a> covers interactive sign-in, app registrations, service principals, and other authentication options.</p>
-<p>The development version also supports Shiny apps using each visitor’s delegated Fabric access through shinyOAuth, with DAX, SQL, KQL, OneLake and GraphQL. See the <a href="vignettes/shiny-integration.Rmd">Shiny integration guide</a> and the <a href="inst/examples/shiny-fabric">runnable dashboard example</a>. This requires shinyOAuth’s token-target APIs.</p>
+<p>For Shiny apps using each visitor’s delegated Fabric access, use <a href="https://github.com/lukakoning/shinyOAuthDB" class="external-link">shinyOAuthDB</a>. It bridges shinyOAuth to fabricQueryR’s ordinary <code>token</code> callback. Its <a href="https://github.com/lukakoning/shinyOAuthDB/tree/main/playground/fabric" class="external-link">integrated Fabric app</a> demonstrates SQL, DAX, KQL, OneLake, GraphQL and discovery against the persistent <a href="playground/shiny/README.html">Shiny sandbox</a>. Shiny integration lives there; fabricQueryR supplies the database and service APIs.</p>
 <p>The examples below focus on the main use of each function group. See the <a href="https://kennispunttwente.github.io/fabricQueryR/reference/index.html">function reference</a> and vignettes for configuration options and more involved workflows.</p>
 </div>
 <div class="section level2">
