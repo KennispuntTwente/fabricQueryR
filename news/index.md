@@ -2,17 +2,6 @@
 
 ## fabricQueryR (development version)
 
-- Shiny sign-in, OAuth client/provider presets, and the integrated
-  Fabric app now live in shinyOAuthDB. The development-only
-  `fabric_shiny_*()` helpers have been removed. Use fabricQueryR’s
-  existing `token` argument with a bearer string or
-  `function(audience, force_refresh)` callback; no Shiny dependencies or
-  provider-specific credential metadata are needed in this package.
-
-- The persistent Shiny sandbox remains managed by this repository. Its
-  launch instructions now point to the single Fabric app in
-  shinyOAuthDB.
-
 ## fabricQueryR 1.0.1
 
 CRAN release: 2026-09-30
