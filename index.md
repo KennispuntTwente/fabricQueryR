@@ -172,6 +172,10 @@ result <- lakehouse$livy_query(
 )
 ```
 
+Queries use Standard sessions by default. Pass `high_concurrency = TRUE`
+and an optional `session_tag` to allow shared Spark compute for one-off
+queries.
+
 Reusable Livy sessions and independent batch submissions are available
 for multi-step and application-file workflows. See [Working with Livy
 (Spark)](https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.html)

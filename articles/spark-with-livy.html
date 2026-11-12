@@ -204,6 +204,19 @@ waits, and closes the session:</p>
 <p>The returned <code>output$parsed</code> value is usually a tibble for
 tabular results, an R object for JSON, or character output for printed
 text.</p>
+<p>Queries use Standard sessions by default. Set
+<code>high_concurrency = TRUE</code> to let Fabric share Spark compute
+with other isolated workloads. The optional <code>session_tag</code>
+helps compatible requests share compute; it does not guarantee reuse.
+The helper still waits for the result and releases its execution context
+automatically:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">hc_result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
+<span>  code <span class="op">=</span> <span class="st">"SELECT 1 AS id"</span>,</span>
+<span>  kind <span class="op">=</span> <span class="st">"sql"</span>,</span>
+<span>  high_concurrency <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  session_tag <span class="op">=</span> <span class="st">"report-workers"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="choose-the-language-that-matches-the-code">Choose the language that matches the code<a class="anchor" aria-label="anchor" href="#choose-the-language-that-matches-the-code"></a>
@@ -251,7 +264,7 @@ be independent of the current SparkR runtime bridge.</p>
 Lakehouse:</p>
 <p>This again uses <code>$livy_query()</code>
 (<code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>):</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
 <span>  code <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
@@ -267,7 +280,7 @@ notebook/Spark-job <code>"synapse"</code> connection; Microsoft does not
 document it for item-scoped Livy, and ‘fabricQueryR’ does not currently
 live-test it. If you evaluate that bridge in your tenant, sparklyr code
 submitted through Livy still uses <code>kind = "sparkr"</code>:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
 <span>  code <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
@@ -296,7 +309,7 @@ contract.</p>
 <p>Starting Spark can take time. Use <code>$livy_session()</code>
 (<code><a href="../reference/fabric_livy_session.html">fabric_livy_session()</a></code>) when sequential statements need to
 share variables or cached data:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">answer</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>  <span class="va">session</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_session</span><span class="op">(</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="va">session</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -331,7 +344,7 @@ application’s output in the target runtime before relying on it. Passing
 interactive SparkR statements does not verify this separate batch
 path.</p>
 <p>For example, submit a Python application and wait for completion:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_batch_submit</span><span class="op">(</span></span>
 <span>  file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
 <span>    <span class="st">"abfss://"</span>, <span class="va">workspace</span><span class="op">$</span><span class="va">id</span>,</span>
@@ -384,7 +397,7 @@ extraction.</p>
 <p>A published Fabric Environment can hold Spark settings and libraries
 shared by several runs. Discover it and pass its ID when the workload
 depends on that configuration:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">environment</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">environments</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>

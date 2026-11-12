@@ -147,6 +147,7 @@
 <span>  kind <span class="op">=</span> <span class="st">"pyspark"</span>,</span>
 <span>  code <span class="op">=</span> <span class="st">"print(1 + 2)"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>Queries use Standard sessions by default. Pass <code>high_concurrency = TRUE</code> and an optional <code>session_tag</code> to allow shared Spark compute for one-off queries.</p>
 <p>Reusable Livy sessions and independent batch submissions are available for multi-step and application-file workflows. See <a href="https://kennispunttwente.github.io/fabricQueryR/articles/spark-with-livy.html">Working with Livy (Spark)</a> for choosing between one-off queries, reusable sessions, and batch jobs.</p>
 </div>
 <div class="section level3">

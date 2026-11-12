@@ -146,6 +146,22 @@ result$output$parsed
 The returned `output$parsed` value is usually a tibble for tabular
 results, an R object for JSON, or character output for printed text.
 
+Queries use Standard sessions by default. Set `high_concurrency = TRUE`
+to let Fabric share Spark compute with other isolated workloads. The
+optional `session_tag` helps compatible requests share compute; it does
+not guarantee reuse. The helper still waits for the result and releases
+its execution context automatically:
+
+``` r
+
+hc_result <- lakehouse$livy_query(
+  code = "SELECT 1 AS id",
+  kind = "sql",
+  high_concurrency = TRUE,
+  session_tag = "report-workers"
+)
+```
+
 ## Choose the language that matches the code
 
 The `kind` argument tells Livy how to interpret `code`:

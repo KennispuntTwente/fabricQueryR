@@ -1,9 +1,9 @@
 # Run Spark code in a temporary Microsoft Fabric Livy session
 
-Starts Spark, runs one piece of code, returns its output, and closes the
-Spark session. This is the simplest Livy helper for a one-off operation.
-For quick reads from a Lakehouse or Warehouse, SQL is often faster to
-start
+Runs one piece of Spark code in a temporary session, returns its output,
+and releases the session. This is the simplest Livy helper for a one-off
+operation. For quick reads from a Lakehouse or Warehouse, SQL is often
+faster to start
 
 ## Usage
 
@@ -23,6 +23,8 @@ fabric_livy_query(
   verbose = TRUE,
   poll_interval = 2,
   timeout = 600,
+  high_concurrency = FALSE,
+  session_tag = NULL,
   ...
 )
 ```
@@ -110,6 +112,18 @@ fabric_livy_query(
   Maximum seconds to wait for session readiness and, separately,
   statement completion
 
+- high_concurrency:
+
+  Whether to use a high-concurrency session that can share Spark compute
+  with other isolated workloads. Defaults to `FALSE` for a standard
+  session
+
+- session_tag:
+
+  Optional packing hint for high-concurrency sessions. Related requests
+  with the same tag may share Spark compute while keeping separate
+  execution state. Requires `high_concurrency = TRUE`
+
 - ...:
 
   Compatibility arguments. The former named `access_token` argument is
@@ -126,6 +140,16 @@ statement is still returned when session cleanup fails, with a
 `fabric_livy_cleanup_warning` identifying the retained session. When
 both execution and cleanup fail, a `fabric_livy_execution_cleanup_error`
 retains the execution error and safe cleanup diagnostics
+
+## Choosing a session type
+
+Standard sessions are the default. Set `high_concurrency = TRUE` to
+acquire a high-concurrency execution context for this query. An optional
+`session_tag` helps Fabric pack compatible requests into shared Spark
+compute; sharing is not guaranteed. The helper waits for the result and
+releases its execution context on exit in either mode. To manage a
+session across several calls, use
+[`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md)
 
 ## Tabular column names
 
@@ -221,7 +245,9 @@ fabric_livy_query_example <- function() {
   pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
     kind = "pyspark",
-    code = "print(1 + 2)"
+    code = "print(1 + 2)",
+    high_concurrency = TRUE,
+    session_tag = "fabricqueryr-example"
   )
 
   invisible(list(sql = sql_result, pyspark = pyspark_result))
