@@ -2065,6 +2065,17 @@ test_that("Livy polling sleep is clamped to the remaining budget", {
   expect_equal(slept, 2)
 })
 
+test_that("Lakehouse records without a Livy endpoint explain how to supply it", {
+  lakehouse <- r6_test_record()
+  for (record in list(lakehouse, lakehouse$as_list())) {
+    expect_error(
+      fabric_livy_query(record, code = "print(1 + 2)", verbose = FALSE),
+      "supply livy_url copied from Lakehouse settings > Livy endpoint",
+      fixed = TRUE
+    )
+  }
+})
+
 test_that("Livy input and endpoint validation is explicit", {
   expect_null(fabric_livy_normalize_named_list(list(), "tags"))
   expect_null(fabric_livy_conf(list()))

@@ -22,6 +22,7 @@
 #'   `fabric_catalog_entry` records that also inherit from `fabric_item`. Both
 #'   representations preserve the fields returned by Fabric and add the item
 #'   workspace identity from the catalog hierarchy.
+#'   Lakehouse records also include their derived `livy_url`.
 #'   Workspace entries returned by unfiltered browsing become [FabricWorkspace]
 #'   objects, or `fabric_catalog_entry` records inheriting `fabric_workspace`.
 #' @details
@@ -295,6 +296,9 @@ fabric_catalog_search <- function(
   }
   entry$workspaceId <- workspace$id
   entry$workspaceDisplayName <- workspace$displayName
+  if (identical(tolower(entry$type), "lakehouse")) {
+    entry <- fabric_add_derived_targets(entry, api_base %||% .fabric_api_base)
+  }
   record <- structure(
     entry,
     class = c(

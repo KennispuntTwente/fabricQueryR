@@ -1,5 +1,13 @@
 # fabricQueryR (development version)
 
+* Lakehouses returned by `fabric_catalog_search()` now include their derived
+Livy endpoint, so their Livy methods work without a separate detail lookup.
+
+* `$livy_query()`, `$livy_session()`, and `$livy_batch_submit()` now accept a
+named `livy_url` to override the discovered endpoint while reusing discovery
+credentials. Lakehouse records missing an endpoint now explain how to supply
+the connection string copied from Lakehouse settings.
+
 # fabricQueryR 1.0.1
 
 * Fix a GraphQL numeric round-trip test on R builds without long-double support

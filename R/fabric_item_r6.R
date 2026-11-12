@@ -645,35 +645,41 @@ FabricLakehouse <- R6::R6Class(
 
     #' @description Run one Spark statement through Livy.
     #' @param code Spark, PySpark, SparkR, or Spark SQL code.
+    #' @param livy_url Optional copied Livy connection URL. Defaults to this
+    #'   Lakehouse's discovered endpoint. Supply this argument by name.
     #' @param ... Arguments forwarded to [fabric_livy_query()].
     #' @returns A Livy statement result.
-    livy_query = function(code, ...) {
+    livy_query = function(code, ..., livy_url = self) {
       private$invoke(
         fabric_livy_query,
-        args = list(livy_url = self, code = code),
+        args = list(livy_url = livy_url, code = code),
         dots = list(...)
       )
     },
 
     #' @description Create a reusable Livy session.
+    #' @param livy_url Optional copied Livy connection URL. Defaults to this
+    #'   Lakehouse's discovered endpoint. Supply this argument by name.
     #' @param ... Arguments forwarded to [fabric_livy_session()].
     #' @returns A [FabricLivySession].
-    livy_session = function(...) {
+    livy_session = function(..., livy_url = self) {
       private$invoke(
         fabric_livy_session,
-        args = list(livy_url = self),
+        args = list(livy_url = livy_url),
         dots = list(...)
       )
     },
 
     #' @description Submit a standalone Livy batch.
     #' @param file ABFSS application-file URI.
+    #' @param livy_url Optional copied Livy connection URL. Defaults to this
+    #'   Lakehouse's discovered endpoint. Supply this argument by name.
     #' @param ... Arguments forwarded to [fabric_livy_batch_submit()].
     #' @returns A [FabricLivyBatch] or its result.
-    livy_batch_submit = function(file, ...) {
+    livy_batch_submit = function(file, ..., livy_url = self) {
       private$invoke(
         fabric_livy_batch_submit,
-        args = list(livy_url = self, file = file),
+        args = list(livy_url = livy_url, file = file),
         dots = list(...)
       )
     },

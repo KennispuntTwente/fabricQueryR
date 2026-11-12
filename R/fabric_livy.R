@@ -323,6 +323,12 @@ fabric_livy_resolve_url <- function(livy_url) {
       )
     }
     livy_url <- fabric_record_value(discovered, "livy_url")
+    if (is.null(livy_url)) {
+      .fabric_abort(paste0(
+        "Lakehouse record does not contain a Livy endpoint; ",
+        "supply livy_url copied from Lakehouse settings > Livy endpoint"
+      ))
+    }
   }
   fabric_livy_validate_endpoint(livy_url)
 }

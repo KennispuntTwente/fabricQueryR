@@ -37,6 +37,53 @@ test_that("catalog search paginates POST bodies and returns R6 items", {
   expect_equal(requests[[2L]]$body$data$continuationToken, "page-2")
 })
 
+test_that("catalog Lakehouses can start Livy without workload detail requests", {
+  for (api_base in c(
+    .fabric_api_base,
+    "https://workspace.z13.api.fabric.microsoft.com/v1"
+  )) {
+    for (output in c("r6", "list")) {
+      urls <- character()
+      httr2::local_mocked_responses(function(req) {
+        urls <<- c(urls, req$url)
+        if (endsWith(req$url, "/catalog/search")) {
+          return(catalog_test_response(
+            list(value = list(catalog_test_entry())),
+            req$url
+          ))
+        }
+        httr2::response(
+          201L,
+          headers = list("content-type" = "application/json"),
+          body = charToRaw('{"id":1,"state":"idle"}'),
+          url = req$url
+        )
+      })
+      lakehouse <- fabric_catalog_search(
+        types = "Lakehouse",
+        token = "test-token",
+        api_base = api_base,
+        output = output
+      )[[1L]]
+      endpoint <- paste0(
+        api_base,
+        "/workspaces/", catalog_test_workspace_id,
+        "/lakehouses/", lakehouse$id,
+        "/livyapi/versions/2023-12-01/sessions"
+      )
+
+      session <- if (identical(output, "r6")) {
+        lakehouse$livy_session(verbose = FALSE)
+      } else {
+        fabric_livy_session(lakehouse, token = "test-token", verbose = FALSE)
+      }
+      expect_identical(lakehouse$livy_url, endpoint)
+      expect_identical(session$url, paste0(endpoint, "/1"))
+      expect_identical(urls, c(paste0(api_base, "/catalog/search"), endpoint))
+    }
+  }
+})
+
 test_that("unfiltered catalog browsing handles workspace and item records", {
   workspace <- list(
     id = catalog_test_workspace_id,

@@ -306,6 +306,67 @@ test_that("Lakehouse methods delegate identity and discovery credentials", {
   expect_identical(calls$read$token, "override-token")
 })
 
+test_that("Lakehouse Livy methods accept copied endpoints and keep credentials", {
+  credential <- fabric_credential(token = "discovery-token")
+  endpoint <- "https://api.fabric.microsoft.com/v1/copied/livy/sessions"
+  requests <- list()
+  closed <- character()
+  local_mocked_bindings(
+    fabric_livy_json = function(method, url, credential, ...) {
+      requests[[length(requests) + 1L]] <<- list(
+        method = method,
+        url = url,
+        credential = credential
+      )
+      if (grepl("/statements", url, fixed = TRUE)) {
+        return(list(
+          id = 0L,
+          state = "available",
+          output = list(status = "ok", data = list("text/plain" = "3"))
+        ))
+      }
+      list(id = 1L, state = "idle")
+    },
+    fabric_livy_ok = function(method, url, ...) {
+      expect_identical(method, "DELETE")
+      closed <<- c(closed, url)
+      TRUE
+    }
+  )
+
+  for (has_endpoint in c(FALSE, TRUE)) {
+    record <- r6_test_record()$as_list()
+    if (has_endpoint) {
+      record$livy_url <- "https://api.fabric.microsoft.com/v1/old/livy/sessions"
+    }
+    lakehouse <- fabric_r6_record(record, class(record), credential)
+    result <- lakehouse$livy_query(
+      kind = "pyspark",
+      code = "print(1 + 2)",
+      livy_url = endpoint,
+      verbose = FALSE
+    )
+    expect_identical(result$output$parsed, "3")
+    session <- lakehouse$livy_session(livy_url = endpoint, verbose = FALSE)
+    batch <- lakehouse$livy_batch_submit(
+      file = livy_test_application_uri,
+      livy_url = endpoint,
+      verbose = FALSE
+    )
+    expect_identical(session$url, paste0(endpoint, "/1"))
+    expect_identical(batch$url, sub("/sessions$", "/batches/1", endpoint))
+    expect_identical(lakehouse$as_list(), record)
+  }
+  expect_identical(closed, rep(paste0(endpoint, "/1"), 2L))
+  for (request in requests) {
+    expect_true(startsWith(request$url, sub("/sessions$", "/", endpoint)))
+    expect_identical(
+      fabric_get_token(request$credential, .fabric_audience$fabric),
+      "discovery-token"
+    )
+  }
+})
+
 test_that("SQL item subclasses delegate common and workload-specific methods", {
   calls <- new.env(parent = emptyenv())
   local_mocked_bindings(

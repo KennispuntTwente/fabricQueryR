@@ -827,7 +827,7 @@ delegated user identity.
   Run one Spark statement through Livy.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLakehouse$livy_query(code, ...)}
+    \preformatted{FabricLakehouse$livy_query(code, ..., livy_url = self)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -835,6 +835,8 @@ delegated user identity.
     \describe{
       \item{\code{code}}{Spark, PySpark, SparkR, or Spark SQL code.}
       \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_livy_query]{fabric_livy_query()}}.}
+      \item{\code{livy_url}}{Optional copied Livy connection URL. Defaults to this
+Lakehouse's discovered endpoint. Supply this argument by name.}
     }
     \if{html}{\out{</div>}}
   }
@@ -850,13 +852,15 @@ delegated user identity.
   Create a reusable Livy session.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLakehouse$livy_session(...)}
+    \preformatted{FabricLakehouse$livy_session(..., livy_url = self)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_livy_session]{fabric_livy_session()}}.}
+      \item{\code{livy_url}}{Optional copied Livy connection URL. Defaults to this
+Lakehouse's discovered endpoint. Supply this argument by name.}
     }
     \if{html}{\out{</div>}}
   }
@@ -872,7 +876,7 @@ delegated user identity.
   Submit a standalone Livy batch.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{FabricLakehouse$livy_batch_submit(file, ...)}
+    \preformatted{FabricLakehouse$livy_batch_submit(file, ..., livy_url = self)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -880,6 +884,8 @@ delegated user identity.
     \describe{
       \item{\code{file}}{ABFSS application-file URI.}
       \item{\code{...}}{Arguments forwarded to \code{\link[=fabric_livy_batch_submit]{fabric_livy_batch_submit()}}.}
+      \item{\code{livy_url}}{Optional copied Livy connection URL. Defaults to this
+Lakehouse's discovered endpoint. Supply this argument by name.}
     }
     \if{html}{\out{</div>}}
   }
