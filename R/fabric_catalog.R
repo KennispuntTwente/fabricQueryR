@@ -22,7 +22,8 @@
 #'   `fabric_catalog_entry` records that also inherit from `fabric_item`. Both
 #'   representations preserve the fields returned by Fabric and add the item
 #'   workspace identity from the catalog hierarchy.
-#'   Lakehouse records also include their derived `livy_url`.
+#'   Lakehouse and GraphQL API records also include their derived workload
+#'   endpoints.
 #'   Workspace entries returned by unfiltered browsing become [FabricWorkspace]
 #'   objects, or `fabric_catalog_entry` records inheriting `fabric_workspace`.
 #' @details
@@ -30,6 +31,11 @@
 #' and does not grant access to item contents. The caller needs
 #' `Catalog.Read.All`; Fabric returns only entries that the calling user,
 #' service principal, or managed identity is authorized to see.
+#'
+#' SQL and KQL service endpoints require workload detail discovery. Call
+#' `$details()` on the returned object, or pass a plain record to
+#' [fabric_item()] with `detail = TRUE`, before using methods that need those
+#' endpoints.
 #'
 #' Pagination sends the search parameters only on the first request and sends
 #' only the continuation token on later requests, as required by Fabric. A
@@ -296,7 +302,7 @@ fabric_catalog_search <- function(
   }
   entry$workspaceId <- workspace$id
   entry$workspaceDisplayName <- workspace$displayName
-  if (identical(tolower(entry$type), "lakehouse")) {
+  if (tolower(entry$type) %in% c("lakehouse", "graphqlapi")) {
     entry <- fabric_add_derived_targets(entry, api_base %||% .fabric_api_base)
   }
   record <- structure(

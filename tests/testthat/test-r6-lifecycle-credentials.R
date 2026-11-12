@@ -50,6 +50,52 @@ test_that("R6 job lifecycle requests preserve execution credentials", {
   }
 })
 
+test_that("R6 KQL status methods preserve ingestion execution credentials", {
+  discovery <- fabric_credential(token = "discovery")
+  execution <- fabric_credential(token = "execution")
+  override <- fabric_credential(token = "override")
+  target <- list(
+    url = "https://ingest-cluster.kusto.fabric.microsoft.com",
+    database = "Telemetry",
+    table = "Events"
+  )
+  record <- r6_test_record("KQLDatabase")$as_list()
+  record$ingestion_service_uri <- target$url
+  database <- fabric_r6_record(record, class(record), discovery)
+  ingestion <- kusto_ingestion_handle(
+    "operation-id", target,
+    blobs = list(list(
+      source_id = "source-id", url = "https://storage.test/data"
+    )),
+    format = "csv", mapping = NULL, tags = character(),
+    ingest_if_not_exists = character(), credential = execution,
+    request_id = "request"
+  )
+  used <- NULL
+  local_mocked_bindings(
+    .httr2_perform = function(req, credential, ...) {
+      used <<- credential
+      kusto_ingestion_test_response(
+        kusto_ingestion_test_status(succeeded = 1L), url = req$url
+      )
+    }
+  )
+  status <- fabric_kql_ingestion_status(ingestion)
+  for (handle in list(ingestion, status)) {
+    for (method in c("ingestion_status", "ingestion_wait")) {
+      database[[method]](handle)
+      expect_identical(used, execution)
+      database[[method]](handle, token = override)
+      expect_identical(used, override)
+      database[[method]](unserialize(serialize(handle, NULL)))
+      expect_identical(used, discovery)
+    }
+  }
+  expect_identical(kusto_ingestion_credential(ingestion), execution)
+  database$ingestion_status("operation-id", table = target$table)
+  expect_identical(used, discovery)
+})
+
 test_that("R6 refresh lifecycle requests preserve execution credentials", {
   # Exercises repeated real-time polling.
   skip_on_cran()

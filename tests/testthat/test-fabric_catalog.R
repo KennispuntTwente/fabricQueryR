@@ -123,6 +123,36 @@ test_that("catalog search can return plain item records explicitly", {
   expect_equal(result[[1L]]$workspaceId, catalog_test_workspace_id)
 })
 
+test_that("catalog GraphQL records retain their discovery API endpoint", {
+  api_base <- "https://workspace.z13.api.fabric.microsoft.com/v1"
+  urls <- character()
+  httr2::local_mocked_responses(function(req) {
+    urls <<- c(urls, req$url)
+    if (endsWith(req$url, "/catalog/search")) {
+      entry <- catalog_test_entry()
+      entry$type <- "GraphQLApi"
+      return(catalog_test_response(list(value = list(entry)), req$url))
+    }
+    graphql_test_response(list(data = list(value = 3L)), url = req$url)
+  })
+  for (output in c("r6", "list")) {
+    api <- fabric_catalog_search(
+      types = "GraphQLApi",
+      api_base = api_base,
+      output = output,
+      token = "test-token"
+    )[[1L]]
+    fabric_graphql_query(api, "{ value }", token = "test-token")
+    expect_identical(
+      tail(urls, 1L),
+      paste0(
+        api_base, "/workspaces/", catalog_test_workspace_id,
+        "/graphqlapis/", catalog_test_item_id, "/graphql"
+      )
+    )
+  }
+})
+
 test_that("catalog search validates filters before making requests", {
   calls <- 0L
   httr2::local_mocked_responses(function(req) {

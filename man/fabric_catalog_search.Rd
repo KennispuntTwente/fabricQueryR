@@ -58,7 +58,8 @@ type-specific subclasses. With \code{output = "list"}, a list of
 \code{fabric_catalog_entry} records that also inherit from \code{fabric_item}. Both
 representations preserve the fields returned by Fabric and add the item
 workspace identity from the catalog hierarchy.
-Lakehouse records also include their derived \code{livy_url}.
+Lakehouse and GraphQL API records also include their derived workload
+endpoints.
 Workspace entries returned by unfiltered browsing become \link{FabricWorkspace}
 objects, or \code{fabric_catalog_entry} records inheriting \code{fabric_workspace}.
 }
@@ -73,6 +74,11 @@ Catalog search is a preview Fabric API. It is for metadata discovery only
 and does not grant access to item contents. The caller needs
 \code{Catalog.Read.All}; Fabric returns only entries that the calling user,
 service principal, or managed identity is authorized to see.
+
+SQL and KQL service endpoints require workload detail discovery. Call
+\verb{$details()} on the returned object, or pass a plain record to
+\code{\link[=fabric_item]{fabric_item()}} with \code{detail = TRUE}, before using methods that need those
+endpoints.
 
 Pagination sends the search parameters only on the first request and sends
 only the continuation token on later requests, as required by Fabric. A

@@ -647,6 +647,12 @@ kusto_resolve_target <- function(
       "query_service_uri",
       "queryServiceUri"
     )
+    if (is.null(cluster)) {
+      .fabric_abort(paste0(
+        "This KQL discovery record does not contain a query-service URI; ",
+        "retrieve workload details with $details() or fabric_item(detail = TRUE)"
+      ))
+    }
 
     if (is.null(database) && identical(type, "kqldatabase")) {
       database <- fabric_record_value(record, "displayName", "display_name")

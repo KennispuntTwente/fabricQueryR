@@ -54,6 +54,26 @@ test_that("fabric_livy_query consumes named access_token from dots", {
   expect_identical(captured$token, "legacy-token")
   expect_identical(result, list(ok = TRUE))
   expect_true(closed)
+
+  record <- r6_test_record()$as_list()
+  record$livy_url <- "https://example.test/livy/sessions"
+  lakehouse <- fabric_r6_record(
+    record,
+    class(record),
+    fabric_credential(token = "discovery-token")
+  )
+  result <- lakehouse$livy_query(
+    "1 + 1",
+    access_token = "legacy-token",
+    verbose = FALSE
+  )
+  expect_identical(captured$token, "legacy-token")
+  expect_identical(result, list(ok = TRUE))
+  lakehouse$livy_query("1 + 1", access_token = NULL, verbose = FALSE)
+  expect_identical(
+    fabric_get_token(captured$token, .fabric_audience$fabric),
+    "discovery-token"
+  )
   expect_error(
     fabric_livy_query(
       "https://example.test/livy/sessions",
@@ -129,4 +149,38 @@ test_that("SQL helpers consume named access_token from dots", {
   expect_false("access_token" %in% names(query_connect_args))
   expect_equal(query$value, 1L)
   expect_true(disconnected)
+})
+
+test_that("R6 SQL methods honor access_token over discovery credentials", {
+  record <- r6_test_record("Warehouse")$as_list()
+  record$sql_server <- "server.datawarehouse.fabric.microsoft.com"
+  record$sql_database <- "Warehouse"
+  warehouse <- fabric_r6_record(
+    record,
+    class(record),
+    fabric_credential(token = "discovery-token")
+  )
+  used <- NULL
+  connection <- structure(list(), class = "test_connection")
+  local_mocked_bindings(
+    .fabric_sql_db_connect = function(...) {
+      used <<- list(...)$attributes$azure_token
+      connection
+    },
+    .fabric_sql_db_get_query = function(...) data.frame(value = 1L),
+    .fabric_sql_db_disconnect = function(...) invisible(TRUE)
+  )
+  warehouse$sql_connect(access_token = "legacy-token", verbose = FALSE)
+  expect_identical(used, "legacy-token")
+  result <- warehouse$sql_query(
+    "SELECT 1 AS value",
+    access_token = "legacy-token",
+    verbose = FALSE
+  )
+  expect_identical(used, "legacy-token")
+  expect_identical(result$value, 1L)
+  expect_error(
+    warehouse$sql_connect(token = "new-token", access_token = "legacy-token"),
+    "received both token"
+  )
 })

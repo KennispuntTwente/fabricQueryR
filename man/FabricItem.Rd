@@ -37,15 +37,21 @@ Methods delegate to the corresponding \verb{fabric_*()} function. Their \code{..
 arguments are forwarded unchanged, and the credential used for discovery is
 reused while the object is in the current R process. An explicitly
 supplied \code{token}, \code{tenant_id}, \code{client_id}, \code{auth_args}, or \code{api_base} takes
-precedence. Job and refresh lifecycle methods prefer the supplied handle's
-in-process credential over the discovery credential. Bare IDs and handles
-whose credentials were removed by serialization use the discovery credential.
+precedence. The legacy \code{access_token} alias takes precedence where supported.
+Job, refresh, and ingestion lifecycle methods prefer the supplied
+handle's in-process credential over the discovery credential. Bare IDs and
+handles whose credentials were removed by serialization use the discovery
+credential.
 The Fabric API base used for discovery is also reused, so chained
 methods stay on the same public, sovereign-cloud, or workspace endpoint.
 
 SQL-capable resources inherit common \verb{sql_*()} methods. Lakehouses,
 Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
 semantic models, and runnable job items add workload-specific methods.
+SQL and KQL methods need the service endpoints returned by workload detail
+discovery. If a lightweight record lacks those endpoints, call \verb{$details()}
+first. Copied SQL and KQL endpoints can be passed to the corresponding
+standalone functions.
 Other discovered types are returned as \code{FabricItem} objects with \verb{$details()}
 (\code{\link[=fabric_item]{fabric_item()}}) and record access. They do not expose methods that cannot
 operate from discovery metadata. This generic fallback also applies to

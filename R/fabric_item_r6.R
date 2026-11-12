@@ -168,15 +168,21 @@ FabricRecord <- R6::R6Class(
 #' arguments are forwarded unchanged, and the credential used for discovery is
 #' reused while the object is in the current R process. An explicitly
 #' supplied `token`, `tenant_id`, `client_id`, `auth_args`, or `api_base` takes
-#' precedence. Job and refresh lifecycle methods prefer the supplied handle's
-#' in-process credential over the discovery credential. Bare IDs and handles
-#' whose credentials were removed by serialization use the discovery credential.
+#' precedence. The legacy `access_token` alias takes precedence where supported.
+#' Job, refresh, and ingestion lifecycle methods prefer the supplied
+#' handle's in-process credential over the discovery credential. Bare IDs and
+#' handles whose credentials were removed by serialization use the discovery
+#' credential.
 #' The Fabric API base used for discovery is also reused, so chained
 #' methods stay on the same public, sovereign-cloud, or workspace endpoint.
 #'
 #' SQL-capable resources inherit common `sql_*()` methods. Lakehouses,
 #' Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
 #' semantic models, and runnable job items add workload-specific methods.
+#' SQL and KQL methods need the service endpoints returned by workload detail
+#' discovery. If a lightweight record lacks those endpoints, call `$details()`
+#' first. Copied SQL and KQL endpoints can be passed to the corresponding
+#' standalone functions.
 #' Other discovered types are returned as `FabricItem` objects with `$details()`
 #' ([fabric_item()]) and record access. They do not expose methods that cannot
 #' operate from discovery metadata. This generic fallback also applies to
@@ -1594,13 +1600,17 @@ fabric_r6_record <- function(
     dots$api_base <- api_base
   }
   auth_names <- c("token", "tenant_id", "client_id", "auth_args")
-  handle <- args$job %||% args$refresh
+  handle <- args$job %||% args$refresh %||% args$ingestion
   if (inherits(handle, "fabric_job_instance")) {
     handle <- handle$job
   } else if (inherits(handle, "fabric_pbi_refresh_detail")) {
     handle <- handle$refresh
+  } else if (inherits(handle, "fabric_kql_ingestion_status")) {
+    handle <- handle$ingestion
   }
-  if (inherits(handle, c("fabric_job", "fabric_pbi_refresh"))) {
+  if (
+    inherits(handle, c("fabric_job", "fabric_pbi_refresh", "fabric_kql_ingestion"))
+  ) {
     stored <- handle[["credential"]]
     retained <- if (inherits(stored, "fabric_credential")) {
       stored
@@ -1612,7 +1622,8 @@ fabric_r6_record <- function(
   if (
     isTRUE(authenticated) &&
       !is.null(credential) &&
-      !any(auth_names %in% names(dots))
+      !any(auth_names %in% names(dots)) &&
+      is.null(dots$access_token)
   ) {
     dots$token <- credential
   }

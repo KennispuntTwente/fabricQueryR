@@ -8,6 +8,20 @@ named `livy_url` to override the discovered endpoint while reusing discovery
 credentials. Lakehouse records missing an endpoint now explain how to supply
 the connection string copied from Lakehouse settings.
 
+* R6 SQL and Livy methods now honor an explicitly supplied legacy `access_token`
+instead of also injecting the discovery credential and rejecting the call.
+
+* KQL ingestion status and wait methods now prefer the ingestion handle's
+credential over the discovery credential, matching job and refresh methods.
+Explicit authentication overrides and serialized-handle recovery still work.
+
+* GraphQL API records returned by `fabric_catalog_search()` now retain their
+derived endpoint when passed to standalone functions, including with a
+workspace-specific API base.
+
+* SQL and KQL discovery records missing service endpoints now explain how to
+retrieve workload details before running an operation.
+
 # fabricQueryR 1.0.1
 
 * Fix a GraphQL numeric round-trip test on R builds without long-double support

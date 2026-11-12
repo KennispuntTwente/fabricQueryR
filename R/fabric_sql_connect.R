@@ -106,6 +106,15 @@ fabric_sql_connection_info <- function(
         "sql_database",
         "databaseName"
       )
+    if (is.null(server_value)) {
+      .fabric_abort(
+        paste0(
+          "This SQL discovery record does not contain a SQL endpoint; ",
+          "retrieve workload details with $details() or fabric_item(detail = TRUE)"
+        ),
+        class = "fabric_sql_target_error"
+      )
+    }
   } else {
     server_value <- server
   }
