@@ -954,6 +954,7 @@ test_that("Livy vignette executes query and shared-session examples", {
       "workspaces <- fabric_workspaces()",
       "SELECT * FROM external_sql_table",
       "SELECT 1 AS id, 'hello from Spark' AS message",
+      "high_concurrency = TRUE",
       "df <- sql('SELECT * FROM orders LIMIT 100')",
       "session <- lakehouse$livy_session()",
       "batch <- lakehouse$livy_batch_submit("
@@ -976,7 +977,7 @@ test_that("Livy vignette executes query and shared-session examples", {
   expect_identical(example$answer$output$parsed, 42L)
   expect_identical(discovery_calls, 1L)
   expect_identical(lakehouse_workspace, workspace)
-  expect_length(query_calls, 3L)
+  expect_length(query_calls, 4L)
   expect_identical(query_calls[[1L]]$lakehouse, lakehouse)
   expect_identical(query_calls[[1L]]$kind, "sql")
   expect_identical(query_calls[[1L]]$code, "SELECT * FROM external_sql_table")
@@ -998,8 +999,12 @@ test_that("Livy vignette executes query and shared-session examples", {
     query_calls[[2L]]$code,
     "SELECT 1 AS id, 'hello from Spark' AS message"
   )
-  expect_identical(query_calls[[3L]]$kind, "sparkr")
-  expect_match(query_calls[[3L]]$code, "SELECT [*] FROM orders LIMIT 100")
+  expect_identical(query_calls[[3L]]$kind, "sql")
+  expect_identical(query_calls[[3L]]$code, "SELECT 1 AS id")
+  expect_true(query_calls[[3L]]$options$high_concurrency)
+  expect_identical(query_calls[[3L]]$options$session_tag, "report-workers")
+  expect_identical(query_calls[[4L]]$kind, "sparkr")
+  expect_match(query_calls[[4L]]$code, "SELECT [*] FROM orders LIMIT 100")
   expect_identical(session_lakehouse, lakehouse)
   expect_identical(session_events, c("wait", "run", "run", "close"))
   expect_identical(

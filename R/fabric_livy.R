@@ -1,8 +1,9 @@
 #' Run Spark code in a temporary Microsoft Fabric Livy session
 #'
-#' Starts Spark, runs one piece of code, returns its output, and closes the Spark
-#' session. This is the simplest Livy helper for a one-off operation. For quick
-#' reads from a Lakehouse or Warehouse, SQL is often faster to start
+#' Runs one piece of Spark code in a temporary session, returns its output, and
+#' releases the session. This is the simplest Livy helper for a one-off
+#' operation. For quick reads from a Lakehouse or Warehouse, SQL is often faster
+#' to start
 #'
 #' @param livy_url A Livy connection URL copied from the Lakehouse settings, or
 #'   an enriched Lakehouse object from [fabric_lakehouses()] or [fabric_item()]
@@ -43,6 +44,12 @@
 #'   sooner but make more API calls
 #' @param timeout Maximum seconds to wait for session readiness and, separately,
 #'   statement completion
+#' @param high_concurrency Whether to use a high-concurrency session that can
+#'   share Spark compute with other isolated workloads. Defaults to `FALSE` for
+#'   a standard session
+#' @param session_tag Optional packing hint for high-concurrency sessions.
+#'   Related requests with the same tag may share Spark compute while keeping
+#'   separate execution state. Requires `high_concurrency = TRUE`
 #' @param ... Compatibility arguments. The former named `access_token`
 #'   argument is accepted here as a deprecated alias for `token`; all other
 #'   arguments are rejected
@@ -55,6 +62,13 @@
 #'   `fabric_livy_cleanup_warning` identifying the retained session. When both
 #'   execution and cleanup fail, a `fabric_livy_execution_cleanup_error` retains
 #'   the execution error and safe cleanup diagnostics
+#' @section Choosing a session type:
+#' Standard sessions are the default. Set `high_concurrency = TRUE` to acquire
+#' a high-concurrency execution context for this query. An optional
+#' `session_tag` helps Fabric pack compatible requests into shared Spark
+#' compute; sharing is not guaranteed. The helper waits for the result and
+#' releases its execution context on exit in either mode. To manage a session
+#' across several calls, use [fabric_livy_session()]
 #' @section Tabular column names:
 #' Duplicate SQL aliases and joined column names are repaired with
 #' `make.unique(names, sep = "...")`: for example, `id, id` becomes
@@ -128,6 +142,8 @@ fabric_livy_query <- function(
   verbose = TRUE,
   poll_interval = 2,
   timeout = 600,
+  high_concurrency = FALSE,
+  session_tag = NULL,
   ...
 ) {
   # 1 Validate inputs ------------------------------------------------------------------------------
@@ -157,6 +173,8 @@ fabric_livy_query <- function(
 
   session <- fabric_livy_session(
     livy_url = livy_url,
+    high_concurrency = high_concurrency,
+    session_tag = session_tag,
     tenant_id = tenant_id,
     client_id = client_id,
     token = token,

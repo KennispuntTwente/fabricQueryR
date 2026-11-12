@@ -19,6 +19,8 @@ fabric_livy_query(
   verbose = TRUE,
   poll_interval = 2,
   timeout = 600,
+  high_concurrency = FALSE,
+  session_tag = NULL,
   ...
 )
 }
@@ -75,6 +77,14 @@ sooner but make more API calls}
 \item{timeout}{Maximum seconds to wait for session readiness and, separately,
 statement completion}
 
+\item{high_concurrency}{Whether to use a high-concurrency session that can
+share Spark compute with other isolated workloads. Defaults to \code{FALSE} for
+a standard session}
+
+\item{session_tag}{Optional packing hint for high-concurrency sessions.
+Related requests with the same tag may share Spark compute while keeping
+separate execution state. Requires \code{high_concurrency = TRUE}}
+
 \item{...}{Compatibility arguments. The former named \code{access_token}
 argument is accepted here as a deprecated alias for \code{token}; all other
 arguments are rejected}
@@ -90,10 +100,21 @@ execution and cleanup fail, a \code{fabric_livy_execution_cleanup_error} retains
 the execution error and safe cleanup diagnostics
 }
 \description{
-Starts Spark, runs one piece of code, returns its output, and closes the Spark
-session. This is the simplest Livy helper for a one-off operation. For quick
-reads from a Lakehouse or Warehouse, SQL is often faster to start
+Runs one piece of Spark code in a temporary session, returns its output, and
+releases the session. This is the simplest Livy helper for a one-off
+operation. For quick reads from a Lakehouse or Warehouse, SQL is often faster
+to start
 }
+\section{Choosing a session type}{
+
+Standard sessions are the default. Set \code{high_concurrency = TRUE} to acquire
+a high-concurrency execution context for this query. An optional
+\code{session_tag} helps Fabric pack compatible requests into shared Spark
+compute; sharing is not guaranteed. The helper waits for the result and
+releases its execution context on exit in either mode. To manage a session
+across several calls, use \code{\link[=fabric_livy_session]{fabric_livy_session()}}
+}
+
 \section{Tabular column names}{
 
 Duplicate SQL aliases and joined column names are repaired with
@@ -175,7 +196,9 @@ fabric_livy_query_example <- function() {
   pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
     kind = "pyspark",
-    code = "print(1 + 2)"
+    code = "print(1 + 2)",
+    high_concurrency = TRUE,
+    session_tag = "fabricqueryr-example"
   )
 
   invisible(list(sql = sql_result, pyspark = pyspark_result))

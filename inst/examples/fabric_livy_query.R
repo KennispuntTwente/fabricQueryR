@@ -23,7 +23,9 @@ fabric_livy_query_example <- function() {
   pyspark_result <- fabric_livy_query(
     livy_url = lakehouse,
     kind = "pyspark",
-    code = "print(1 + 2)"
+    code = "print(1 + 2)",
+    high_concurrency = TRUE,
+    session_tag = "fabricqueryr-example"
   )
 
   invisible(list(sql = sql_result, pyspark = pyspark_result))

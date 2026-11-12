@@ -1,5 +1,10 @@
 # fabricQueryR (development version)
 
+* `fabric_livy_query()` and Lakehouse `$livy_query()` now accept
+`high_concurrency = TRUE` and an optional `session_tag` to run one-off queries
+with shared Spark compute. Standard sessions remain the default, and both
+modes release their temporary execution context after the query.
+
 * Lakehouses returned by `fabric_catalog_search()` now include their derived
 Livy endpoint, so their Livy methods work without a separate detail lookup.
 
