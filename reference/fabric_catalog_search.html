@@ -128,7 +128,8 @@ type-specific subclasses. With <code>output = "list"</code>, a list of
 <code>fabric_catalog_entry</code> records that also inherit from <code>fabric_item</code>. Both
 representations preserve the fields returned by Fabric and add the item
 workspace identity from the catalog hierarchy.
-Lakehouse records also include their derived <code>livy_url</code>.
+Lakehouse and GraphQL API records also include their derived workload
+endpoints.
 Workspace entries returned by unfiltered browsing become <a href="FabricItem.html">FabricWorkspace</a>
 objects, or <code>fabric_catalog_entry</code> records inheriting <code>fabric_workspace</code>.</p>
     </div>
@@ -138,6 +139,10 @@ objects, or <code>fabric_catalog_entry</code> records inheriting <code>fabric_wo
 and does not grant access to item contents. The caller needs
 <code>Catalog.Read.All</code>; Fabric returns only entries that the calling user,
 service principal, or managed identity is authorized to see.</p>
+<p>SQL and KQL service endpoints require workload detail discovery. Call
+<code>$details()</code> on the returned object, or pass a plain record to
+<code><a href="fabric_item.html">fabric_item()</a></code> with <code>detail = TRUE</code>, before using methods that need those
+endpoints.</p>
 <p>Pagination sends the search parameters only on the first request and sends
 only the continuation token on later requests, as required by Fabric. A
 repeated or malformed token raises a <code>fabric_catalog_protocol_error</code> instead

@@ -66,14 +66,20 @@ field helper. Record fields are read-only.</p>
 arguments are forwarded unchanged, and the credential used for discovery is
 reused while the object is in the current R process. An explicitly
 supplied <code>token</code>, <code>tenant_id</code>, <code>client_id</code>, <code>auth_args</code>, or <code>api_base</code> takes
-precedence. Job and refresh lifecycle methods prefer the supplied handle's
-in-process credential over the discovery credential. Bare IDs and handles
-whose credentials were removed by serialization use the discovery credential.
+precedence. The legacy <code>access_token</code> alias takes precedence where supported.
+Job, refresh, and ingestion lifecycle methods prefer the supplied
+handle's in-process credential over the discovery credential. Bare IDs and
+handles whose credentials were removed by serialization use the discovery
+credential.
 The Fabric API base used for discovery is also reused, so chained
 methods stay on the same public, sovereign-cloud, or workspace endpoint.</p>
 <p>SQL-capable resources inherit common <code>sql_*()</code> methods. Lakehouses,
 Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL APIs,
 semantic models, and runnable job items add workload-specific methods.
+SQL and KQL methods need the service endpoints returned by workload detail
+discovery. If a lightweight record lacks those endpoints, call <code>$details()</code>
+first. Copied SQL and KQL endpoints can be passed to the corresponding
+standalone functions.
 Other discovered types are returned as <code>FabricItem</code> objects with <code>$details()</code>
 (<code><a href="fabric_item.html">fabric_item()</a></code>) and record access. They do not expose methods that cannot
 operate from discovery metadata. This generic fallback also applies to

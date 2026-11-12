@@ -29,18 +29,22 @@ Methods delegate to the corresponding `fabric_*()` function. Their `...`
 arguments are forwarded unchanged, and the credential used for discovery
 is reused while the object is in the current R process. An explicitly
 supplied `token`, `tenant_id`, `client_id`, `auth_args`, or `api_base`
-takes precedence. Job and refresh lifecycle methods prefer the supplied
-handle's in-process credential over the discovery credential. Bare IDs
-and handles whose credentials were removed by serialization use the
-discovery credential. The Fabric API base used for discovery is also
+takes precedence. The legacy `access_token` alias takes precedence where
+supported. Job, refresh, and ingestion lifecycle methods prefer the
+supplied handle's in-process credential over the discovery credential.
+Bare IDs and handles whose credentials were removed by serialization use
+the discovery credential. The Fabric API base used for discovery is also
 reused, so chained methods stay on the same public, sovereign-cloud, or
 workspace endpoint.
 
 SQL-capable resources inherit common `sql_*()` methods. Lakehouses,
 Warehouses, mirrored databases, Eventhouses, KQL databases, GraphQL
 APIs, semantic models, and runnable job items add workload-specific
-methods. Other discovered types are returned as `FabricItem` objects
-with `$details()`
+methods. SQL and KQL methods need the service endpoints returned by
+workload detail discovery. If a lightweight record lacks those
+endpoints, call `$details()` first. Copied SQL and KQL endpoints can be
+passed to the corresponding standalone functions. Other discovered types
+are returned as `FabricItem` objects with `$details()`
 ([`fabric_item()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_item.md))
 and record access. They do not expose methods that cannot operate from
 discovery metadata. This generic fallback also applies to typed
