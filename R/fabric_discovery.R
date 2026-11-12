@@ -364,6 +364,7 @@ fabric_items <- function(
           }
           record$detail_error <- conditionMessage(error)
           record$detail_error_class <- class(error)[[1L]]
+          record$detail_error_stage <- NULL
           fabric_add_derived_targets(record, base)
         }
       )
@@ -595,6 +596,7 @@ fabric_item <- function(
         }
         record$detail_error <- conditionMessage(error)
         record$detail_error_class <- class(error)[[1L]]
+        record$detail_error_stage <- NULL
         fabric_add_derived_targets(record, base)
       }
     )
@@ -1408,6 +1410,9 @@ fabric_enrich_item <- function(
   # Enrich supported item types with their workload-specific API record
 
   private_sql_errors <- match.arg(private_sql_errors)
+  record$detail_error <- NULL
+  record$detail_error_class <- NULL
+  record$detail_error_stage <- NULL
   route <- fabric_item_route(record$type %||% "")
 
   if (!is.null(route)) {
@@ -1564,7 +1569,9 @@ fabric_add_derived_targets <- function(record, api_base) {
     record$one_lake_tables_path <- properties$oneLakeTablesPath
     record$one_lake_files_path <- properties$oneLakeFilesPath
     record$sql_server <- sql$connectionString
-    record$sql_database <- record$displayName
+    record$sql_database <- fabric_discovery_sql_catalog(
+      record$sql_server, record$displayName
+    )
     record$sql_endpoint_id <- sql$id
     record$sql_endpoint_status <- sql$provisioningStatus
     record$livy_url <- paste0(
@@ -1581,13 +1588,17 @@ fabric_add_derived_targets <- function(record, api_base) {
     record$default_schema <- properties$defaultSchema
     record$one_lake_tables_path <- properties$oneLakeTablesPath
     record$sql_server <- sql$connectionString
-    record$sql_database <- record$displayName
+    record$sql_database <- fabric_discovery_sql_catalog(
+      record$sql_server, record$displayName
+    )
     record$sql_endpoint_id <- sql$id
     record$sql_endpoint_status <- sql$provisioningStatus
   } else if (type %in% c("warehouse", "warehousesnapshot")) {
-    # Warehouses use their display name as the SQL database
+    # Use the display name when the endpoint does not specify a SQL catalog
     record$sql_server <- properties$connectionString
-    record$sql_database <- record$displayName
+    record$sql_database <- fabric_discovery_sql_catalog(
+      record$sql_server, record$displayName
+    )
   } else if (type == "sqldatabase") {
     # SQL databases publish server and database names separately
     record$sql_connection_string <- properties$connectionString
@@ -1652,6 +1663,16 @@ fabric_add_derived_targets <- function(record, api_base) {
   # Return the enriched record in the stable form expected by the caller
 
   record
+}
+
+# Read an optional SQL catalog without making discovery require a usable SQL
+# endpoint. Connection helpers validate the original string when it is used.
+fabric_discovery_sql_catalog <- function(connection_string, default) {
+  catalog <- tryCatch(
+    fabric_parse_sql_connection_string(connection_string)$database,
+    error = function(error) NULL
+  )
+  catalog %||% default
 }
 
 # Give each workspace API record its package class. Returns a list used by

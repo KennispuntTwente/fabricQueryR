@@ -106,7 +106,8 @@ My Workspace, omit this and set \code{my_workspace = TRUE}}
 \item{dataset_id}{Optional semantic-model/dataset GUID}
 
 \item{my_workspace}{Whether \code{dataset_id} belongs to the signed-in user's My
-Workspace. Leave \code{FALSE} for shared workspaces}
+Workspace. Leave \code{FALSE} for shared workspaces. Discovered models marked
+as belonging to a personal workspace select this route automatically}
 
 \item{mode}{Refresh request kind. \code{"automatic"} chooses enhanced refresh
 when an enhanced option is supplied and standard refresh otherwise

@@ -21,7 +21,8 @@
 #'   type-specific subclasses. With `output = "list"`, a list of
 #'   `fabric_catalog_entry` records that also inherit from `fabric_item`. Both
 #'   representations preserve the fields returned by Fabric and add the item
-#'   workspace identity from the catalog hierarchy.
+#'   workspace identity and any workspace API or OneLake endpoints present in
+#'   the catalog hierarchy.
 #'   Lakehouse and GraphQL API records also include their derived workload
 #'   endpoints.
 #'   Workspace entries returned by unfiltered browsing become [FabricWorkspace]
@@ -302,8 +303,14 @@ fabric_catalog_search <- function(
   }
   entry$workspaceId <- workspace$id
   entry$workspaceDisplayName <- workspace$displayName
+  workspace_context <- list(
+    id = workspace$id, displayName = workspace$displayName, raw = workspace
+  )
+  entry <- fabric_add_workspace_context(entry, workspace_context)
+  entry <- fabric_add_workspace_endpoints(entry, workspace_context)
+  base <- fabric_workspace_api_base(entry, api_base %||% .fabric_api_base)
   if (tolower(entry$type) %in% c("lakehouse", "graphqlapi")) {
-    entry <- fabric_add_derived_targets(entry, api_base %||% .fabric_api_base)
+    entry <- fabric_add_derived_targets(entry, base)
   }
   record <- structure(
     entry,
@@ -314,7 +321,7 @@ fabric_catalog_search <- function(
     )
   )
   if (identical(output, "r6")) {
-    fabric_r6_record(record, class(record), credential, api_base)
+    fabric_r6_record(record, class(record), credential, api_base = base)
   } else {
     record
   }

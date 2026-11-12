@@ -47,7 +47,8 @@ avoid name-based discovery. For a model in My Workspace, omit this and set
 connection-string name lookup is performed}
 
 \item{my_workspace}{Whether \code{dataset_id} belongs to the signed-in user's My
-Workspace. Leave \code{FALSE} for shared workspaces}
+Workspace. Leave \code{FALSE} for shared workspaces. Discovered models marked
+as belonging to a personal workspace select this route automatically}
 
 \item{tenant_id}{Microsoft Entra tenant ID. Defaults to
 \code{FABRICQUERYR_TENANT_ID}}

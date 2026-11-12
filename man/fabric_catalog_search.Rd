@@ -57,7 +57,8 @@ With \code{output = "r6"}, a list of \link{FabricItem} objects or
 type-specific subclasses. With \code{output = "list"}, a list of
 \code{fabric_catalog_entry} records that also inherit from \code{fabric_item}. Both
 representations preserve the fields returned by Fabric and add the item
-workspace identity from the catalog hierarchy.
+workspace identity and any workspace API or OneLake endpoints present in
+the catalog hierarchy.
 Lakehouse and GraphQL API records also include their derived workload
 endpoints.
 Workspace entries returned by unfiltered browsing become \link{FabricWorkspace}

@@ -22,7 +22,8 @@
 #'   My Workspace, omit this and set `my_workspace = TRUE`
 #' @param dataset_id Optional semantic-model/dataset GUID
 #' @param my_workspace Whether `dataset_id` belongs to the signed-in user's My
-#'   Workspace. Leave `FALSE` for shared workspaces
+#'   Workspace. Leave `FALSE` for shared workspaces. Discovered models marked
+#'   as belonging to a personal workspace select this route automatically
 #' @param mode Refresh request kind. `"automatic"` chooses enhanced refresh
 #'   when an enhanced option is supplied and standard refresh otherwise
 #'   `"standard"` supports only `notify_option`; `"enhanced"` exposes processing
@@ -753,6 +754,7 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
 
   # Records may carry IDs and a connection string, while explicit IDs must agree with them
 
+  .pbi_refresh_flag(my_workspace, "my_workspace")
   discovered <- fabric_as_record(connstr)
   if (!is.null(discovered)) {
     if (
@@ -782,7 +784,13 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
       "dataset_id",
       "the discovered SemanticModel id"
     )
-    workspace_id <- workspace_id %||% discovered_workspace_id
+    personal <- tolower(fabric_record_value(
+      discovered, "workspaceType", "workspace_type"
+    ) %||% "") %in% c("personal", "personalgroup")
+    my_workspace <- my_workspace || personal
+    if (!my_workspace) {
+      workspace_id <- workspace_id %||% discovered_workspace_id
+    }
     dataset_id <- dataset_id %||% discovered_dataset_id
     connstr <- if (is.null(dataset_id)) {
       fabric_record_value(discovered, "dax_connection_string")
@@ -806,8 +814,6 @@ print.fabric_pbi_refresh_detail <- function(x, ...) {
   }
   pbi_validate_optional_guid(workspace_id, "workspace_id")
   pbi_validate_optional_guid(dataset_id, "dataset_id")
-  .pbi_refresh_flag(my_workspace, "my_workspace")
-
   if (!is.null(workspace_id) && isTRUE(my_workspace)) {
     .fabric_abort("Supply workspace_id or set my_workspace = TRUE, not both")
   }

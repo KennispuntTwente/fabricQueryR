@@ -22,6 +22,21 @@ workspace-specific API base.
 * SQL and KQL discovery records missing service endpoints now explain how to
 retrieve workload details before running an operation.
 
+* Discovered semantic models in My Workspace now use the personal-workspace
+routes for DAX queries and refresh operations. An explicit `my_workspace = TRUE`
+also works with discovered model records without conflicting with their metadata.
+
+* Catalog discovery now preserves workspace API and OneLake routing metadata
+when present, so workspace and item methods use the supplied private endpoints.
+
+* Retrying workload detail discovery now clears stale enrichment errors after
+success and replaces outdated diagnostics when the retry fails.
+
+* SQL discovery now preserves the catalog in a complete connection string for
+Lakehouses, Warehouses, Warehouse snapshots, and mirrored databases. The item
+display name remains the fallback when the connection string contains only a
+server address.
+
 # fabricQueryR 1.0.1
 
 * Fix a GraphQL numeric round-trip test on R builds without long-double support

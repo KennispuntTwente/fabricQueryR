@@ -73,7 +73,8 @@
 #' @param dataset_id Optional semantic model/dataset GUID. When supplied, no
 #'   connection-string name lookup is performed
 #' @param my_workspace Whether `dataset_id` belongs to the signed-in user's My
-#'   Workspace. Leave `FALSE` for shared workspaces
+#'   Workspace. Leave `FALSE` for shared workspaces. Discovered models marked
+#'   as belonging to a personal workspace select this route automatically
 #' @param dax One DAX query, normally beginning with `EVALUATE`. DAX table
 #'   expressions determine which rows and columns are returned
 #' @param tenant_id Microsoft Entra tenant ID. Defaults to
@@ -211,6 +212,13 @@ fabric_pbi_dax_query <- function(
   ) {
     .fabric_abort("timeout must be one positive finite number of seconds")
   }
+  if (
+    !is.logical(my_workspace) ||
+      length(my_workspace) != 1L ||
+      is.na(my_workspace)
+  ) {
+    .fabric_abort("my_workspace must be TRUE or FALSE")
+  }
 
   # Discovery records may safely supply IDs and a connection string together
   discovered <- fabric_as_record(connstr)
@@ -249,7 +257,13 @@ fabric_pbi_dax_query <- function(
       "the discovered SemanticModel id"
     )
 
-    workspace_id <- workspace_id %||% discovered_workspace_id
+    personal <- tolower(fabric_record_value(
+      discovered, "workspaceType", "workspace_type"
+    ) %||% "") %in% c("personal", "personalgroup")
+    my_workspace <- my_workspace || personal
+    if (!my_workspace) {
+      workspace_id <- workspace_id %||% discovered_workspace_id
+    }
     dataset_id <- dataset_id %||% discovered_dataset_id
     connstr <- if (is.null(dataset_id)) {
       fabric_record_value(discovered, "dax_connection_string")
@@ -271,14 +285,6 @@ fabric_pbi_dax_query <- function(
 
   pbi_validate_optional_guid(workspace_id, "workspace_id")
   pbi_validate_optional_guid(dataset_id, "dataset_id")
-
-  if (
-    !is.logical(my_workspace) ||
-      length(my_workspace) != 1L ||
-      is.na(my_workspace)
-  ) {
-    .fabric_abort("my_workspace must be TRUE or FALSE")
-  }
 
   if (!is.null(workspace_id) && isTRUE(my_workspace)) {
     .fabric_abort("Supply workspace_id or set my_workspace = TRUE, not both")
