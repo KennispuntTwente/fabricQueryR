@@ -118,7 +118,8 @@ fabric_pbi_refresh_cancel(
 - my_workspace:
 
   Whether `dataset_id` belongs to the signed-in user's My Workspace.
-  Leave `FALSE` for shared workspaces
+  Leave `FALSE` for shared workspaces. Discovered models marked as
+  belonging to a personal workspace select this route automatically
 
 - mode:
 

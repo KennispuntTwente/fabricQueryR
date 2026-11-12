@@ -41,6 +41,10 @@
 <li><p>KQL ingestion status and wait methods now prefer the ingestion handle’s credential over the discovery credential, matching job and refresh methods. Explicit authentication overrides and serialized-handle recovery still work.</p></li>
 <li><p>GraphQL API records returned by <code><a href="../reference/fabric_catalog_search.html">fabric_catalog_search()</a></code> now retain their derived endpoint when passed to standalone functions, including with a workspace-specific API base.</p></li>
 <li><p>SQL and KQL discovery records missing service endpoints now explain how to retrieve workload details before running an operation.</p></li>
+<li><p>Discovered semantic models in My Workspace now use the personal-workspace routes for DAX queries and refresh operations. An explicit <code>my_workspace = TRUE</code> also works with discovered model records without conflicting with their metadata.</p></li>
+<li><p>Catalog discovery now preserves workspace API and OneLake routing metadata when present, so workspace and item methods use the supplied private endpoints.</p></li>
+<li><p>Retrying workload detail discovery now clears stale enrichment errors after success and replaces outdated diagnostics when the retry fails.</p></li>
+<li><p>SQL discovery now preserves the catalog in a complete connection string for Lakehouses, Warehouses, Warehouse snapshots, and mirrored databases. The item display name remains the fallback when the connection string contains only a server address.</p></li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.1" id="fabricqueryr-101">fabricQueryR 1.0.1<a class="anchor" aria-label="anchor" href="#fabricqueryr-101"></a></h2><p class="text-muted">CRAN release: 2026-09-30</p>

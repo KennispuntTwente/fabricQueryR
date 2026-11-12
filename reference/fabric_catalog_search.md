@@ -84,9 +84,10 @@ With `output = "r6"`, a list of
 objects or type-specific subclasses. With `output = "list"`, a list of
 `fabric_catalog_entry` records that also inherit from `fabric_item`.
 Both representations preserve the fields returned by Fabric and add the
-item workspace identity from the catalog hierarchy. Lakehouse and
-GraphQL API records also include their derived workload endpoints.
-Workspace entries returned by unfiltered browsing become
+item workspace identity and any workspace API or OneLake endpoints
+present in the catalog hierarchy. Lakehouse and GraphQL API records also
+include their derived workload endpoints. Workspace entries returned by
+unfiltered browsing become
 [FabricWorkspace](https://kennispunttwente.github.io/fabricQueryR/reference/FabricItem.md)
 objects, or `fabric_catalog_entry` records inheriting
 `fabric_workspace`.
