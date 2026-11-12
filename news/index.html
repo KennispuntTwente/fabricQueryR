@@ -35,7 +35,9 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fabricqueryr-development-version">fabricQueryR (development version)<a class="anchor" aria-label="anchor" href="#fabricqueryr-development-version"></a></h2>
-</div>
+<ul><li><p>Lakehouses returned by <code><a href="../reference/fabric_catalog_search.html">fabric_catalog_search()</a></code> now include their derived Livy endpoint, so their Livy methods work without a separate detail lookup.</p></li>
+<li><p><code>$livy_query()</code>, <code>$livy_session()</code>, and <code>$livy_batch_submit()</code> now accept a named <code>livy_url</code> to override the discovered endpoint while reusing discovery credentials. Lakehouse records missing an endpoint now explain how to supply the connection string copied from Lakehouse settings.</p></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.1" id="fabricqueryr-101">fabricQueryR 1.0.1<a class="anchor" aria-label="anchor" href="#fabricqueryr-101"></a></h2><p class="text-muted">CRAN release: 2026-09-30</p>
 <ul><li>Fix a GraphQL numeric round-trip test on R builds without long-double support (CRAN’s <code>noLD</code> check). Package behavior is unchanged.</li>

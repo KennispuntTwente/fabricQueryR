@@ -175,7 +175,18 @@ below calls <code><a href="../reference/fabric_livy_query.html">fabric_livy_quer
 <span><span class="op">)</span></span></code></pre></div>
 <p>If discovery cannot retrieve the endpoint in your environment, copy
 the session-job connection string from <em>Lakehouse settings &gt; Livy
-endpoint</em> and pass that URL instead.</p>
+endpoint</em> and store it in <code>livy_url</code>. Pass it by name to
+override the discovered endpoint:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
+<span>  kind <span class="op">=</span> <span class="st">"pyspark"</span>,</span>
+<span>  code <span class="op">=</span> <span class="st">"print(1 + 2)"</span>,</span>
+<span>  livy_url <span class="op">=</span> <span class="va">livy_url</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><code>$livy_session()</code> and <code>$livy_batch_submit()</code>
+also accept <code>livy_url</code>. These methods still reuse the
+Lakehouse’s discovery credential unless you supply authentication
+arguments explicitly.</p>
 </div>
 <div class="section level2">
 <h2 id="run-one-piece-of-spark-code">Run one piece of Spark code<a class="anchor" aria-label="anchor" href="#run-one-piece-of-spark-code"></a>
@@ -183,7 +194,7 @@ endpoint</em> and pass that URL instead.</p>
 <p><code>$livy_query()</code> (<code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>) is the
 simplest method. It starts a temporary session, runs one statement,
 waits, and closes the session:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sql"</span>,</span>
 <span>  code <span class="op">=</span> <span class="st">"SELECT 1 AS id, 'hello from Spark' AS message"</span></span>
@@ -240,7 +251,7 @@ be independent of the current SparkR runtime bridge.</p>
 Lakehouse:</p>
 <p>This again uses <code>$livy_query()</code>
 (<code><a href="../reference/fabric_livy_query.html">fabric_livy_query()</a></code>):</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
 <span>  code <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
@@ -256,7 +267,7 @@ notebook/Spark-job <code>"synapse"</code> connection; Microsoft does not
 document it for item-scoped Livy, and ‘fabricQueryR’ does not currently
 live-test it. If you evaluate that bridge in your tenant, sparklyr code
 submitted through Livy still uses <code>kind = "sparkr"</code>:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>
 <span>  kind <span class="op">=</span> <span class="st">"sparkr"</span>,</span>
 <span>  code <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span></span>
@@ -285,7 +296,7 @@ contract.</p>
 <p>Starting Spark can take time. Use <code>$livy_session()</code>
 (<code><a href="../reference/fabric_livy_session.html">fabric_livy_session()</a></code>) when sequential statements need to
 share variables or cached data:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">answer</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/eval.html" class="external-link">local</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>  <span class="va">session</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_session</span><span class="op">(</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="va">session</span><span class="op">$</span><span class="fu">close</span><span class="op">(</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -320,7 +331,7 @@ application’s output in the target runtime before relying on it. Passing
 interactive SparkR statements does not verify this separate batch
 path.</p>
 <p>For example, submit a Python application and wait for completion:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">batch</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_batch_submit</span><span class="op">(</span></span>
 <span>  file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
 <span>    <span class="st">"abfss://"</span>, <span class="va">workspace</span><span class="op">$</span><span class="va">id</span>,</span>
@@ -373,7 +384,7 @@ extraction.</p>
 <p>A published Fabric Environment can hold Spark settings and libraries
 shared by several runs. Discover it and pass its ID when the workload
 depends on that configuration:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">environment</span> <span class="op">&lt;-</span> <span class="va">workspace</span><span class="op">$</span><span class="fu">environments</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">lakehouse</span><span class="op">$</span><span class="fu">livy_query</span><span class="op">(</span></span>

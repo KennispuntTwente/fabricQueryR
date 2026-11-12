@@ -873,7 +873,7 @@ Run one Spark statement through Livy.
 
 #### Usage
 
-    FabricLakehouse$livy_query(code, ...)
+    FabricLakehouse$livy_query(code, ..., livy_url = self)
 
 #### Arguments
 
@@ -885,6 +885,11 @@ Run one Spark statement through Livy.
 
   Arguments forwarded to
   [`fabric_livy_query()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_query.md).
+
+- `livy_url`:
+
+  Optional copied Livy connection URL. Defaults to this Lakehouse's
+  discovered endpoint. Supply this argument by name.
 
 #### Returns
 
@@ -898,7 +903,7 @@ Create a reusable Livy session.
 
 #### Usage
 
-    FabricLakehouse$livy_session(...)
+    FabricLakehouse$livy_session(..., livy_url = self)
 
 #### Arguments
 
@@ -906,6 +911,11 @@ Create a reusable Livy session.
 
   Arguments forwarded to
   [`fabric_livy_session()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_session.md).
+
+- `livy_url`:
+
+  Optional copied Livy connection URL. Defaults to this Lakehouse's
+  discovered endpoint. Supply this argument by name.
 
 #### Returns
 
@@ -920,7 +930,7 @@ Submit a standalone Livy batch.
 
 #### Usage
 
-    FabricLakehouse$livy_batch_submit(file, ...)
+    FabricLakehouse$livy_batch_submit(file, ..., livy_url = self)
 
 #### Arguments
 
@@ -932,6 +942,11 @@ Submit a standalone Livy batch.
 
   Arguments forwarded to
   [`fabric_livy_batch_submit()`](https://kennispunttwente.github.io/fabricQueryR/reference/fabric_livy_batch_submit.md).
+
+- `livy_url`:
+
+  Optional copied Livy connection URL. Defaults to this Lakehouse's
+  discovered endpoint. Supply this argument by name.
 
 #### Returns
 

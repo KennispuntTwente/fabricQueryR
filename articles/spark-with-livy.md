@@ -110,7 +110,21 @@ result <- lakehouse$livy_query(
 
 If discovery cannot retrieve the endpoint in your environment, copy the
 session-job connection string from *Lakehouse settings \> Livy endpoint*
-and pass that URL instead.
+and store it in `livy_url`. Pass it by name to override the discovered
+endpoint:
+
+``` r
+
+result <- lakehouse$livy_query(
+  kind = "pyspark",
+  code = "print(1 + 2)",
+  livy_url = livy_url
+)
+```
+
+`$livy_session()` and `$livy_batch_submit()` also accept `livy_url`.
+These methods still reuse the Lakehouse’s discovery credential unless
+you supply authentication arguments explicitly.
 
 ## Run one piece of Spark code
 
