@@ -1,2 +1,6 @@
 [lint]
 ignore = ["internal_function"]
+
+[lint.undesirable_operator]
+# Closures and callbacks use <<- to update their enclosing state.
+operators = ["->>", ":::"]
